@@ -37,7 +37,7 @@ nnoremap ;o    :ProjectOpen
 
 Then you can press <kbd>c-e</kbd>(:ProjectList) to open a project from the list.
 
-It's recommended to `set sessionoptions-=options` and only set it back when you require it.
+It's recommended to `set sessionoptions-=options` to avoid overload and only set it back when you require it.
 
 ## Installation
 
@@ -90,14 +90,19 @@ It's recommended to `set sessionoptions-=options` and only set it back when you 
 
 ## Commands
 
-| command            | description                   |
-|--------------------|-------------------------------|
-| ProjectList        | Show projects                 |
-| ProjectInfo        | Show project info             |
-| ProjectExit        | Exit project                  |
-| ProjectHome        | Goto project home directory   |
-| ProjectConfig      | Goto project config directory |
-| ProjectOpen <name> | Open a project by name        |
+First of all, `call project#begin()` provides the basic `ProjectBase` and `Project` commands.
+
+| command                   | description                   |
+|---------------------------|-------------------------------|
+| ProjectBase `<base>`        | Set base directory            |
+| Project `<name>[, options]` | Add project                   |
+| ProjectList               | Show projects                 |
+| ProjectInfo               | Show project info             |
+| ProjectExit               | Exit project                  |
+| ProjectHome               | Goto project home directory   |
+| ProjectConfig             | Goto project config directory |
+| ProjectOpen `<name>`      | Open a project by name        |
+
 
 ## Configuration
 
