@@ -17,6 +17,7 @@ let s:head_file_job = 0
 let s:project = {}
 let s:branch = ''
 let s:branch_default = '__default__'
+let s:list_buffer = '__projects__'
 let s:nerdtree_tmp = '__nerdtree_tmp__'
 let s:vim_project_prompt_mapping_default = {
       \'closeList': "\<Esc>",
@@ -74,7 +75,7 @@ function! project#main#ListProjects()
 endfunction
 
 function! s:OpenListBuffer()
-  let output_win = '__projects__'
+  let output_win = s:list_buffer
   let output_num = bufwinnr(output_win)
   if output_num == -1
     execute 'botright split '.output_win
@@ -90,7 +91,7 @@ function! s:CloseListBuffer()
 endfunction
 
 function! s:SetupListBuffer()
-  setlocal buftype=popup bufhidden=delete filetype=projectlist
+  setlocal buftype=nofile bufhidden=delete filetype=projectlist
   setlocal nonumber
   setlocal nocursorline
   setlocal nowrap
@@ -101,10 +102,18 @@ function! s:SetupListBuffer()
   sign define selected text=> texthl=SelectedRow linehl=SelectedRow 
 endfunction
 
-function! s:ShowProjects(input='', offset={ 'value': 0 })
+function! s:ShowProjects(...)
+  let bufname = expand('%')
+  " Avoid clearing some other files by mistake
+  if bufname != s:list_buffer
+    return
+  endif
+  let input = a:0>0 ? a:1 : ''
+  let offset = a:0>1 ? a:2 : { 'value': 0 }
+
   normal! ggdG
 
-  let projects = s:SortAndFilterList(a:input, 
+  let projects = s:SortAndFilterList(input, 
         \copy(g:vim_project_projects))
   let result = s:GetDisplayList(projects)
 
@@ -115,12 +124,12 @@ function! s:ShowProjects(input='', offset={ 'value': 0 })
     call append(0, result)
 
     let lastline = result_len
-    if a:offset.value > 0
-      let a:offset.value = 0
-    elseif lastline + a:offset.value < 1
-      let a:offset.value = 1 - lastline
+    if offset.value > 0
+      let offset.value = 0
+    elseif lastline + offset.value < 1
+      let offset.value = 1 - lastline
     endif
-    let lastline += a:offset.value
+    let lastline += offset.value
     execute 'sign place 9 line='.lastline.' name=selected'
   endif
   call s:KeepOriginHeight(result_len)

@@ -51,11 +51,12 @@ function! s:SetBase(base)
   let s:base = base
 endfunction
 
-function! s:AddProject(path, option={})
+function! s:AddProject(path, ...)
+  let option = a:0 > 0 ? a:1 : {}
   let fullpath = s:GetFullPath(a:path)
   let name = matchstr(fullpath, '/\zs[^/]*$')
   let path = substitute(fullpath, '/[^/]*$', '', '')
-  let note = get(a:option, 'note', '')
+  let note = get(option, 'note', '')
 
   " fullpath includes project name
   " path excludes project name
@@ -64,7 +65,7 @@ function! s:AddProject(path, option={})
         \'path': path, 
         \'fullpath': fullpath,
         \'note': note, 
-        \'option': a:option 
+        \'option': option 
         \}
   call s:InitProjectConfig(project)
   call add(g:vim_project_projects, project)
