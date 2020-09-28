@@ -461,11 +461,7 @@ function! s:FindBranch(...)
     return
   endif
 
-  if a:0 == 1
-    let project = a:1
-  else
-    let project = s:project
-  endif
+  let project = a:0>0 ? a:1 : s:project
   let head_file = expand(project.fullpath.'/.git/HEAD')
 
   if filereadable(head_file)
@@ -493,7 +489,7 @@ function! s:GetSessionFile()
   endif
 endfunction
 
-function! s:LoadSession()
+function! s:LoadSession(...)
   if s:ignore_session
     return
   endif
@@ -506,22 +502,39 @@ function! s:LoadSession()
     call s:Debug('Not found session file: '.file)
   endif
 
-  if !s:ignore_branch 
-        \ && has('job') 
-        \ && executable('tail') == 1
-    call s:WatchHeadFileToReload()
+  let reload = a:0>0 ? a:1 : 0
+  if !reload && !s:ignore_branch && executable('tail') == 1
+    if exists('*job_start')
+      call s:WatchHeadFileVim()
+    elseif exists('*jobstart')
+      call s:WatchHeadFileNeoVim()
+    endif
   endif
 endfunction
 
-function! s:WatchHeadFileToReload()
+function! s:GetWatchCmd()
   let head_file = expand(s:project.fullpath.'/.git/HEAD')
+  call s:Debug('Watching .git head file: '.head_file)
+  let cmd = 'tail -n0 -F '.head_file
+  return cmd
+endfunction
+
+function! s:WatchHeadFileVim()
+  let cmd = s:GetWatchCmd()
   if type(s:head_file_job) == v:t_job
     call job_stop(s:head_file_job)
   endif
-  call s:Debug('Watching .git head file: '.head_file)
-  let job_cmd = 'tail -n0 -F '.head_file
-  let s:head_file_job = job_start(job_cmd, 
+  let s:head_file_job = job_start(cmd, 
         \ { 'callback': 'ReloadSession' })
+endfunction
+
+function! s:WatchHeadFileNeoVim()
+  let cmd = s:GetWatchCmd()
+  if s:head_file_job 
+    call jobstop(s:head_file_job)
+  endif
+  let s:head_file_job = jobstart(cmd, 
+        \ { 'on_stdout': 'ReloadSession' })
 endfunction
 
 function! s:SaveSession()
@@ -577,17 +590,25 @@ function! s:AfterSaveSession()
   endif
 endfunction
 
-function! ReloadSession(channel, msg)
-  call s:Debug('Reload session, msg: '.a:msg)
-  let project = s:project
-  let branch = s:branch
-  let config_path = s:config_path.project.name
+function! ReloadSession(channel, msg, ...)
+  if type(a:msg) == v:t_list
+    let msg = join(a:msg)
+  else
+    let msg = a:msg
+  endif
 
-  let new_branch = matchstr(a:msg, 'refs\/heads\/\zs\w*')
-  if !empty(new_branch) && new_branch != branch
+  call s:Debug('Trigger reload, msg: '.msg)
+
+  if empty(msg)
+    return
+  endif
+
+  let new_branch = matchstr(msg, 'refs\/heads\/\zs\w*')
+  if !empty(new_branch) && new_branch != s:branch
+    call s:Info('Reload by changing branch: '.new_branch)
     call s:SaveSession()
     let s:branch = new_branch
-    call s:LoadSession()
+    call s:LoadSession(1)
     call s:SetStartBuffer()
   endif
 endfunction
