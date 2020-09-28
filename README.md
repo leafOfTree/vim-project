@@ -134,7 +134,15 @@ It's recommended to `set sessionoptions-=options` and only set it back when you 
 
 You can get project info from `g:vim_project`. It's a dict variable, try `echo g:vim_project` after opening a project.
 
-For example, add `[%{get(g:vim_project,'name','')}]` to the statusline for showing current project name.
+For example, define a function called `GetProjectInfo` and add `[%{GetProjectInfo()}]` to the statusline for showing current project name and branch.
+
+```vim
+function! GetProjectInfo()
+  let name = get(g:vim_project,'name','')
+  let branch = g:vim_project_branch
+  return empty(name)? '' : name.','.branch
+endfunction
+```
 
 ## Credits
 
