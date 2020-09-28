@@ -98,7 +98,7 @@ function! s:SetupListBuffer()
   set laststatus=0
   nnoremap<buffer> <esc> :quit<cr>
   highlight! link SignColumn Noise
-  highlight SelectedRow gui=reverse
+  highlight SelectedRow gui=reverse term=reverse cterm=reverse
   sign define selected text=> texthl=SelectedRow linehl=SelectedRow 
 endfunction
 
