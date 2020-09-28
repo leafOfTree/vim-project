@@ -328,9 +328,9 @@ function! s:OpenProject(project)
     let s:project = current
 
     call s:Info('Open project: '.s:project.name)
-    call s:SetEnvVariables()
-    call s:SyncGlobalVariable()
     call s:LoadProject()
+    call s:SetEnvVariables()
+    call s:SyncGlobalVariables()
   else
     call s:Info('Project already opened')
   endif
@@ -375,11 +375,11 @@ function! project#main#ExitProject()
 
     let s:project = {}
     call s:UnsetEnvVariables()
-    call s:SyncGlobalVariable()
+    call s:SyncGlobalVariables()
   endif
 endfunction
 
-function! s:SyncGlobalVariable()
+function! s:SyncGlobalVariables()
   if !empty(s:project)
     let g:vim_project = { 
           \'name': s:project.name, 
@@ -605,9 +605,12 @@ function! ReloadSession(channel, msg, ...)
 
   let new_branch = matchstr(msg, 'refs\/heads\/\zs\w*')
   if !empty(new_branch) && new_branch != s:branch
-    call s:Info('Reload by changing branch: '.new_branch)
+    call s:Info('Change branch and reload: '.new_branch)
     call s:SaveSession()
+
     let s:branch = new_branch
+    let g:vim_project_branch = s:branch
+
     call s:LoadSession(1)
     call s:SetStartBuffer()
   endif
