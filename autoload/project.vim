@@ -12,6 +12,7 @@ let s:name = 'vim-project'
 let s:base = '~'
 " Used by statusline
 let g:vim_project = {}
+let g:vim_project_branch = ''
 " Used by project/main.vim
 let g:vim_project_projects = []
 
