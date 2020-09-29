@@ -278,9 +278,6 @@ function! s:HandleInput()
         let offset.value = 0
       elseif cmd == 'openProject'
         call s:CloseListBuffer()
-        let index = len(projects) - 1 + offset.value
-        let project = projects[index]
-        call s:OpenProject(project)
         break
       else
         let input = input.char
@@ -292,8 +289,15 @@ function! s:HandleInput()
       echo s:prompt_prefix.' '.input.s:prompt_suffix
     endwhile
   catch /^Vim:Interrupt$/
+    call s:CloseListBuffer()
     call s:Debug('interrupt')
   endtry
+
+  if cmd == 'openProject'
+    let index = len(projects) - 1 + offset.value
+    let project = projects[index]
+    call s:OpenProject(project)
+  endif
 endfunction
 
 function! s:GetProjectByName(name)
