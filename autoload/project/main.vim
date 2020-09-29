@@ -335,6 +335,7 @@ function! s:OpenProject(project)
     call s:LoadProject()
     call s:SetEnvVariables()
     call s:SyncGlobalVariables()
+    call s:SourceInitFile()
   else
     call s:Info('Project already opened')
   endif
@@ -410,9 +411,7 @@ function! s:LoadProject()
   call s:FindBranch()
   call s:LoadSession()
   call s:SetStartBuffer()
-
-  call s:SourceInitFile()
-  call s:SaveOnVimLeave()
+  call s:OnVimLeave()
 endfunction
 
 function! s:SetStartBuffer()
@@ -433,7 +432,7 @@ function! s:SetStartBuffer()
   endif
 endfunction
 
-function! s:SaveOnVimLeave()
+function! s:OnVimLeave()
   augroup vim-project
     autocmd! vim-project
     autocmd VimLeavePre * call project#main#ExitProject()
