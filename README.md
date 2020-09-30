@@ -18,7 +18,7 @@ call project#begin()
 ProjectBase '~/repository'
 Project 'tmp', { 'note': 'Just for test' }
 
-ProjectBase '~/repository/vundle/plugins'
+ProjectBase '/path/to/vundle/plugins'
 Project 'vim-matchtag'
 
 " Absolute path that starts with '~' or '/' or 'C:'
