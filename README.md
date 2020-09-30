@@ -9,7 +9,7 @@ Support
 
 > Vim feature`job` and command `tail` are required for branch awareness
 
-## usage
+## Usage
 
 ```vim
 set sessionoptions-=options
@@ -37,7 +37,7 @@ nnoremap ;o    :ProjectOpen
 
 Then you can press <kbd>c-e</kbd>(:ProjectList) to open a project from the list.
 
-It's recommended to `set sessionoptions-=options` to avoid overload and only set it back when you require it.
+It's recommended but not necessary to `set sessionoptions-=options` to avoid options overload.
 
 ## Installation
 
@@ -46,16 +46,16 @@ It's recommended to `set sessionoptions-=options` to avoid overload and only set
 
 - [VundleVim][1]
 
-        Plugin 'leafOfTree/vim-matchtag'
+        Plugin 'leafOfTree/vim-project'
 
 - [vim-pathogen][2]
 
         cd ~/.vim/bundle && \
-        git clone https://github.com/leafOfTree/vim-matchtag --depth 1
+        git clone https://github.com/leafOfTree/vim-project --depth 1
 
 - [vim-plug][3]
 
-        Plug 'leafOfTree/vim-matchtag'
+        Plug 'leafOfTree/vim-project'
 
 - Or manually, clone this plugin to `path/to/this_plugin`, and add it to `rtp` in vimrc
 
@@ -92,16 +92,16 @@ It's recommended to `set sessionoptions-=options` to avoid overload and only set
 
 First of all, `call project#begin()` provides the basic `ProjectBase` and `Project` commands.
 
-| command                   | description                   |
-|---------------------------|-------------------------------|
+| command                     | description                   |
+|-----------------------------|-------------------------------|
 | ProjectBase `<base>`        | Set base directory            |
 | Project `<name>[, options]` | Add project                   |
-| ProjectList               | Show projects                 |
-| ProjectInfo               | Show project info             |
-| ProjectExit               | Exit project                  |
-| ProjectHome               | Goto project home directory   |
-| ProjectConfig             | Goto project config directory |
-| ProjectOpen `<name>`      | Open a project by name        |
+| ProjectList                 | Show projects                 |
+| ProjectInfo                 | Show project info             |
+| ProjectExit                 | Exit project                  |
+| ProjectHome                 | Goto project home directory   |
+| ProjectConfig               | Goto project config directory |
+| ProjectOpen `<name>`        | Open a project by name        |
 
 
 ## Configuration
