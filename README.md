@@ -119,16 +119,16 @@ First of all, `call project#begin()` provides the basic `ProjectBase` and `Proje
 
     ```vim
     let g:vim_project_prompt_mapping = {
-          \'closeList': "\<Esc>",
-          \'clearChar': ["\<bs>", "\<c-a>"],
-          \'clearWord': "\<c-w>",
-          \'clearAllInput': "\<c-u>",
-          \'prevItem': "\<c-k>",
-          \'nextItem': "\<c-j>",
-          \'firstItem': "\<c-h>",
-          \'lastItem': "\<c-l>",
-          \'openProject': "\<cr>",
-          \}
+      \'close_list': "\<Esc>",
+      \'clear_char': ["\<bs>", "\<c-a>"],
+      \'clear_word': "\<c-w>",
+      \'clear_all_input': "\<c-u>",
+      \'prev_item': "\<c-k>",
+      \'next_item': "\<c-j>",
+      \'first_item': "\<c-h>",
+      \'last_item': "\<c-l>",
+      \'open_project': "\<cr>",
+      \}
     ```
 
     Note: the cursor in prompt input can't be moved around.

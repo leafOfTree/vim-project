@@ -20,15 +20,15 @@ let s:branch_default = '__default__'
 let s:list_buffer = '__projects__'
 let s:nerdtree_tmp = '__nerdtree_tmp__'
 let s:vim_project_prompt_mapping_default = {
-      \'closeList': "\<Esc>",
-      \'clearChar': ["\<bs>", "\<c-a>"],
-      \'clearWord': "\<c-w>",
-      \'clearAllInput': "\<c-u>",
-      \'prevItem': "\<c-k>",
-      \'nextItem': "\<c-j>",
-      \'firstItem': "\<c-h>",
-      \'lastItem': "\<c-l>",
-      \'openProject': "\<cr>",
+      \'close_list': "\<Esc>",
+      \'clear_char': ["\<bs>", "\<c-a>"],
+      \'clear_word': "\<c-w>",
+      \'clear_all_input': "\<c-u>",
+      \'prev_item': "\<c-k>",
+      \'next_item': "\<c-j>",
+      \'first_item': "\<c-h>",
+      \'last_item': "\<c-l>",
+      \'open_project': "\<cr>",
       \}
 
 " For statusline
@@ -259,24 +259,24 @@ function! s:HandleInput()
       let c = getchar()
       let char = type(c) == v:t_string ? c : nr2char(c)
       let cmd = s:GetPromptCommand(char)
-      if cmd == 'closeList'
+      if cmd == 'close_list'
         call s:CloseListBuffer()
         break
-      elseif cmd == 'clearChar'
+      elseif cmd == 'clear_char'
         let input = len(input) == 1 ? '' : input[0:len(input)-2]
-      elseif cmd == 'clearWord'
+      elseif cmd == 'clear_word'
         let input = substitute(input, '\S*\s*$', '', '')
-      elseif cmd == 'clearAllInput'
+      elseif cmd == 'clear_all_input'
         let input = ''
-      elseif cmd == 'prevItem'
+      elseif cmd == 'prev_item'
         let offset.value -= 1
-      elseif cmd == 'nextItem'
+      elseif cmd == 'next_item'
         let offset.value += 1
-      elseif cmd == 'firstItem'
+      elseif cmd == 'first_item'
         let offset.value = 1 - len(projects) 
-      elseif cmd == 'lastItem'
+      elseif cmd == 'last_item'
         let offset.value = 0
-      elseif cmd == 'openProject'
+      elseif cmd == 'open_project'
         call s:CloseListBuffer()
         break
       else
@@ -293,7 +293,7 @@ function! s:HandleInput()
     call s:Debug('interrupt')
   endtry
 
-  if cmd == 'openProject'
+  if cmd == 'open_project'
     let index = len(projects) - 1 + offset.value
     let project = projects[index]
     call s:OpenProject(project)
