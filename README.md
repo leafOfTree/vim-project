@@ -92,17 +92,16 @@ It's recommended but not necessary to `set sessionoptions-=options` to avoid opt
 
 First of all, `call project#begin()` provides the basic `ProjectBase` and `Project` commands.
 
-| command                     | description                   |
-|-----------------------------|-------------------------------|
-| ProjectBase `<base>`        | Set base directory            |
-| Project `<name>[, options]` | Add project                   |
-| ProjectList                 | Show projects                 |
-| ProjectInfo                 | Show project info             |
-| ProjectExit                 | Exit project                  |
-| ProjectHome                 | Goto project home directory   |
-| ProjectConfig               | Goto project config directory |
-| ProjectOpen `<name>`        | Open a project by name        |
-
+| command                     | description                               |
+|-----------------------------|-------------------------------------------|
+| ProjectBase `<base>`        | Set base directory for following projects |
+| Project `<name>[, options]` | Add project                               |
+| ProjectList                 | Show projects                             |
+| ProjectInfo                 | Show project info                         |
+| ProjectExit                 | Exit project                              |
+| ProjectHome                 | Goto project home directory               |
+| ProjectConfig               | Goto project config directory             |
+| ProjectOpen `<name>`        | Open a project by name                    |
 
 ## Configuration
 
