@@ -142,9 +142,11 @@ For example, define a function called `GetProjectInfo` and add `[%{GetProjectInf
 
 ```vim
 function! GetProjectInfo()
-  let name = get(g:vim_project,'name','')
-  let branch = g:vim_project_branch
-  return empty(name)? '' : name.','.branch
+  if exists('g:vim_project_loaded')
+    let name = get(g:vim_project,'name','')
+    let branch = g:vim_project_branch
+    return empty(name)? '' : name.','.branch
+  endif
 endfunction
 ```
 

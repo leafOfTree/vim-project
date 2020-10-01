@@ -2,7 +2,8 @@
 " vim-project autoload entry file
 "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-
+if exists('g:vim_project_loaded') | finish | endif
+let g:vim_project_loaded = 1
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "
 " Variables {{{
