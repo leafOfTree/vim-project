@@ -37,6 +37,7 @@ function! s:GetConfigPath(prefix)
 endfunction
 
 let s:config_path = s:GetConfigPath(s:GetConfig('config', '~/.vim'))
+let s:debug = s:GetConfig('debug', 0)
 "}}}
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -59,8 +60,8 @@ function! s:AddProject(path, ...)
   let path = substitute(fullpath, '/[^/]*$', '', '')
   let note = get(option, 'note', '')
 
-  " fullpath includes project name
-  " path excludes project name
+  " fullpath: includes project name
+  " path: excludes project name
   let project = { 
         \'name': name, 
         \'path': path, 
@@ -69,6 +70,8 @@ function! s:AddProject(path, ...)
         \'option': option 
         \}
   call s:InitProjectConfig(project)
+
+  call s:Debug('Add project '.name.', '.path)
   call add(g:vim_project_projects, project)
 endfunction
 
@@ -113,6 +116,12 @@ function! s:InitProjectConfig(project)
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \]
     call writefile(quit_content, quit_file)
+  endif
+endfunction
+
+function! s:Debug(msg)
+  if exists('s:debug') && s:debug
+    echom '['.s:name.'] '.a:msg
   endif
 endfunction
 
