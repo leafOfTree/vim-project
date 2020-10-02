@@ -296,8 +296,17 @@ function! s:HandleInput()
   if cmd == 'open_project'
     let index = len(projects) - 1 + offset.value
     let project = projects[index]
-    call s:OpenProject(project)
+    if s:IsValidProject(project)
+      call s:OpenProject(project)
+    else
+      call s:Warn('Not accessible path: '.project.fullpath)
+    endif
   endif
+endfunction
+
+function! s:IsValidProject(project)
+  let fullpath = a:project.fullpath
+  return isdirectory(fullpath) || filereadable(fullpath)
 endfunction
 
 function! s:GetProjectByName(name)
@@ -473,7 +482,7 @@ function! s:FindBranch(...)
     if !v:shell_error
       let s:branch = matchstr(head, 'refs\/heads\/\zs\w*')
     else
-      call s:Error('Error on find branch: '.v:shell_error)
+      call s:Warn('Error on find branch: '.v:shell_error)
       let s:branch = s:branch_default
     endif
     call s:Debug('Find branch: '.s:branch)
@@ -635,8 +644,10 @@ function! s:Debug(msg)
   endif
 endfunction
 
-function! s:Error(msg)
-  echoerr '['.s:name.']'.a:msg
+function! s:Warn(msg)
+  echohl WarningMsg
+  echom '['.s:name.'] '.a:msg
+  echohl None
 endfunction
 
 function! s:Info(msg)
