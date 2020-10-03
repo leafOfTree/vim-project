@@ -305,7 +305,7 @@ function! s:HandleInput()
 endfunction
 
 function! s:IsValidProject(project)
-  let fullpath = a:project.fullpath
+  let fullpath = expand(a:project.fullpath)
   return isdirectory(fullpath) || filereadable(fullpath)
 endfunction
 
