@@ -36,7 +36,7 @@ nnoremap ;c    :ProjectConfig<cr>
 nnoremap ;o    :ProjectOpen 
 ```
 
-Then you can press <kbd>c-e</kbd>(:ProjectList) to display the project list and <kbd>Enter</kbd> to open a project. 
+Then you can press <kbd>c-e</kbd> or `:ProjectList` to display the project list and <kbd>Enter</kbd> to open a project. 
 
 [The prompt mapping defautls](#prompt-mapping)
 
