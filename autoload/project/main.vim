@@ -20,15 +20,15 @@ let s:branch_default = '__default__'
 let s:list_buffer = '__projects__'
 let s:nerdtree_tmp = '__nerdtree_tmp__'
 let s:vim_project_prompt_mapping_default = {
-      \'close_list': "\<Esc>",
+      \'open_project': "\<cr>",
+      \'close_list': "\<esc>",
       \'clear_char': ["\<bs>", "\<c-a>"],
       \'clear_word': "\<c-w>",
-      \'clear_all_input': "\<c-u>",
-      \'prev_item': ["\<c-k>", "\<s-tab>"],
-      \'next_item': ["\<c-j>", "\<tab>"],
-      \'first_item': "\<c-h>",
-      \'last_item': "\<c-l>",
-      \'open_project': "\<cr>",
+      \'clear_all': "\<c-u>",
+      \'prev_item': ["\<c-k>", "\<s-tab>", "\<up>"],
+      \'next_item': ["\<c-j>", "\<tab>", "\<down>"],
+      \'first_item': ["\<c-h>", "\<left>"],
+      \'last_item': ["\<c-l>", "\<right>"],
       \}
 
 " For statusline
@@ -266,7 +266,7 @@ function! s:HandleInput()
         let input = len(input) == 1 ? '' : input[0:len(input)-2]
       elseif cmd == 'clear_word'
         let input = substitute(input, '\S*\s*$', '', '')
-      elseif cmd == 'clear_all_input'
+      elseif cmd == 'clear_all'
         let input = ''
       elseif cmd == 'prev_item'
         let offset.value -= 1

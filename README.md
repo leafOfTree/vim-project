@@ -15,11 +15,12 @@ Support
 set sessionoptions-=options
 call project#begin()
 
+" Add '~/repository/project-name'
 ProjectBase '~/repository'
-Project 'tmp', { 'note': 'Just for test' }
+Project 'project-name'
 
 ProjectBase '/path/to/vundle/plugins'
-Project 'vim-matchtag'
+Project 'vim-matchtag', { 'note': 'Just for test' }
 
 " Absolute path that starts with '~' or '/' or 'C:'
 Project '~/repository/svelte-mode'
@@ -35,7 +36,9 @@ nnoremap ;c    :ProjectConfig<cr>
 nnoremap ;o    :ProjectOpen 
 ```
 
-Then you can press <kbd>c-e</kbd>(:ProjectList) to open a project from the list.
+Then you can press <kbd>c-e</kbd>(:ProjectList) to display the project list and <kbd>Enter</kbd> to open a project. 
+
+[The prompt mapping defautls](#prompt-mapping)
 
 It's recommended but not necessary to `set sessionoptions-=options` to avoid options overload.
 
@@ -114,19 +117,20 @@ First of all, `call project#begin()` provides the basic `ProjectBase` and `Proje
 | g:vim_project_prompt_mapping  | Key mapping for prompt input                      | *see ^*    |
 | g:vim_project_debug           | Show debug messages                               | 0          |
 
-- ^: The key mapping for prompt input is of type `dict` and defaults to
+<a name="prompt-mapping"></a>
+- ^: The key mapping for prompt input is of type `dict` and defaults to 
 
     ```vim
     let g:vim_project_prompt_mapping = {
-      \'close_list': "\<Esc>",
+      \'open_project': "\<cr>",
+      \'close_list': "\<esc>",
       \'clear_char': ["\<bs>", "\<c-a>"],
       \'clear_word': "\<c-w>",
-      \'clear_all_input': "\<c-u>",
-      \'prev_item': ["\<c-k>", "\<s-tab>"],
-      \'next_item': ["\<c-j>", "\<tab>"],
-      \'first_item': "\<c-h>",
-      \'last_item': "\<c-l>",
-      \'open_project': "\<cr>",
+      \'clear_all': "\<c-u>",
+      \'prev_item': ["\<c-k>", "\<s-tab>", "\<up>"],
+      \'next_item': ["\<c-j>", "\<tab>", "\<down>"],
+      \'first_item': ["\<c-h>", "\<left>"],
+      \'last_item': ["\<c-l>", "\<right>"],
       \}
     ```
 
