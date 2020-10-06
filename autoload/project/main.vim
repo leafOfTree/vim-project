@@ -19,6 +19,7 @@ let s:branch = ''
 let s:branch_default = '__default__'
 let s:list_buffer = '__projects__'
 let s:nerdtree_tmp = '__nerdtree_tmp__'
+let s:format_cache = 0
 let s:vim_project_prompt_mapping_default = {
       \'open_project': "\<cr>",
       \'close_list': "\<esc>",
@@ -207,6 +208,12 @@ endfunction
 
 function! s:FormatProjects()
   let list = g:vim_project_projects
+  if s:format_cache == len(list)
+    return
+  else
+    let s:format_cache = len(list)
+  endif
+
   let max = {}
   for item in list
     for key in keys(item)
@@ -219,12 +226,11 @@ function! s:FormatProjects()
 
   for item in list
     for key in keys(item)
-      if type(item[key]) == v:t_string
+      if type(item[key]) == v:t_string && key[0:1] != '__'
         let item['__'.key] = s:AddRightPadding(item[key], max[key])
       endif
     endfor
   endfor
-  return list
 endfunction
 
 function! s:GetPromptCommand(char)
@@ -305,7 +311,7 @@ function! s:HandleInput()
 endfunction
 
 function! s:IsValidProject(project)
-  let fullpath = expand(a:project.fullpath)
+  let fullpath = a:project.fullpath
   return isdirectory(fullpath) || filereadable(fullpath)
 endfunction
 
@@ -399,6 +405,7 @@ function! s:SyncGlobalVariables()
           \'name': s:project.name, 
           \'path': s:project.path,
           \'fullpath': s:project.fullpath,
+          \'note': s:project.note, 
           \'option': s:project.option
           \}
   else
@@ -427,23 +434,24 @@ function! s:SetStartBuffer()
   let buftype = &buftype
   let bufname = expand('%')
 
+  let is_nerdtree_tmp = count(bufname, s:nerdtree_tmp) == 1
   let open_root = s:open_root
         \ || &buftype == 'nofile' 
         \ || bufname == '' 
-        \ || bufname == s:nerdtree_tmp
+        \ || is_nerdtree_tmp
   if open_root
-    if bufname == s:nerdtree_tmp
-      setlocal bufhidden=delete
-      setlocal filetype=
+    if is_nerdtree_tmp
+      bdelete
     endif
-    call s:Debug('Open root')
-    execute 'silent only | edit '.s:project.fullpath
+    call s:Debug('Open root from '.bufname)
+    let path = s:project.fullpath
+    execute 'silent only | edit '.path.' | cd '.path
   endif
 endfunction
 
 function! s:OnVimLeave()
-  augroup vim-project
-    autocmd! vim-project
+  augroup vim-project-leave
+    autocmd! vim-project-leave
     autocmd VimLeavePre * call project#main#ExitProject()
   augroup END
 endfunction
@@ -474,7 +482,7 @@ function! s:FindBranch(...)
   endif
 
   let project = a:0>0 ? a:1 : s:project
-  let head_file = expand(project.fullpath.'/.git/HEAD')
+  let head_file = project.fullpath.'/.git/HEAD'
 
   if filereadable(head_file)
     let head = join(readfile(head_file), "\n")
@@ -525,7 +533,7 @@ function! s:LoadSession(...)
 endfunction
 
 function! s:GetWatchCmd()
-  let head_file = expand(s:project.fullpath.'/.git/HEAD')
+  let head_file = s:project.fullpath.'/.git/HEAD'
   call s:Debug('Watching .git head file: '.head_file)
   let cmd = 'tail -n0 -F '.head_file
   return cmd

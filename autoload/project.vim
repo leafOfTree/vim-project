@@ -66,7 +66,7 @@ function! s:AddProject(path, ...)
   let project = { 
         \'name': name, 
         \'path': path, 
-        \'fullpath': fullpath,
+        \'fullpath': expand(fullpath),
         \'note': note, 
         \'option': option 
         \}
@@ -135,7 +135,30 @@ endfunction
 function! project#begin()
   command -nargs=1 ProjectBase call s:SetBase(<args>)
   command -nargs=1 Project call s:AddProject(<args>)
+
+  call s:AutoloadOnBufEnter()
 endfunction
+
+function! s:AutoloadOnBufEnter()
+  augroup vim-project-enter
+    autocmd! vim-project-enter
+    autocmd BufEnter * call s:OnBufEnter()
+  augroup END
+endfunction
+
+function! s:OnBufEnter()
+  if !v:vim_did_enter
+    let bufname = expand('<amatch>')
+    for project in g:vim_project_projects
+      if bufname == project.fullpath
+        call s:Debug('Autoload '.project.name)
+        ProjectOpen project.name
+        break
+      endif
+    endfor
+  endif
+endfunction
+
 "}}}
 
 " vim: fdm=marker
