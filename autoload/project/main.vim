@@ -32,7 +32,7 @@ let s:vim_project_prompt_mapping_default = {
       \'last_item': ["\<c-l>", "\<right>"],
       \}
 
-" For statusline
+" For statusline and autoload/project.vim
 let g:vim_project = {}
 let g:vim_project_branch = ''
 "}}}
@@ -79,7 +79,7 @@ function! s:OpenListBuffer()
   let output_win = s:list_buffer
   let output_num = bufwinnr(output_win)
   if output_num == -1
-    execute 'botright split '.output_win
+    execute 'noautocmd botright split '.output_win
   else
     execute output_num.'wincmd w'
   endif
@@ -89,6 +89,7 @@ function! s:CloseListBuffer()
   let &g:laststatus = s:laststatus_save
   quit
   redraw!
+  wincmd p
 endfunction
 
 function! s:SetupListBuffer()
