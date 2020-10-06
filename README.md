@@ -29,7 +29,7 @@ Project '~/repository/svelte-mode'
 nnoremap <c-e> :ProjectList<cr>
 nnoremap ;i    :ProjectInfo<cr>
 nnoremap ;q    :ProjectExit<cr>
-nnoremap ;h    :ProjectHome<cr>
+nnoremap ;h    :ProjectRoot<cr>
 nnoremap ;c    :ProjectConfig<cr> 
 
 " You need to type the project name. You can use <tab> for autocompletion
@@ -102,7 +102,7 @@ First of all, `call project#begin()` provides the basic `ProjectBase` and `Proje
 | ProjectList                 | Show projects                             |
 | ProjectInfo                 | Show project info                         |
 | ProjectExit                 | Exit project                              |
-| ProjectHome                 | Goto project home directory               |
+| ProjectRoot                 | Goto project root directory               |
 | ProjectConfig               | Goto project config directory             |
 | ProjectOpen `<name>`        | Open a project by name                    |
 
@@ -111,7 +111,7 @@ First of all, `call project#begin()` provides the basic `ProjectBase` and `Proje
 | variable                      | description                                       | default    |
 |-------------------------------|---------------------------------------------------|------------|
 | g:vim_project_config          | The config directory                              | `'~/.vim'` |
-| g:vim_project_start_from_home | Open project home on start regardless of sessions | 0          |
+| g:vim_project_open_root       | Open project root regardless of sessions          | 0          |
 | g:vim_project_ignore_branch   | Ignore the branch change                          | 0          |
 | g:vim_project_ignore_session  | Ignore sessions(No loading and saving)            | 0          |
 | g:vim_project_prompt_mapping  | Key mapping for prompt input                      | *see ^*    |

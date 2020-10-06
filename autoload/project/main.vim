@@ -55,7 +55,7 @@ function! s:GetConfigPath(prefix)
 endfunction
 
 let s:config_path = s:GetConfigPath(s:GetConfig('config', '~/.vim'))
-let s:start_from_home = s:GetConfig('start_from_home', 0)
+let s:open_root = s:GetConfig('open_root', 0)
 let s:ignore_branch = s:GetConfig('ignore_branch', 0)
 let s:ignore_session = s:GetConfig('ignore_session', 0)
 let s:prompt_mapping = s:GetConfig('prompt_mapping', 
@@ -369,7 +369,7 @@ function! s:IsProjectExist()
   endif
 endfunction
 
-function! project#main#OpenProjectHome()
+function! project#main#OpenProjectRoot()
   if s:IsProjectExist()
     edit $vim_project
   endif
@@ -427,16 +427,16 @@ function! s:SetStartBuffer()
   let buftype = &buftype
   let bufname = expand('%')
 
-  let fromHome = s:start_from_home
+  let open_root = s:open_root
         \ || &buftype == 'nofile' 
         \ || bufname == '' 
         \ || bufname == s:nerdtree_tmp
-  if fromHome
+  if open_root
     if bufname == s:nerdtree_tmp
       setlocal bufhidden=delete
       setlocal filetype=
     endif
-    call s:Debug('Start from home')
+    call s:Debug('Open root')
     execute 'silent only | edit '.s:project.fullpath
   endif
 endfunction
