@@ -567,7 +567,7 @@ endfunction
 
 let s:nerdtree_out = 0
 let s:nerdtree_in = 0
-function! s:BeforeSaveSession()
+function! s:HandleNerdtreeBefore()
   let has_nerdtree = exists('g:loaded_nerd_tree') 
         \&& g:NERDTree.IsOpen()
   if has_nerdtree
@@ -586,7 +586,7 @@ function! s:BeforeSaveSession()
   endif
 endfunction
 
-function! s:AfterSaveSession()
+function! s:HandleNerdtreeAfter()
   if s:nerdtree_out
     let s:nerdtree_out = 0
     call s:Debug('Recover nerdtree')
@@ -594,12 +594,44 @@ function! s:AfterSaveSession()
     wincmd p
   endif
   if s:nerdtree_in
-    call s:Debug('Recover nerdtree setting')
     let s:nerdtree_in = 0
+    call s:Debug('Recover nerdtree setting')
     silent! setlocal filetype=nerdtree
     setlocal syntax=nerdtree
     execute 'file '.s:nerdtree_in_file
   endif
+endfunction
+
+let s:floaterm = 0
+function! s:handleFloatermBefore()
+  let has_floaterm = &filetype == 'floaterm'
+  if has_floaterm
+    let s:floaterm = 1
+    FloatermToggle
+  endif
+endfunction
+
+function! s:handleFloatermAfter()
+  if s:floaterm
+    let s:floaterm = 0
+    FloatermToggle
+  endif
+endfunction
+
+function! s:BeforeSaveSession()
+  call s:HandleNerdtreeBefore()
+endfunction
+
+function! s:AfterSaveSession()
+  call s:HandleNerdtreeAfter()
+endfunction
+
+function! s:BeforeReloadSession()
+  call s:handleFloatermBefore()
+endfunction
+
+function! s:AfterReloadSession()
+  call s:handleFloatermAfter()
 endfunction
 
 function! ReloadSession(channel, msg, ...)
@@ -618,13 +650,15 @@ function! ReloadSession(channel, msg, ...)
   let new_branch = matchstr(msg, 'refs\/heads\/\zs\w*')
   if !empty(new_branch) && new_branch != s:branch
     call s:Info('Change branch and reload: '.new_branch)
-    call s:SaveSession()
+    call s:BeforeReloadSession()
 
+    call s:SaveSession()
     let s:branch = new_branch
     let g:vim_project_branch = s:branch
-
     call s:LoadSession(1)
     call s:SetStartBuffer()
+
+    call s:AfterReloadSession()
   endif
 endfunction
 
