@@ -18,7 +18,7 @@ let s:project = {}
 let s:branch = ''
 let s:branch_default = '__default__'
 let s:list_buffer = '__projects__'
-let s:nerdtree_tmp = '__nerdtree_tmp__'
+let s:nerdtree_tmp = '__vim_project_nerdtree_tmp__'
 let s:format_cache = 0
 let s:vim_project_prompt_mapping_default = {
       \'open_project': "\<cr>",
@@ -26,10 +26,12 @@ let s:vim_project_prompt_mapping_default = {
       \'clear_char': ["\<bs>", "\<c-a>"],
       \'clear_word': "\<c-w>",
       \'clear_all': "\<c-u>",
-      \'prev_item': ["\<c-k>", "\<s-tab>", "\<up>"],
-      \'next_item': ["\<c-j>", "\<tab>", "\<down>"],
+      \'prev_item': ["\<c-k>", "\<up>"],
+      \'next_item': ["\<c-j>", "\<down>"],
       \'first_item': ["\<c-h>", "\<left>"],
       \'last_item': ["\<c-l>", "\<right>"],
+      \'next_view': "\<tab>",
+      \'prev_view': "\<s-tab>",
       \}
 
 " For statusline and autoload/project.vim
@@ -37,9 +39,10 @@ let g:vim_project = {}
 let g:vim_project_branch = ''
 "}}}
 
+
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "
-" Configs {{{
+" Config helpers {{{
 "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 function! s:GetConfig(name, default)
@@ -55,12 +58,32 @@ function! s:GetConfigPath(prefix)
   return expand(prefix.s:name.'/')
 endfunction
 
+function! s:MergePromptMapping()
+  if s:prompt_mapping != s:vim_project_prompt_mapping_default
+    for [key, value] in items(s:vim_project_prompt_mapping_default)
+      if !has_key(s:prompt_mapping, key)
+        let s:prompt_mapping[key] = s:vim_project_prompt_mapping_default[key]
+      endif
+    endfor
+  endif
+endfunction
+"}}}
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"
+" Configs {{{
+"
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 let s:config_path = s:GetConfigPath(s:GetConfig('config', '~/.vim'))
 let s:open_root = s:GetConfig('open_root', 0)
 let s:ignore_branch = s:GetConfig('ignore_branch', 0)
 let s:ignore_session = s:GetConfig('ignore_session', 0)
 let s:prompt_mapping = s:GetConfig('prompt_mapping', 
       \s:vim_project_prompt_mapping_default)
+call s:MergePromptMapping()
+
+let s:views = s:GetConfig('views', [])
+let s:view_index = -1
 let s:debug = s:GetConfig('debug', 0)
 "}}}
 
@@ -100,13 +123,13 @@ function! s:SetupListBuffer()
   set laststatus=0
   nnoremap<buffer> <esc> :quit<cr>
   highlight! link SignColumn Noise
-  highlight SelectedRow gui=reverse term=reverse cterm=reverse
-  sign define selected text=> texthl=SelectedRow linehl=SelectedRow 
+  highlight ProjectSelected gui=reverse term=reverse cterm=reverse
+  sign define selected text=> texthl=ProjectSelected linehl=ProjectSelected 
 endfunction
 
 function! s:ShowProjects(...)
   let bufname = expand('%')
-  " Avoid clearing some other files by mistake
+  " Avoid clearing other files by mistake
   if bufname != s:list_buffer
     return
   endif
@@ -115,8 +138,10 @@ function! s:ShowProjects(...)
 
   normal! ggdG
 
-  let projects = s:SortAndFilterList(input, 
-        \copy(g:vim_project_projects))
+  let projects = s:FilterProjects(
+        \copy(g:vim_project_projects),
+        \input, 
+        \)
   let result = s:GetDisplayList(projects)
 
   let result_len = len(result)
@@ -133,6 +158,9 @@ function! s:ShowProjects(...)
     endif
     let lastline += offset.value
     execute 'sign place 9 line='.lastline.' name=selected'
+  endif
+  if input == ''
+    let s:origin_height = len(projects)
   endif
   call s:KeepOriginHeight(result_len)
 
@@ -152,54 +180,90 @@ function! s:KeepOriginHeight(height)
   endif
 endfunction
 
-function! s:FilterList(filter, list)
-  let filter = a:filter
+function! s:FilterList(list, filter)
   let list = a:list
+  let filter = a:filter
 
   for item in list
-    let item._sort_type = ''
-    let item._sort_index = -1
+    let item._match_type = ''
+    let item._match_index = -1
 
     let match_index = match(item.name, filter)
     if match_index != -1
-      let item._sort_type = 'name'
-      let item._sort_index = match_index
+      let item._match_type = 'name'
+      let item._match_index = match_index
     endif
 
-    if item._sort_type != 'name'
+    if item._match_type != 'name'
       if has_key(item.option, 'note')
         let match_index = match(item.option.note, filter)
         if match_index != -1
-          let item._sort_type = 'note'
-          let item._sort_index = match_index
+          let item._match_type = 'note'
+          let item._match_index = match_index
         endif
       endif
     endif
 
-    if item._sort_type == ''
+    if item._match_type == ''
       let match_index = match(item.path, filter)
       if match_index != -1
-        let item._sort_type = 'path'
-        let item._sort_index = match_index
+        let item._match_type = 'path'
+        let item._match_index = match_index
       endif
     endif
   endfor
-  let result = filter(list, { _, value -> value._sort_type != '' })
-  return result
+  call filter(list, { _, value -> value._match_type != '' })
+  return list
 endfunction
 
-function! s:SortAndFilterList(filter, list)
+function! s:FilterListName(list, filter, reverse)
   let list = a:list
-  if a:filter == ''
-    return list
-  endif
-  let filters = split(a:filter, ' ')
+  let filter = a:filter
+  call filter(list, { _, value -> empty(filter) || 
+        \(!a:reverse  ? value.name =~ filter : value.name !~ filter)
+        \})
+  return list
+endfunction
 
-  let result = []
-  for filter in filters
-    let result = s:FilterList(filter, list)
-  endfor
-  return result
+function! s:NextView()
+  let max = len(s:views)
+  let s:view_index = s:view_index < max ? s:view_index + 1 : 0
+endfunction
+
+function! s:PreviousView()
+  let max = len(s:views)
+  let s:view_index = s:view_index > 0 ? s:view_index - 1 : max 
+endfunction
+
+function! s:FilterProjectsByView(projects)
+  let max = len(s:views)
+  if s:view_index >= 0 && s:view_index < max
+    let view = s:views[s:view_index]
+    if len(view) == 2
+      let [show, hide] = view
+    elseif len(view) == 1
+      let show = view[0]
+      let hide = ''
+    else
+      let show = ''
+      let hide = ''
+    endif
+    call s:FilterListName(a:projects, show, 0)
+    call s:FilterListName(a:projects, hide, 1)
+  endif
+endfunction
+
+function! s:FilterProjects(projects, filter)
+  let projects = a:projects
+  call s:FilterProjectsByView(projects)
+
+  if a:filter != ''
+    for filter in split(a:filter, ' ')
+      call s:FilterList(projects, filter)
+    endfor
+  endif
+
+  return projects
 endfunction
 
 function! s:AddRightPadding(string, length)
@@ -254,7 +318,6 @@ function! s:HandleInput()
   " Init
   call s:FormatProjects()
   let projects = s:ShowProjects()
-  let s:origin_height = len(projects)
   redraw
   echo s:prompt_prefix.' '.s:prompt_suffix
 
@@ -283,6 +346,10 @@ function! s:HandleInput()
         let offset.value = 1 - len(projects) 
       elseif cmd == 'last_item'
         let offset.value = 0
+      elseif cmd == 'next_view'
+        call s:NextView()
+      elseif cmd == 'prev_view'
+        call s:PreviousView()
       elseif cmd == 'open_project'
         call s:CloseListBuffer()
         break
@@ -378,7 +445,10 @@ endfunction
 
 function! project#main#OpenProjectRoot()
   if s:IsProjectExist()
-    edit $vim_project
+    let path = s:GetProjectRootPath()
+    if !empty(path)
+      execute 'edit '.path
+    endif
   endif
 endfunction
 
@@ -444,9 +514,28 @@ function! s:SetStartBuffer()
     if is_nerdtree_tmp
       bdelete
     endif
-    call s:Debug('Open root from '.bufname)
-    let path = s:project.fullpath
-    execute 'silent only | edit '.path.' | cd '.path
+    call s:Debug('Open root from buf '.bufname)
+    let path = s:GetProjectRootPath()
+    if !empty(path)
+      execute 'silent only | edit '.path.' | cd '.path
+    else
+      execute 'silent only | enew'
+    endif
+  endif
+endfunction
+
+function! s:GetProjectRootPath()
+  let path = s:project.fullpath
+  if has_key(s:project.option, 'root')
+    let root = substitute(s:project.option.root, '^\.\?[/\\]', '', '')
+    let path = path.'/'.root
+  endif
+  if isdirectory(path) || filereadable(path)
+    return path
+  else
+    redraw
+    call s:Warn('Project path not found: '.path)
+    return ''
   endif
 endfunction
 
