@@ -11,6 +11,9 @@ let g:vim_project_loaded = 1
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 let s:name = 'vim-project'
 let s:base = '~'
+let s:add_file = '_add.vim'
+let s:ignore_file = '_ignore.vim'
+let s:from_auto = 0
 
 " Used by statusline
 let g:vim_project = {}
@@ -41,9 +44,14 @@ function! s:GetConfigPath(prefix)
 endfunction
 
 let s:config_path = s:GetConfigPath(s:GetConfig('config', '~/.vim'))
-let s:auto_indicator = s:GetConfig('auto_indicator', '-')
-let s:auto_detect_name = s:GetConfig('auto_detect_name', '.git,.svn,package.json')
-let s:auto_detect = s:GetConfig('auto_detect', 'always') " options: 'always', 'ask', 'no'
+let s:auto_indicator = s:GetConfig('auto_indicator', '*')
+let s:auto_detect_sign = s:GetConfig(
+      \'auto_detect_sign',
+      \'.git,.svn,package.json',
+      \)
+
+" options: 'always', 'ask', 'no'
+let s:auto_detect = s:GetConfig('auto_detect', 'ask') 
 let s:debug = s:GetConfig('debug', 0)
 "}}}
 
@@ -68,22 +76,20 @@ function! s:AddProject(path, ...)
   let path = substitute(fullpath, '/[^/]*$', '', '')
   let note = get(option, 'note', '')
 
+  if s:from_auto
+    let note = empty(note) ? s:auto_indicator : note.' '.s:auto_indicator
   endif
 
-  " fullpath: includes project name
   " path: excludes project name
+  " fullpath: includes project name
   let project = { 
         \'name': name, 
         \'path': path, 
         \'fullpath': expand(fullpath),
         \'note': note, 
-        \'option': option 
+        \'auto': s:from_auto,
+        \'option': option,
         \}
-  if s:IsProjectAutoAdded(project)
-    let project.note = empty(project.note) 
-          \? s:auto_indicator
-          \: project.note.' '.s:auto_indicator
-  endif
   call s:InitProjectConfig(project)
 
   call s:Debug('Add project '.name.', '.path)
@@ -159,26 +165,35 @@ function! s:Info(msg)
   echom '['.s:name.'] '.a:msg
 endfunction
 
+function! s:InfoHl(msg)
+  echohl Statement | echon '['.s:name.'] ' | echohl None |
+        \echon a:msg
+endfunction
+
+
 function! project#ListProjectNames(A, L, P)
   let projects = deepcopy(g:vim_project_projects)
   let names =  map(projects, {_, project -> "'".project.name."'"})
   return join(names, "\n")
 endfunction
 
+" Call this entry function first
 function! project#begin()
   command -nargs=1 ProjectBase call s:SetBase(<args>)
   command -nargs=1 Project call s:AddProject(<args>)
   command -nargs=1 ProjectIgnore call s:IgnoreProject(<args>)
 
-  call s:SourcePluginConfig()
+  call s:SourcePluginConfigFiles()
   call s:OnBufEnter()
 endfunction
 
-function! s:SourcePluginConfig()
-  let add_file = s:config_path.'/add.vim'
-  let ignore_file = s:config_path.'/ignore.vim'
+function! s:SourcePluginConfigFiles()
+  let add_file = s:config_path.'/'.s:add_file
+  let ignore_file = s:config_path.'/'.s:ignore_file
   if filereadable(add_file)
+    let s:from_auto = 1
     execute 'source '.add_file
+    let s:from_auto = 0
   endif
   if filereadable(ignore_file)
     execute 'source '.ignore_file
@@ -186,15 +201,15 @@ function! s:SourcePluginConfig()
 endfunction
 
 function! s:SaveToPluginConfigAdd(path)
-  let add_file = s:config_path.'/add.vim'
-  let cmd = "Project '".a:path."', { 'auto': 1 }"
-  call writefile([cmd], add_file, 'a')
+  let file = s:config_path.'/'.s:add_file
+  let cmd = "Project '".a:path."'"
+  call writefile([cmd], file, 'a')
 endfunction
 
 function! s:SaveToPluginConfigIgnore(path)
-  let add_file = s:config_path.'/ignore.vim'
+  let file = s:config_path.'/'.s:ignore_file
   let cmd = "ProjectIgnore '".a:path."'"
-  call writefile([cmd], add_file, 'a')
+  call writefile([cmd], file, 'a')
 endfunction
 
 function! s:OnBufEnter()
@@ -221,7 +236,7 @@ endfunction
 function! s:AutoDetectProject()
   if &buftype == ''
     let buf = expand('<amatch>')
-    let path = s:GetPathContain(buf, s:auto_detect_name)
+    let path = s:GetPathContain(buf, s:auto_detect_sign)
     if !empty(path)
       let project = s:GetProjectByFullpath(g:vim_project_projects, path)
       let ignore = s:GetProjectByFullpath(
@@ -232,15 +247,28 @@ function! s:AutoDetectProject()
         if s:auto_detect == 'always'
           call s:AutoAddProject(path)
         else
-          call s:Info('New repo found at "'.path
-                \.'". Do you want to add it? (Press y to confirm)')
-          let c = getchar()
-          let char = type(c) == v:t_string ? c : nr2char(c)
-          if char ==? 'y'
-            call s:AutoAddProject(path)
-          else
-            call s:AutoIgnoreProject(path)
-          endif
+          redraw
+          echohl Statement | echon '[vim-project] ' | echohl None
+          echon 'Would you like to add "'
+          echohl String | echon path | echohl None
+          echon '"? ['
+          echohl Statement | echon "Y" | echohl None
+          echon '/'
+          echohl Statement | echon "n" | echohl None
+          echon ']'
+
+          while 1
+            let c = getchar()
+            let char = type(c) == v:t_string ? c : nr2char(c)
+            if char ==? 'y'
+              call s:AutoAddProject(path)
+              break
+            endif
+            if char ==? 'n' || char == "\<esc>"
+              call s:AutoIgnoreProject(path)
+              break
+            endif
+          endwhile
         endif
       endif
     endif
@@ -249,17 +277,20 @@ endfunction
 
 function! s:AutoAddProject(path)
   let index = s:FindLastAutoAddProjectIndex()
-  call s:AddProject(a:path, { 'auto': 1 }, index)
+  let s:from_auto = 1
+  call s:AddProject(a:path, {}, index)
+  let s:from_auto = 0
   call s:SaveToPluginConfigAdd(a:path)
+  call s:SaveToPluginConfigIgnore(a:path)
   redraw
-  call s:Info('Project added')
+  call s:InfoHl('Project added')
 endfunction
 
 function! s:AutoIgnoreProject(path)
   call s:IgnoreProject(a:path)
   call s:SaveToPluginConfigIgnore(a:path)
   redraw
-  call s:Info('Project ignored')
+  call s:InfoHl('Project ignored')
 endfunction
 
 function! s:FindLastAutoAddProjectIndex()
@@ -276,7 +307,7 @@ function! s:FindLastAutoAddProjectIndex()
 endfunction
 
 function! s:IsProjectAutoAdded(project)
-  return has_key(a:project.option, 'auto') && a:project.option.auto
+  return a:project.auto
 endfunction
 
 function! s:GetPathContain(buf, pat)
