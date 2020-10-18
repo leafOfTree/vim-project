@@ -458,6 +458,10 @@ function! project#main#OpenProjectConfig()
   endif
 endfunction
 
+function! project#main#OpenPluginConfig()
+  execute 'edit '.s:config_path
+endfunction
+
 function! project#main#ExitProject()
   if s:IsProjectExist()
     call s:Info('Exit project: '.s:project.name)

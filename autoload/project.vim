@@ -44,7 +44,7 @@ function! s:GetConfigPath(prefix)
 endfunction
 
 let s:config_path = s:GetConfigPath(s:GetConfig('config', '~/.vim'))
-let s:auto_indicator = s:GetConfig('auto_indicator', '*')
+let s:auto_indicator = s:GetConfig('auto_indicator', '')
 let s:auto_detect_sign = s:GetConfig(
       \'auto_detect_sign',
       \'.git,.svn,package.json',
@@ -264,8 +264,13 @@ function! s:AutoDetectProject()
               call s:AutoAddProject(path)
               break
             endif
-            if char ==? 'n' || char == "\<esc>"
+            if char ==? 'n'
               call s:AutoIgnoreProject(path)
+              break
+            endif
+            if char == "\<esc>"
+              redraw
+              call s:InfoHl('Project skipped at this time')
               break
             endif
           endwhile
