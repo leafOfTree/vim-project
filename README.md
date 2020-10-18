@@ -15,7 +15,6 @@ First, add plugin configs and then call the entry function **AFTER** configs in 
 
 ```vim
 let g:vim_project_config = '~/.vim'
-set sessionoptions-=options
 
 call project#begin()
 ```
@@ -216,7 +215,7 @@ The config directory for each project is like `~/.vim/vim-project/<project-name>
 
 ### Project views
 
-In the project list, you can switch between different project views with default mapping <kbd>tab</kbd> and <kbd>s-tab</kbd>. You need to set `g:vim_project_views` to `[[show_pattern, hide_patten], ...]` like below.
+On project list, you can switch between different views with mapping <kbd>tab</kbd> and <kbd>s-tab</kbd>. You can define views by setting `g:vim_project_views` to `[[show_pattern, hide_patten], ...]` like below.
 
 ```
 let g:vim_project_views = [
