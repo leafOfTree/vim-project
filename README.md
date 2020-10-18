@@ -20,7 +20,7 @@ set sessionoptions-=options
 call project#begin()
 ```
 
-Next, just open any file under a project to trigger auto detection as described below.
+Next, open any file under a project to trigger auto detection as described below.
 
 ### Auto detect projects
 
@@ -41,7 +41,7 @@ call project#begin()
 
 ### Manually add proejcts
 
-Or manually add projects by specifying its path **AFTER** entry function in `vimrc`. 
+Or manually add projects by specifying their path **AFTER** entry function in `vimrc`. 
 ```
 call project#begin()
 
@@ -197,20 +197,7 @@ nnoremap ;o    :ProjectOpen
 
     Note: Moving around the cursor in the prompt is not supported.
 
-
-### Project views
-
-In the project list, you can switch between different project views with default mapping <kbd>tab</kbd> and <kbd>s-tab</kbd>. You need to set `g:vim_project_views` to `[[show_pattern, hide_patten], ...]` like below.
-
-```
-let g:vim_project_views = [
-      \['vim', 'plugin'],
-      \['^vue'],
-      \['^react'],
-      \]
-```
-
-## Configuration directory structure
+### Plugin config files hierarchy
 
 The config directory for each project is like `~/.vim/vim-project/<project-name>/`.
 
@@ -225,6 +212,18 @@ The config directory for each project is like `~/.vim/vim-project/<project-name>
                                            | master.vim
                                            | branch-1.vim
                                            | branch-2.vim
+```
+
+### Project views
+
+In the project list, you can switch between different project views with default mapping <kbd>tab</kbd> and <kbd>s-tab</kbd>. You need to set `g:vim_project_views` to `[[show_pattern, hide_patten], ...]` like below.
+
+```
+let g:vim_project_views = [
+      \['vim', 'plugin'],
+      \['^vue'],
+      \['^react'],
+      \]
 ```
 
 ## Statusline
