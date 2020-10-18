@@ -137,10 +137,10 @@ First of all, `call project#begin()` provides the basic `ProjectBase` and `Proje
 ### Project option
 
 ```vim
-Project 'demo', { 'note': 'Just for demo', 'root', 'src' }
+Project 'demo', { 'note': 'Just for demo', 'root': 'src' }
 ```
 
-- `note`: note for the project, which is shown in project list.
+- `note`: note for the project, which is shown on project list.
 - `root`: root for the project, which is used when opening project root.
 
 ### Custom mapping for commands
@@ -212,6 +212,10 @@ The config directory for each project is like `~/.vim/vim-project/<project-name>
                                            | branch-1.vim
                                            | branch-2.vim
 ```
+
+### Session options
+
+Please see `:h sessionoptions`. It's recommended to `set sessionoptions-=options`.
 
 ### Project views
 
