@@ -19,7 +19,7 @@ let g:vim_project_config = '~/.vim'
 call project#begin()
 ```
 
-Next, open any file under a project to trigger auto detection as described below.
+Next, you can open any file under a project to trigger auto detection as described below.
 
 ### Auto detect projects
 
@@ -27,7 +27,7 @@ By default, `vim-project` automatically detect a new project when opening any fi
 
 The record is saved to either `~/.vim/vim-project/_add.vim` or `~/vim/vim-project/_ignore.vim`. You can manually add or modify projects in these files later.
 
-`vim-project` finds project by `g:vim_project_auto_detect_sign`, which defaults to `.git,.svn,package.json`.
+`vim-project` will find projects which contain files like `.git,.svn,package.json`.
 
 ```vim
 let g:vim_project_config = '~/.vim'
@@ -57,7 +57,7 @@ Project '~/repository/svelte-mode'
 
 ### Show projects
 
-In the end, you can type `:ProjectList` to display the project list and <kbd>Enter</kbd> to open a selected project. 
+You can type `:ProjectList` to display the project list and press <kbd>Enter</kbd> to open a selected project. 
 
 Ref: [The prompt mapping](#prompt-mapping).
 
@@ -95,7 +95,7 @@ Ref: [The prompt mapping](#prompt-mapping).
 
     - Manually 
 
-        `:Project <project-name>[, options]`
+        `:Project <project-name>[, options]` in `vimrc`
 
 - Open a project
 
@@ -109,7 +109,7 @@ Ref: [The prompt mapping](#prompt-mapping).
 
 - Edit files
 
-- Exit the project (Also when Open another project / Quit vim)
+- Exit the project / Open another project / Quit vim)
     
     `:ProjectExit`
 
@@ -119,7 +119,7 @@ Ref: [The prompt mapping](#prompt-mapping).
 
 ## Commands
 
-First of all, `call project#begin()` provides the basic `ProjectBase` and `Project` commands.
+First of all, `call project#begin()` to get the basic `ProjectBase` and `Project` commands.
 
 | command                             | description                               |
 |-------------------------------------|-------------------------------------------|
@@ -140,8 +140,8 @@ First of all, `call project#begin()` provides the basic `ProjectBase` and `Proje
 Project 'demo', { 'note': 'Just for demo', 'root': 'src' }
 ```
 
-- `note`: note for the project, which is shown on project list.
-- `root`: root for the project, which is used when opening project root.
+- `note`: note shown on project list.
+- `root`: root used when opening project root.
 
 ### Custom mapping for commands
 
@@ -166,35 +166,33 @@ nnoremap ;o    :ProjectOpen
 | g:vim_project_open_root        | Open project root regardless of sessions                    | 0                        |
 | g:vim_project_ignore_branch    | Ignore the branch change                                    | 0                        |
 | g:vim_project_ignore_session   | Ignore sessions. Thus no loading and saving                 | 0                        |
-| g:vim_project_prompt_mapping   | Key mapping for prompt input                                | *see ^*                  |
-| g:vim_project_auto_detect      | Whether auto detect potential projects when opening a file. <br> Options are 'always', 'ask', or 'no'| 'ask'                    |
-| g:vim_project_auto_detect_sign | Sign for auto detecting potential projects                  | '.git,.svn,package.json' |
-| g:vim_project_auto_indicator   | Indicator for auto added projects in project list           | ''                       |
+| g:vim_project_prompt_mapping   | Mapping for prompt                                    | *see ^*                  |
+| g:vim_project_auto_detect      | Whether auto detect potential projects when opening a file. <br> Options are 'always', 'ask', or 'no'| `'ask'`                    |
+| g:vim_project_auto_detect_sign | Sign for auto detecting potential projects                  | `'.git,.svn,package.json'` |
+| g:vim_project_auto_indicator   | Indicator for auto added projects in project list           | `''`                       |
 | g:vim_project_views            | Project views config with shape [[show, hide], ...]         | []                       |
 | g:vim_project_debug            | Show debug messages                                         | 0                        |
 
-
-
 <a name="prompt-mapping"></a>
-**^**: The key mapping for prompt input defaults to 
+**^**: The key mapping for prompt defaults to 
 
-    ```vim
-    let g:vim_project_prompt_mapping = {
-      \'open_project': "\<cr>",
-      \'close_list':   "\<esc>",
-      \'clear_char':   ["\<bs>", "\<c-a>"],
-      \'clear_word':   "\<c-w>",
-      \'clear_all':    "\<c-u>",
-      \'prev_item':    ["\<c-k>", "\<up>"],
-      \'next_item':    ["\<c-j>", "\<down>"],
-      \'first_item':   ["\<c-h>", "\<left>"],
-      \'last_item':    ["\<c-l>", "\<right>"],
-      \'next_view':    "\<tab>",
-      \'prev_view':    "\<s-tab>",
-      \}
-    ```
+```vim
+let g:vim_project_prompt_mapping = {
+  \'open_project': "\<cr>",
+  \'close_list':   "\<esc>",
+  \'clear_char':   ["\<bs>", "\<c-a>"],
+  \'clear_word':   "\<c-w>",
+  \'clear_all':    "\<c-u>",
+  \'prev_item':    ["\<c-k>", "\<up>"],
+  \'next_item':    ["\<c-j>", "\<down>"],
+  \'first_item':   ["\<c-h>", "\<left>"],
+  \'last_item':    ["\<c-l>", "\<right>"],
+  \'next_view':    "\<tab>",
+  \'prev_view':    "\<s-tab>",
+  \}
+```
 
-    Note: Moving around the cursor in the prompt is not supported.
+Note: Moving around the cursor in the prompt is not supported.
 
 ### Plugin config files hierarchy
 
@@ -231,7 +229,7 @@ let g:vim_project_views = [
 
 ## Statusline
 
-You can get current project info from `g:vim_project`. It's a dict variable, try `echo g:vim_project` after opening a project.
+You can get current project info from `g:vim_project` which is a dict variable. Try `echo g:vim_project` after opening a project.
 
 For example, define a function called `GetProjectInfo` and add `[%{GetProjectInfo()}]` to the statusline for showing current project name and branch.
 
