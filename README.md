@@ -215,7 +215,7 @@ Please see `:h sessionoptions`. It's recommended to `set sessionoptions-=options
 
 On project list, you can switch between different views with mapping <kbd>tab</kbd> and <kbd>s-tab</kbd>. You can define views by setting `g:vim_project_views` to `[[show_pattern, hide_patten], ...]` like below.
 
-```
+```vim
 let g:vim_project_views = [
       \['vim', 'plugin'],
       \['^vue'],
