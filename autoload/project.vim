@@ -215,21 +215,33 @@ endfunction
 function! s:OnBufEnter()
   augroup vim-project-enter
     autocmd! vim-project-enter
-    autocmd BufEnter * call s:AutoloadOnVimEnter()
+    " The event order is BufEnter then VimEnter
+    autocmd BufEnter * ++once call s:PreCheckOnBufEnter()
+    autocmd VimEnter * ++once call s:AutoloadOnVimEnter()
     if s:auto_detect != 'no'
       autocmd BufEnter * call s:AutoDetectProject()
     endif
   augroup END
 endfunction
 
-function! s:AutoloadOnVimEnter()
+let s:startup_project = {}
+function! s:PreCheckOnBufEnter()
   if !v:vim_did_enter
     let buf = expand('<amatch>')
     let project = s:GetProjectByFullpath(g:vim_project_projects, buf)
     if !empty(project)
-      call s:Debug('Autoload '.project.name)
-      ProjectOpen project.name
+      let s:startup_project = project
     endif
+  endif
+endfunction
+
+function! s:AutoloadOnVimEnter()
+  let project = s:startup_project
+  if !empty(project)
+    let buf = expand('<amatch>')
+    " Avoid conflict with opened buffer like nerdtree
+    enew
+    ProjectOpen project.name
   endif
 endfunction
 
