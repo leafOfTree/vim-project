@@ -521,7 +521,12 @@ function! s:SetStartBuffer()
     call s:Debug('Open root from buf '.bufname)
     let path = s:GetProjectRootPath()
     if !empty(path)
-      execute 'silent only | edit '.path.' | cd '.path
+      if exists('g:loaded_nerd_tree')
+        let edit_cmd = 'NERDTree' 
+      else
+        let edit_cmd = 'edit'
+      endif
+      execute edit_cmd.' '.path.' | silent only |  cd '.path
     else
       execute 'silent only | enew'
     endif

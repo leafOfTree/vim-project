@@ -170,7 +170,6 @@ function! s:InfoHl(msg)
         \echon a:msg
 endfunction
 
-
 function! project#ListProjectNames(A, L, P)
   let projects = deepcopy(g:vim_project_projects)
   let names =  map(projects, {_, project -> "'".project.name."'"})
@@ -229,6 +228,11 @@ function! s:PreCheckOnBufEnter()
   if !v:vim_did_enter
     let buf = expand('<amatch>')
     let project = s:GetProjectByFullpath(g:vim_project_projects, buf)
+    if empty(project)
+      let path = s:GetPathContain(buf,s:auto_detect_sign)
+      let project = s:GetProjectByFullpath(g:vim_project_projects, path)
+    endif
+
     if !empty(project)
       let s:startup_project = project
     endif
