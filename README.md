@@ -41,7 +41,7 @@ call project#begin()
 ### Manually add proejcts
 
 Or manually add projects by specifying their path **AFTER** entry function in `vimrc`. 
-```
+```vim
 call project#begin()
 
 " Add '~/repository/project-name'
@@ -99,9 +99,7 @@ Ref: [The prompt mapping](#prompt-mapping).
 
 - Open a project
 
-    `:ProjectList`
-
-    `:ProjectOpen <project-name>`
+    `:ProjectList` or `:ProjectOpen <project-name>`
 
     - Load the session
 
@@ -109,9 +107,7 @@ Ref: [The prompt mapping](#prompt-mapping).
 
 - Edit files
 
-- Exit the project / Open another project / Quit vim)
-    
-    `:ProjectExit`
+- Exit the project(`:ProjectExit`) / Open another project / Quit vim
 
     - Save the session
 
