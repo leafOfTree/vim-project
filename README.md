@@ -1,6 +1,6 @@
 # vim-project
 
-A vim plugin to manager projects and sessions. 
+A vim plugin to manage projects and sessions. 
 
 Support 
 
