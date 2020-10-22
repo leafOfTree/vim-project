@@ -229,8 +229,10 @@ function! s:PreCheckOnBufEnter()
     let buf = expand('<amatch>')
     let project = s:GetProjectByFullpath(g:vim_project_projects, buf)
     if empty(project)
-      let path = s:GetPathContain(buf,s:auto_detect_sign)
-      let project = s:GetProjectByFullpath(g:vim_project_projects, path)
+      let path = s:GetPathContain(buf, s:auto_detect_sign)
+      if !empty(path)
+        let project = s:GetProjectByFullpath(g:vim_project_projects, path)
+      endif
     endif
 
     if !empty(project)
@@ -349,7 +351,7 @@ endfunction
 
 function! s:GetProjectByFullpath(projects, fullpath)
   for project in a:projects
-    if project.fullpath == a:fullpath
+    if project.fullpath is a:fullpath
       return project
     endif
   endfor
