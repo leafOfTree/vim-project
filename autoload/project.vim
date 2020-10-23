@@ -52,7 +52,7 @@ let s:auto_detect_sign = s:GetConfig(
 
 " options: 'always', 'ask', 'no'
 let s:auto_detect = s:GetConfig('auto_detect', 'ask') 
-let s:auto_load_on_start = s:GetConfig('auto_load_on_start', 0) 
+let s:autoload_on_start = s:GetConfig('autoload_on_start', 0) 
 let s:debug = s:GetConfig('debug', 0)
 "}}}
 
@@ -215,7 +215,7 @@ endfunction
 function! s:OnBufEnter()
   augroup vim-project-enter
     autocmd! vim-project-enter
-    if s:auto_load_on_start
+    if s:autoload_on_start
       " The event order is BufEnter then VimEnter
       autocmd BufEnter * ++once call s:PreCheckOnBufEnter()
       autocmd VimEnter * ++once call s:AutoloadOnVimEnter()
