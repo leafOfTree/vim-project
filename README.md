@@ -164,8 +164,9 @@ nnoremap ;o    :ProjectOpen
 | g:vim_project_ignore_session   | Ignore sessions. Thus no loading and saving                 | 0                        |
 | g:vim_project_prompt_mapping   | Mapping for prompt                                    | *see ^*                  |
 | g:vim_project_auto_detect      | Whether auto detect potential projects when opening a file. <br> Options are 'always', 'ask', or 'no'| `'ask'`                    |
-| g:vim_project_auto_detect_sign | Sign for auto detecting potential projects                  | `'.git,.svn,package.json'` |
-| g:vim_project_auto_indicator   | Indicator for auto added projects in project list           | `''`                       |
+| g:vim_project_auto_detect_sign | Sign for auto detecting potential projects                  | `'.git,.svn,package.json'`|
+| g:vim_project_auto_indicator   | Indicator for auto added projects in project list           | `''`                     |
+| g:vim_project_autoload_on_start| Autoload a project if Vim starts from its directory         | 0                        |
 | g:vim_project_views            | Project views config with shape [[show, hide], ...]         | []                       |
 | g:vim_project_debug            | Show debug messages                                         | 0                        |
 
