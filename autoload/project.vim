@@ -254,7 +254,7 @@ function! s:AutoloadOnVimEnter()
     enew
     ProjectOpen project.name
 
-    " Follow session files if open the root path, 
+    " Follow session files if open the root path,
     " otherwise edit the current file
     if project.fullpath is s:startup_buf
       doautoall BufRead
