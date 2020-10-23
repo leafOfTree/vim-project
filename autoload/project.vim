@@ -227,9 +227,11 @@ function! s:OnBufEnter()
 endfunction
 
 let s:startup_project = {}
+let s:startup_buf = ''
 function! s:PreCheckOnBufEnter()
   if !v:vim_did_enter
     let buf = expand('<amatch>')
+    let s:startup_buf = buf
     let project = s:GetProjectByFullpath(g:vim_project_projects, buf)
     if empty(project)
       let path = s:GetPathContain(buf, s:auto_detect_sign)
@@ -251,6 +253,14 @@ function! s:AutoloadOnVimEnter()
     " Avoid conflict with opened buffer like nerdtree
     enew
     ProjectOpen project.name
+
+    " Follow session files if open the root path, 
+    " otherwise edit the current file
+    if project.fullpath is s:startup_buf
+      doautoall BufRead
+    else
+      execute 'edit '.s:startup_buf
+    endif
   endif
 endfunction
 
