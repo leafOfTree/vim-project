@@ -535,7 +535,7 @@ function! s:SetStartBuffer()
         \ || is_nerdtree_tmp
   if open_root
     if is_nerdtree_tmp
-      bdelete
+      silent bdelete
     endif
     call s:Debug('Open root from buf '.bufname)
     let path = s:GetProjectRootPath()
@@ -779,6 +779,7 @@ function! ReloadSession(channel, msg, ...)
     call s:BeforeReloadSession()
 
     call s:SaveSession()
+    silent %bdelete
     let s:branch = new_branch
     let g:vim_project_branch = s:branch
     call s:LoadSession(1)
