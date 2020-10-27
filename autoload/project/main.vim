@@ -213,7 +213,25 @@ function! s:FilterList(list, filter)
     endif
   endfor
   call filter(list, { _, value -> value._match_type != '' })
+  call sort(list, 's:SortList')
   return list
+endfunction
+
+function! s:SortList(a1, a2)
+  let type1 = a:a1._match_type
+  let type2 = a:a2._match_type
+  let index1 = a:a1._match_index
+  let index2 = a:a2._match_index
+  if type1 == 'name' && type2 != 'name'
+    return 1
+  endif
+  if type1 == 'note' && type2 == 'path'
+    return 1
+  endif
+  if type1 == type2
+    return index2 - index1
+  endif
+  return -1
 endfunction
 
 function! s:FilterListName(list, filter, reverse)
