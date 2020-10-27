@@ -404,13 +404,14 @@ function! project#main#OpenProjectByName(name)
 endfunction
 
 function! s:OpenProject(project)
-  let current = a:project
   let prev = s:project
+  let current = a:project
 
   if prev != current
     if !empty(prev)
       call s:Debug('Save previous project: '.prev.name)
       call s:SaveSession()
+      %bdelete
     endif
     let s:project = current
 
