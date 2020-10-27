@@ -429,7 +429,7 @@ function! s:OpenProject(project)
     if !empty(prev)
       call s:Debug('Save previous project: '.prev.name)
       call s:SaveSession()
-      %bdelete
+      silent %bdelete
     endif
     let s:project = current
 
