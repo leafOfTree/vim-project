@@ -691,20 +691,20 @@ function! s:SaveSession()
   endif
 endfunction
 
-let s:nerdtree_out = 0
-let s:nerdtree_in = 0
+let s:nerdtree_other = 0
+let s:nerdtree_current = 0
 function! s:HandleNerdtreeBefore()
   let has_nerdtree = exists('g:loaded_nerd_tree') 
         \&& g:NERDTree.IsOpen()
   if has_nerdtree
     if &filetype != 'nerdtree'
-      call s:Debug('Close other nerdtree first')
-      let s:nerdtree_out = 1
-      NERDTreeClose
+      call s:Debug('Toggle nerdtree off')
+      let s:nerdtree_other = 1
+      NERDTreeToggle
     else
-      call s:Debug('Clear nerdtree setting')
-      let s:nerdtree_in = 1
-      let s:nerdtree_in_file = expand('%')
+      call s:Debug('Clear nerdtree')
+      let s:nerdtree_current = 1
+      let s:nerdtree_current_file = expand('%')
       setlocal filetype=
       setlocal syntax=
       execute 'file '.s:nerdtree_tmp 
@@ -713,18 +713,18 @@ function! s:HandleNerdtreeBefore()
 endfunction
 
 function! s:HandleNerdtreeAfter()
-  if s:nerdtree_out
-    let s:nerdtree_out = 0
-    call s:Debug('Recover nerdtree')
+  if s:nerdtree_other
+    let s:nerdtree_other = 0
+    call s:Debug('Toggle nerdtree')
     NERDTreeToggle
     wincmd p
   endif
-  if s:nerdtree_in
-    let s:nerdtree_in = 0
-    call s:Debug('Recover nerdtree setting')
+  if s:nerdtree_current
+    let s:nerdtree_current = 0
+    call s:Debug('Recover nerdtree')
     silent! setlocal filetype=nerdtree
     setlocal syntax=nerdtree
-    execute 'file '.s:nerdtree_in_file
+    execute 'file '.s:nerdtree_current_file
   endif
 endfunction
 

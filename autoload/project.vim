@@ -246,6 +246,11 @@ function! s:PreCheckOnBufEnter()
   endif
 endfunction
 
+function! VimProject_DoBufRead(timer)
+  doautoall BufRead
+  edit
+endfunction
+
 function! s:AutoloadOnVimEnter()
   let project = s:startup_project
   if !empty(project)
@@ -254,11 +259,12 @@ function! s:AutoloadOnVimEnter()
     enew
     ProjectOpen project.name
 
-    " Follow session files if open the root path,
-    " otherwise edit the current file
     if project.fullpath is s:startup_buf
-      doautoall BufRead
+      " Follow session files if open the root path
+      " Use timer to avoid conflict with Fern.vim
+      let timer = timer_start(1, 'VimProject_DoBufRead')
     else
+      " Otherwise edit the current file
       execute 'edit '.s:startup_buf
     endif
   endif
