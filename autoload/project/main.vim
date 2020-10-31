@@ -722,9 +722,9 @@ function! s:HandleNerdtreeAfter()
   if s:nerdtree_current
     let s:nerdtree_current = 0
     call s:Debug('Recover nerdtree')
+    execute 'file '.s:nerdtree_current_file
     silent! setlocal filetype=nerdtree
     setlocal syntax=nerdtree
-    execute 'file '.s:nerdtree_current_file
   endif
 endfunction
 
