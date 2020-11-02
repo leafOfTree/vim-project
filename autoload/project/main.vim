@@ -533,12 +533,12 @@ function! s:SetStartBuffer()
         \ || &buftype == 'nofile' 
         \ || bufname == '' 
         \ || is_nerdtree_tmp
+  let path = s:GetProjectRootPath()
   if open_root
     if is_nerdtree_tmp
       silent bdelete
     endif
     call s:Debug('Open root from buf '.bufname)
-    let path = s:GetProjectRootPath()
     if !empty(path)
       if exists('g:loaded_nerd_tree')
         let edit_cmd = 'NERDTree' 
@@ -549,6 +549,8 @@ function! s:SetStartBuffer()
     else
       execute 'silent only | enew'
     endif
+  else
+    execute 'cd '.path
   endif
 endfunction
 
