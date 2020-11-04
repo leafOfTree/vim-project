@@ -184,7 +184,7 @@ function! project#begin()
   command -nargs=1 ProjectIgnore call s:IgnoreProject(<args>)
 
   call s:SourcePluginConfigFiles()
-  call s:OnBufEnter()
+  call s:WatchOnBufEnter()
 endfunction
 
 function! s:SourcePluginConfigFiles()
@@ -212,7 +212,7 @@ function! s:SaveToPluginConfigIgnore(path)
   call writefile([cmd], file, 'a')
 endfunction
 
-function! s:OnBufEnter()
+function! s:WatchOnBufEnter()
   augroup vim-project-enter
     autocmd! vim-project-enter
     if s:autoload_on_start
