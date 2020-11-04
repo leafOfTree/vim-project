@@ -139,7 +139,7 @@ function! s:ShowProjects(...)
   normal! ggdG
 
   let projects = s:FilterProjects(
-        \copy(g:vim_project_projects),
+        \copy(s:GetAllProjects()),
         \input, 
         \)
   let result = s:GetDisplayList(projects)
@@ -289,8 +289,15 @@ function! s:AddRightPadding(string, length)
   return a:string.padding
 endfunction
 
+function! s:GetAllProjects()
+  let projects = exists('g:vim_project_projects')
+        \ ? g:vim_project_projects
+        \ : []
+  return projects
+endfunction
+
 function! s:FormatProjects()
-  let list = g:vim_project_projects
+  let list = s:GetAllProjects()
   if s:format_cache == len(list)
     return
   else
@@ -402,7 +409,7 @@ function! s:IsValidProject(project)
 endfunction
 
 function! s:GetProjectByName(name)
-  let projects = g:vim_project_projects
+  let projects = s:GetAllProjects()
   for project in projects
     if project.name == a:name
       return project
