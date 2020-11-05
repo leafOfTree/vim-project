@@ -248,7 +248,8 @@ endfunction
 
 function! VimProject_DoBufRead(timer)
   doautoall BufRead
-  edit
+  " Ingore when the buffer is not editable
+  silent! edit
 endfunction
 
 function! s:AutoloadOnVimEnter()
