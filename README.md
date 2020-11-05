@@ -25,7 +25,7 @@ Next, you can open any file under a project to trigger auto detection as describ
 
 By default, `vim-project` automatically detect a new project when opening any file under it.
 
-The record is saved to either `~/.vim/vim-project/_add.vim` or `~/vim/vim-project/_ignore.vim`. You can manually add or modify projects in these files later.
+The record is saved to either `~/.vim/vim-project-config/_add.vim` or `~/.vim/vim-project-config/_ignore.vim`. You can manually add or modify projects in these files later.
 
 `vim-project` will find projects which contain files like `.git,.svn,package.json`.
 
@@ -193,10 +193,10 @@ Note: Moving around the cursor in the prompt is not supported.
 
 ### Plugin config files hierarchy
 
-The config directory for each project is like `~/.vim/vim-project/<project-name>/`.
+The config directory for each project is like `~/.vim/vim-project-config/<project-name>/`.
 
 ```
-~/.vim/vim-project/
+~/.vim/vim-project-config/
                  | _add.vim    " auto added projects
                  | _igonre.vim " auto ignored projects (including added ones)
                  | <project-name>/
