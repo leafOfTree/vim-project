@@ -249,7 +249,13 @@ endfunction
 function! VimProject_DoBufRead(timer)
   doautoall BufRead
   " Ingore when the buffer is not editable
-  silent! edit
+  if expand('%:p') =~ 'NetrwTreeListing'
+    " For Netrw
+    Explore
+  else
+    " For Nerdtree, Fern, ...
+    silent! edit
+  endif
 endfunction
 
 function! s:AutoloadOnVimEnter()
