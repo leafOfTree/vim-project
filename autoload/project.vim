@@ -40,7 +40,7 @@ function! s:GetConfigPath(prefix)
   if prefix[len(prefix)-1] != '/'
     let prefix = prefix.'/'
   endif
-  return expand(prefix.s:name.'/')
+  return expand(prefix.s:name.'-config/')
 endfunction
 
 let s:config_path = s:GetConfigPath(s:GetConfig('config', '~/.vim'))

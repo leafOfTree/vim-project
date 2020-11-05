@@ -55,14 +55,15 @@ function! s:GetConfigPath(prefix)
   if prefix[len(prefix)-1] != '/'
     let prefix = prefix.'/'
   endif
-  return expand(prefix.s:name.'/')
+  return expand(prefix.s:name.'-config/')
 endfunction
 
 function! s:MergePromptMapping()
   if s:prompt_mapping != s:vim_project_prompt_mapping_default
     for [key, value] in items(s:vim_project_prompt_mapping_default)
       if !has_key(s:prompt_mapping, key)
-        let s:prompt_mapping[key] = s:vim_project_prompt_mapping_default[key]
+        let s:prompt_mapping[key] = 
+              \ s:vim_project_prompt_mapping_default[key]
       endif
     endfor
   endif
