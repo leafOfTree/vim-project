@@ -246,9 +246,7 @@ function! s:PreCheckOnBufEnter()
   endif
 endfunction
 
-function! VimProject_DoBufRead(timer)
-  doautoall BufRead
-  " Ingore when the buffer is not editable
+function! VimProject_HandleFileManagerPlugin(timer)
   if expand('%:p') =~ 'NetrwTreeListing'
     " For Netrw
     Explore
@@ -256,6 +254,10 @@ function! VimProject_DoBufRead(timer)
     " For Nerdtree, Fern, ...
     silent! edit
   endif
+endfunction
+
+function! VimProject_DoBufRead(timer)
+  doautoall BufRead
 endfunction
 
 function! s:AutoloadOnVimEnter()
@@ -269,11 +271,12 @@ function! s:AutoloadOnVimEnter()
     if project.fullpath is s:startup_buf
       " Follow session files if open the root path
       " Use timer to avoid conflict with Fern.vim
-      let timer = timer_start(1, 'VimProject_DoBufRead')
+      call timer_start(1, 'VimProject_HandleFileManagerPlugin')
     else
       " Otherwise edit the current file
       execute 'edit '.s:startup_buf
     endif
+    call timer_start(1, 'VimProject_DoBufRead')
   endif
 endfunction
 
