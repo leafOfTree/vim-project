@@ -342,7 +342,7 @@ function! s:AutoIgnoreProject(path)
   call s:IgnoreProject(a:path)
   call s:SaveToPluginConfigIgnore(a:path)
   redraw
-  call s:InfoHl('Project ignored')
+  call s:InfoHl('Project ignored at '.a:path)
 endfunction
 
 function! s:FindLastAutoAddProjectIndex()
