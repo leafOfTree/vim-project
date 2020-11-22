@@ -224,6 +224,12 @@ let g:vim_project_views = [
       \]
 ```
 
+## Global variables
+
+- `g:vim_project` Dict. Current project info.
+- `$vim_project` String. Current project path.
+- `$vim_project_config` String. Current project config path.
+
 ## Statusline
 
 You can get current project info from `g:vim_project` which is a dict variable. Try `echo g:vim_project` after opening a project.
