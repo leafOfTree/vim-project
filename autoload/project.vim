@@ -86,7 +86,7 @@ function! s:AddProject(path, ...)
   let project = { 
         \'name': name, 
         \'path': path, 
-        \'fullpath': expand(fullpath),
+        \'fullpath': fullpath,
         \'note': note, 
         \'auto': s:from_auto,
         \'option': option,
@@ -102,11 +102,12 @@ function! s:IgnoreProject(path)
   let fullpath = s:GetFullPath(a:path)
   let name = matchstr(fullpath, '/\zs[^/]*$')
   let path = substitute(fullpath, '/[^/]*$', '', '')
+  " path: excludes project name
   " fullpath: includes project name
   let project = { 
         \'name': name, 
         \'path': path, 
-        \'fullpath': expand(fullpath),
+        \'fullpath': fullpath,
         \}
   call s:Debug('Ignore project '.name.', '.path)
   call add(g:vim_project_projects_ignore, project)
@@ -117,6 +118,7 @@ function! s:GetFullPath(path)
   if path[0] != '/' && path[0] != '~' && path[1] != ':'
     let path = s:base.path
   endif
+  let path = substitute(expand(path), '\', '\/', 'g')
   let path = substitute(path, '\/$', '', '')
   return path
 endfunction
