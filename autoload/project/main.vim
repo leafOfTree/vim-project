@@ -528,6 +528,7 @@ function! s:LoadProject()
   enew
   call s:FindBranch()
   call s:LoadSession()
+  call s:StartWatchJob()
   call s:SetStartBuffer()
   call s:OnVimLeave()
 endfunction
@@ -616,7 +617,7 @@ function! s:FindBranch(...)
     let head = join(readfile(head_file), "\n")
 
     if !v:shell_error
-      let s:branch = matchstr(head, 'refs\/heads\/\zs\w*')
+      let s:branch = matchstr(head, 'refs\/heads\/\zs.*')
     else
       call s:Warn('Error on find branch: '.v:shell_error)
       let s:branch = s:branch_default
@@ -637,7 +638,7 @@ function! s:GetSessionFile()
   endif
 endfunction
 
-function! s:LoadSession(...)
+function! s:LoadSession()
   if s:ignore_session
     return
   endif
@@ -649,39 +650,46 @@ function! s:LoadSession(...)
   else
     call s:Debug('Not found session file: '.file)
   endif
+endfunction
 
-  let reload = a:0>0 ? a:1 : 0
-  if !reload && !s:ignore_branch && executable('tail') == 1
-    if exists('*job_start')
-      call s:WatchHeadFileVim()
-    elseif exists('*jobstart')
-      call s:WatchHeadFileNeoVim()
+function! s:StartWatchJob()
+  let should_watch = !s:ignore_branch && executable('tail') == 1
+  if should_watch
+    let cmd = s:GetWatchCmd()
+    if !empty(cmd)
+      if exists('*job_start')
+        call s:WatchHeadFileVim(cmd)
+      elseif exists('*jobstart')
+        call s:WatchHeadFileNeoVim(cmd)
+      endif
     endif
   endif
 endfunction
 
 function! s:GetWatchCmd()
   let head_file = s:project.fullpath.'/.git/HEAD'
-  call s:Debug('Watching .git head file: '.head_file)
-  let cmd = 'tail -n0 -F '.head_file
-  return cmd
+  if filereadable(head_file)
+    call s:Debug('Watching .git head file: '.head_file)
+    let cmd = 'tail -n0 -F '.head_file
+    return cmd
+  else
+    return ''
+  endif
 endfunction
 
-function! s:WatchHeadFileVim()
-  let cmd = s:GetWatchCmd()
+function! s:WatchHeadFileVim(cmd)
   if type(s:head_file_job) == v:t_job
     call job_stop(s:head_file_job)
   endif
-  let s:head_file_job = job_start(cmd, 
+  let s:head_file_job = job_start(a:cmd, 
         \ { 'callback': 'ReloadSession' })
 endfunction
 
-function! s:WatchHeadFileNeoVim()
-  let cmd = s:GetWatchCmd()
+function! s:WatchHeadFileNeoVim(cmd)
   if s:head_file_job 
     call jobstop(s:head_file_job)
   endif
-  let s:head_file_job = jobstart(cmd, 
+  let s:head_file_job = jobstart(a:cmd, 
         \ { 'on_stdout': 'ReloadSession' })
 endfunction
 
@@ -783,7 +791,7 @@ function! ReloadSession(channel, msg, ...)
     return
   endif
 
-  let new_branch = matchstr(msg, 'refs\/heads\/\zs\w*')
+  let new_branch = matchstr(msg, 'refs\/heads\/\zs.*')
   if !empty(new_branch) && new_branch != s:branch
     call s:Info('Change branch and reload: '.new_branch)
     call s:BeforeReloadSession()
@@ -792,7 +800,7 @@ function! ReloadSession(channel, msg, ...)
     silent! %bdelete
     let s:branch = new_branch
     let g:vim_project_branch = s:branch
-    call s:LoadSession(1)
+    call s:LoadSession()
     call s:SetStartBuffer()
 
     call s:AfterReloadSession()
