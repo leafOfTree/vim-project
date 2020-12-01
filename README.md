@@ -11,11 +11,12 @@ Support
 
 ## Usage
 
-First, add plugin configs and then call the entry function **AFTER** configs in `vimrc`
+First, add `g:vim_project_*` related configs and then call the entry function in `vimrc`
 
 ```vim
 let g:vim_project_config = '~/.vim'
 
+" Call it after all the g:vim_project_* configs
 call project#begin()
 ```
 
@@ -23,11 +24,7 @@ Next, you can open any file under a project to trigger auto detection as describ
 
 ### Auto detect projects
 
-By default, `vim-project` automatically detect a new project when opening any file under it.
-
-The record is saved to either `~/.vim/vim-project-config/_add.vim` or `~/.vim/vim-project-config/_ignore.vim`. You can manually add or modify projects in these files later.
-
-`vim-project` will find projects which contain files like `.git,.svn,package.json`.
+By default, `vim-project` will detect new projects which contain `.git,.svn,package.json` when opening any file under them.
 
 ```vim
 let g:vim_project_config = '~/.vim'
@@ -38,9 +35,11 @@ let g:vim_project_auto_detect = 'ask'
 call project#begin()
 ```
 
+The record is saved to either `~/.vim/vim-project-config/_add.vim` or `~/.vim/vim-project-config/_ignore.vim`(higher priority). You can manually add or modify projects in these files later.
+
 ### Manually add proejcts
 
-Or manually add projects by specifying their path **AFTER** entry function in `vimrc`. 
+You can also manually add projects by specifying their path **AFTER** entry function in `vimrc`. 
 ```vim
 call project#begin()
 
