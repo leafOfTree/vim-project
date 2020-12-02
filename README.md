@@ -11,7 +11,7 @@ Support
 
 ## Usage
 
-First, add `g:vim_project_*` related configs and then call the entry function in `vimrc`
+First, add `g:vim_project_*` related configs. And then call the entry function in `vimrc`
 
 ```vim
 let g:vim_project_config = '~/.vim'
@@ -20,7 +20,7 @@ let g:vim_project_config = '~/.vim'
 call project#begin()
 ```
 
-Next, you can open any file under a project to trigger auto detection as described below.
+Next, you can open any file under a project to trigger auto detection as described below. Use `:ProjectList` to open project.
 
 ### Auto detect projects
 
