@@ -441,11 +441,13 @@ function! s:OpenProject(project)
     endif
     let s:project = current
 
-    call s:Info('Open project: '.s:project.name)
     call s:LoadProject()
     call s:SetEnvVariables()
     call s:SyncGlobalVariables()
     call s:SourceInitFile()
+
+    redraw
+    call s:Info('Open project: '.s:project.name)
   else
     call s:Info('Project already opened')
   endif

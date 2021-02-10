@@ -337,7 +337,7 @@ function! s:AutoAddProject(path)
   call s:SaveToPluginConfigAdd(a:path)
   call s:SaveToPluginConfigIgnore(a:path)
   redraw
-  call s:InfoHl('Project added')
+  call s:InfoHl('Project added '.a:path)
 endfunction
 
 function! s:AutoIgnoreProject(path)
