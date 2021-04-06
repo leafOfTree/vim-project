@@ -70,19 +70,22 @@ function! s:SetBase(base)
 endfunction
 
 function! s:AddProject(path, ...)
-  let option = a:0 > 0 ? a:1 : {}
-  let index = a:0>1 ? a:2 : len(g:vim_project_projects)
   let fullpath = s:GetFullPath(a:path)
+  let hasProject = s:HasProjectWithSameFullPath(fullpath, g:vim_project_projects)
+  if hasProject
+    return
+  endif
+
   let name = matchstr(fullpath, '/\zs[^/]*$')
   let path = substitute(fullpath, '/[^/]*$', '', '')
+  let option = a:0 > 0 ? a:1 : {}
   let note = get(option, 'note', '')
-
   if s:from_auto
     let note = empty(note) ? s:auto_indicator : note.' '.s:auto_indicator
   endif
 
-  " path: excludes project name
-  " fullpath: includes project name
+  " path: without project name
+  " fullpath: with project name
   let project = { 
         \'name': name, 
         \'path': path, 
@@ -94,7 +97,19 @@ function! s:AddProject(path, ...)
   call s:InitProjectConfig(project)
 
   call s:Debug('Add project '.name.', '.path)
+
+  let index = a:0>1 ? a:2 : len(g:vim_project_projects)
   call insert(g:vim_project_projects, project, index)
+endfunction
+
+function! s:HasProjectWithSameFullPath(fullpath, projects)
+  let result = 0
+  for project in a:projects
+    if project.fullpath == a:fullpath
+      let result = 1
+    endif
+  endfor
+  return result
 endfunction
 
 " Ignore path only for auto adding
@@ -124,16 +139,15 @@ function! s:GetFullPath(path)
 endfunction
 
 function! s:InitProjectConfig(project)
-  let project = a:project
-  let name = project.name
-  let config = s:config_path.name
+  let name = a:project.name
+  let config_path = s:GetProjectConfigPath(s:config_path, a:project)
 
-  if !isdirectory(config) && exists('*mkdir')
+  if !isdirectory(config_path) && exists('*mkdir')
     " Create config and sessions directory
-    call mkdir(config.'/sessions', 'p')
+    call mkdir(config_path.'/sessions', 'p')
 
     " Generate init.vim
-    let init_file = config.'/init.vim'
+    let init_file = config_path.'/init.vim'
     let init_content = [
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \'" Initial file after session loaded',
@@ -146,7 +160,7 @@ function! s:InitProjectConfig(project)
     call writefile(init_content, init_file)
 
     " Generate quit.vim
-    let quit_file = config.'/quit.vim'
+    let quit_file = config_path.'/quit.vim'
     let quit_content = [
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \'" Quit file after session saved',
@@ -171,6 +185,16 @@ endfunction
 function! s:InfoHl(msg)
   echohl Statement | echon '['.s:name.'] ' | echohl None |
         \echon a:msg
+endfunction
+
+function! s:GetProjectConfigPath(config_path, project)
+  let id = substitute(a:project.path, '/', '_', 'g')
+  let folder = a:project.name.'__'.id
+  return a:config_path.folder
+endfunction
+
+function! project#GetProjectConfigPath(config_path, project)
+  return s:GetProjectConfigPath(a:config_path, a:project)
 endfunction
 
 function! project#ListProjectNames(A, L, P)

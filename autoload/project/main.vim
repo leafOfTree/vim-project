@@ -277,9 +277,8 @@ function! s:FilterProjects(projects, filter)
   call s:FilterProjectsByView(projects)
 
   if a:filter != ''
-    for filter in split(a:filter, ' ')
-      call s:FilterList(projects, filter)
-    endfor
+    let filter = join(split(a:filter, '\zs'), '.*')
+    call s:FilterList(projects, filter)
   endif
 
   return projects
@@ -483,7 +482,9 @@ endfunction
 
 function! project#main#OpenProjectConfig()
   if s:IsProjectExist()
-    execute 'edit '.s:config_path.s:project.name
+    let config_path = project#GetProjectConfigPath(
+          \s:config_path, s:project)
+    execute 'edit '.config_path
   endif
 endfunction
 
@@ -596,7 +597,8 @@ function! s:SourceExitFile()
 endfunction
 
 function! s:SourceFile(file)
-  let config_path = s:config_path.s:project.name
+  let name = s:project.name.'-'.s:project.path
+  let config_path = project#GetProjectConfigPath(s:config_path, s:project)
   let file = config_path.'/'.a:file
   if filereadable(file)
     call s:Debug('Source file: '.file)
