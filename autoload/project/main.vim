@@ -446,9 +446,9 @@ function! s:OpenProject(project)
     call s:SourceInitFile()
 
     redraw
-    call s:Info('Open project: '.s:project.name)
+    call s:Info('Open: '.s:project.name)
   else
-    call s:Info('Project already opened')
+    call s:Info('Already opened')
   endif
 endfunction
 
