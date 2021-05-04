@@ -71,8 +71,16 @@ endfunction
 
 function! s:AddProject(path, ...)
   let fullpath = s:GetFullPath(a:path)
-  let hasProject = s:HasProjectWithSameFullPath(fullpath, g:vim_project_projects)
+  if !isdirectory(fullpath)
+    call s:Debug('Not directory: '.fullpath)
+    return
+  endif
+  let hasProject = s:HasProjectWithSameFullPath(
+        \fullpath,
+        \g:vim_project_projects
+        \)
   if hasProject
+    call s:Debug('Project has already been added at '.fullpath)
     return
   endif
 
@@ -84,8 +92,8 @@ function! s:AddProject(path, ...)
     let note = empty(note) ? s:auto_indicator : note.' '.s:auto_indicator
   endif
 
-  " path: without project name
   " fullpath: with project name
+  " path: without project name
   let project = { 
         \'name': name, 
         \'path': path, 
@@ -95,9 +103,7 @@ function! s:AddProject(path, ...)
         \'option': option,
         \}
   call s:InitProjectConfig(project)
-
-  call s:Debug('Add project '.name.', '.path)
-
+  call s:Debug('Added project '.name.', '.path)
   let index = a:0>1 ? a:2 : len(g:vim_project_projects)
   call insert(g:vim_project_projects, project, index)
 endfunction
@@ -173,7 +179,7 @@ function! s:InitProjectConfig(project)
 endfunction
 
 function! s:Debug(msg)
-  if exists('s:debug') && s:debug
+  if s:debug
     echom '['.s:name.'] '.a:msg
   endif
 endfunction

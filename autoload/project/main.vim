@@ -424,7 +424,7 @@ function! project#main#OpenProjectByName(name)
   if !empty(project)
     call s:OpenProject(project)
   else
-    call s:Log('Project not found: '.name)
+    call s:Warn('Project not found: '.a:name)
   endif
 endfunction
 
@@ -822,7 +822,7 @@ function! s:GetDisplayRow(key, value)
 endfunction
 
 function! s:Debug(msg)
-  if exists('s:debug') && s:debug
+  if s:debug
     echom '['.s:name.'] '.a:msg
   endif
 endfunction
