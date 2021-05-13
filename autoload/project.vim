@@ -10,7 +10,7 @@ let g:vim_project_loaded = 1
 "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 let s:name = 'vim-project'
-let s:base = '~'
+let s:base = '~/'
 let s:add_file = '_add.vim'
 let s:ignore_file = '_ignore.vim'
 let s:from_auto = 0
@@ -72,7 +72,7 @@ endfunction
 function! s:AddProject(path, ...)
   let fullpath = s:GetFullPath(a:path)
   if !isdirectory(fullpath)
-    call s:Debug('Not directory: '.fullpath)
+    call s:Info('No directory: '.fullpath)
     return
   endif
   let hasProject = s:HasProjectWithSameFullPath(
