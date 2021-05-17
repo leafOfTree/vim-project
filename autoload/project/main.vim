@@ -494,7 +494,7 @@ endfunction
 
 function! project#main#ExitProject()
   if s:IsProjectExist()
-    call s:Info('Exit project: '.s:project.name)
+    call s:Info('Exit: '.s:project.name)
     call s:SaveSession()
     call s:SourceExitFile()
 
@@ -635,7 +635,7 @@ endfunction
 
 function! s:GetSessionFile()
   if s:IsProjectExist()
-    let config_path = s:config_path.s:project.name
+    let config_path = project#GetProjectConfigPath(s:config_path, s:project)
     return config_path.'/sessions/'.s:branch.'.vim'
   else
     return ''
