@@ -8,7 +8,7 @@ before_install:
   - sudo apt-get -y install neovim
 
 install:
-  - git clone https://github.com/leafOfTree/test ../test --depth=1 
+  - git clone https://github.com/leafOfTree/vim-test ../vim-test --depth=1 
 
 script:
   - bash ../test/start.sh project vim-project
