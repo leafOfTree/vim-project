@@ -825,7 +825,10 @@ endfunction
 
 function! s:GetDisplayRow(key, value)
   let value = a:value
-  return value.__name."  ".value.__note."   ".value.__path
+  let home = expand('~')
+  return value.__name.'  '
+        \.value.__note.'  '
+        \.substitute(value.__path, '^'.expand('~'), '~', '')
 endfunction
 
 function! s:Debug(msg)
