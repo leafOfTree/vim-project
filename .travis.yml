@@ -11,4 +11,4 @@ install:
   - git clone https://github.com/leafOfTree/vim-test ../vim-test --depth=1 
 
 script:
-  - bash ../test/start.sh project vim-project
+  - bash ../vim-test/start.sh project vim-project

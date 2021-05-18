@@ -1,13 +1,8 @@
 # vim-project
 
-A vim plugin to manage projects and sessions. 
+A vim plugin to manage projects and sessions
 
-Support 
-
-- Project-related configurations and sessions
-- Git branch awareness
-
-    Vim feature `job` and shell command `tail` are required for branch awareness
+It supports configurations and sessions per project and per branch. The branch awareness requires both vim feature `job` and shell command `tail`
 
 ## Usage
 
