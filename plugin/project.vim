@@ -1,4 +1,5 @@
 command ProjectList call project#main#ListProjects()
+command -nargs=? ProjectOutput call project#main#OutputProjects(<args>)
 command ProjectExit call project#main#ExitProject()
 command ProjectInfo call project#main#ShowProjectInfo()
 command ProjectRoot call project#main#OpenProjectRoot()

@@ -296,6 +296,13 @@ function! s:GetAllProjects()
   return projects
 endfunction
 
+function! project#main#OutputProjects(...)
+  let filter = a:0>0 ? a:1 : ''
+  let projects = s:GetAllProjects()
+  let projects = s:FilterProjects(projects, filter)
+  echo projects
+endfunction
+
 function! s:FormatProjects()
   let list = s:GetAllProjects()
   if s:format_cache == len(list)
