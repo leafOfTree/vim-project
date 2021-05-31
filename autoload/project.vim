@@ -237,18 +237,18 @@ function! s:InitProjectConfig(project)
   let config_path = s:GetProjectConfigPath(s:config_path, a:project)
 
   if !isdirectory(config_path) && exists('*mkdir')
-    " Create config and sessions directory
-    call mkdir(config_path.'/sessions', 'p')
+    " Create project-specific config files
+    call mkdir(config_path, 'p')
 
     " Generate init.vim
     let init_file = config_path.'/init.vim'
     let init_content = [
           \'""""""""""""""""""""""""""""""""""""""""""""""',
-          \'" Initial file after session loaded',
+          \'" When: sourced after session is loaded',
           \'" Project: '.name, 
           \'" Variable: $vim_project, $vim_project_config',
           \'" Example: open `./src` on start',
-          \'" edit $vim_project/src',
+          \'" - edit $vim_project/src',
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \]
     call writefile(init_content, init_file)
@@ -257,7 +257,7 @@ function! s:InitProjectConfig(project)
     let quit_file = config_path.'/quit.vim'
     let quit_content = [
           \'""""""""""""""""""""""""""""""""""""""""""""""',
-          \'" Quit file after session saved',
+          \'" When: sourced after session is saved',
           \'" Project: '.name, 
           \'" Variable: $vim_project, $vim_project_config',
           \'""""""""""""""""""""""""""""""""""""""""""""""',
@@ -1054,6 +1054,16 @@ function! s:FindBranch(...)
   endif
 endfunction
 
+function! s:GetSessionFolder()
+  if s:IsProjectExist()
+    let config_path = s:GetProjectConfigPath(s:config_path, s:project)
+    return config_path.'/sessions'
+  else
+    return ''
+  endif
+endfunction
+
+
 function! s:GetSessionFile()
   if s:IsProjectExist()
     let config_path = s:GetProjectConfigPath(s:config_path, s:project)
@@ -1064,7 +1074,7 @@ function! s:GetSessionFile()
 endfunction
 
 function! s:LoadSession()
-  if empty(s:session)
+  if !s:session
     return
   endif
 
@@ -1119,12 +1129,17 @@ function! s:WatchHeadFileNeoVim(cmd)
 endfunction
 
 function! s:SaveSession()
-  if empty(s:session)
+  if !s:session
     return
   endif
 
   if s:IsProjectExist()
     call s:BeforeSaveSession()
+
+    let folder = s:GetSessionFolder()
+    if !isdirectory(folder) && exists('*mkdir')
+      call mkdir(folder, 'p')
+    endif
 
     let file = s:GetSessionFile()
     call s:Debug('Save session to: '.file)
