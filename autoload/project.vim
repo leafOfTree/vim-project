@@ -2,62 +2,6 @@
 if exists('g:vim_project_loaded') | finish | endif
 let g:vim_project_loaded = 1
 
-function! project#GetConfig(name, default)
-  return s:GetConfig(a:name, a:default)
-endfunction
-
-function! s:GetConfig(name, default)
-  let name = 'g:vim_project_'.a:name
-  let value = exists(name) ? eval(name) : a:default
-
-  if a:name == 'config'
-    let value = s:MergeUserConfigIntoDefault(value)
-  endif
-
-  return value
-endfunction
-
-function! s:MergeUserConfigIntoDefault(user)
-  let user = a:user
-  let default = s:default
-
-  if has_key(user, 'prompt_mapping')
-    let user.prompt_mapping = 
-          \ s:MergeUserMappingIntoDefault(user.prompt_mapping)
-  endif
-
-  for key in keys(default)
-    if has_key(user, key)
-      let default[key] = user[key]
-    endif
-  endfor
-  
-  if has_key(user, 'config_path')
-    let default.config_path = s:GetConfigPath(default.config_path)
-  endif
-
-  return default
-endfunction
-
-function! s:GetConfigPath(prefix)
-  let prefix = a:prefix
-  if prefix[len(prefix)-1] != '/'
-    let prefix = prefix.'/'
-  endif
-  return expand(prefix.s:name.'-config/')
-endfunction
-
-function! s:MergeUserMappingIntoDefault(user)
-  let user = a:user
-  let default = s:prompt_mapping_default
-  for key in keys(default)
-    if has_key(user, key)
-      let default[key] = user[key]
-    endif
-  endfor
-  return default
-endfunction
-
 function! s:Prepare()
   let s:name = 'vim-project'
   let s:prompt_prefix = 'Open a project:'
@@ -112,6 +56,59 @@ function! s:Prepare()
 
   let g:vim_project_projects = []
   let g:vim_project_projects_ignore = []
+endfunction
+
+
+function! s:GetConfig(name, default)
+  let name = 'g:vim_project_'.a:name
+  let value = exists(name) ? eval(name) : a:default
+
+  if a:name == 'config'
+    let value = s:MergeUserConfigIntoDefault(value)
+  endif
+
+  return value
+endfunction
+
+function! s:MergeUserConfigIntoDefault(user)
+  let user = a:user
+  let default = s:default
+
+  if has_key(user, 'prompt_mapping')
+    let user.prompt_mapping = 
+          \ s:MergeUserMappingIntoDefault(user.prompt_mapping)
+  endif
+
+  for key in keys(default)
+    if has_key(user, key)
+      let default[key] = user[key]
+    endif
+  endfor
+  
+  if has_key(user, 'config_path')
+    let default.config_path = s:GetConfigPath(default.config_path)
+  endif
+
+  return default
+endfunction
+
+function! s:GetConfigPath(prefix)
+  let prefix = a:prefix
+  if prefix[len(prefix)-1] != '/'
+    let prefix = prefix.'/'
+  endif
+  return expand(prefix.s:name.'-config/')
+endfunction
+
+function! s:MergeUserMappingIntoDefault(user)
+  let user = a:user
+  let default = s:prompt_mapping_default
+  for key in keys(default)
+    if has_key(user, key)
+      let default[key] = user[key]
+    endif
+  endfor
+  return default
 endfunction
 
 function! s:InitConfig()
@@ -249,9 +246,9 @@ function! s:InitProjectConfig(project)
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \'" Initial file after session loaded',
           \'" Project: '.name, 
-          \'" Env: $vim_project, $vim_project_config',
-          \'" Example: open `src/` on start',
-          \'" e $vim_project/src',
+          \'" Variable: $vim_project, $vim_project_config',
+          \'" Example: open `./src` on start',
+          \'" edit $vim_project/src',
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \]
     call writefile(init_content, init_file)
@@ -262,7 +259,7 @@ function! s:InitProjectConfig(project)
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \'" Quit file after session saved',
           \'" Project: '.name, 
-          \'" Env: $vim_project, $vim_project_config',
+          \'" Variable: $vim_project, $vim_project_config',
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \]
     call writefile(quit_content, quit_file)
@@ -288,10 +285,6 @@ function! s:GetProjectConfigPath(config_path, project)
   let id = substitute(a:project.path, '/', '_', 'g')
   let folder = a:project.name.'__'.id
   return a:config_path.folder
-endfunction
-
-function! project#GetProjectConfigPath(config_path, project)
-  return s:GetProjectConfigPath(a:config_path, a:project)
 endfunction
 
 function! project#ListProjectNames(A, L, P)
@@ -910,7 +903,7 @@ endfunction
 
 function! project#OpenProjectConfig()
   if s:IsProjectExist()
-    let config_path = project#GetProjectConfigPath(
+    let config_path = s:GetProjectConfigPath(
           \s:config_path, s:project)
     execute 'edit '.config_path
   endif
@@ -1026,7 +1019,7 @@ endfunction
 
 function! s:SourceFile(file)
   let name = s:project.name.'-'.s:project.path
-  let config_path = project#GetProjectConfigPath(s:config_path, s:project)
+  let config_path = s:GetProjectConfigPath(s:config_path, s:project)
   let file = config_path.'/'.a:file
   if filereadable(file)
     call s:Debug('Source file: '.file)
@@ -1063,7 +1056,7 @@ endfunction
 
 function! s:GetSessionFile()
   if s:IsProjectExist()
-    let config_path = project#GetProjectConfigPath(s:config_path, s:project)
+    let config_path = s:GetProjectConfigPath(s:config_path, s:project)
     return config_path.'/sessions/'.s:branch.'.vim'
   else
     return ''

@@ -5,6 +5,7 @@ function! s:TrimQuote(args)
   return args
 endfunction
 
+command Project call project#ListProjects()
 command ProjectList call project#ListProjects()
 command ProjectExit call project#ExitProject()
 command ProjectInfo call project#ShowProjectInfo()
@@ -28,4 +29,3 @@ command -complete=dir -nargs=1
       \ ProjectIgnore call project#IgnoreProject(s:TrimQuote(<q-args>))
 
 call project#begin()
-
