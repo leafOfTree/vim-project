@@ -41,7 +41,7 @@ function! s:Prepare()
         \'branch': 0,
         \'root': 0,
         \'auto_detect': 'always',
-        \'auto_detect_file': '.git, .svn, package.json',
+        \'auto_detect_file': '.git, .svn, package.json, pom.xml, Gemfile',
         \'auto_detect_row_mark': '',
         \'auto_load_on_start': 0,
         \'prompt_mapping': s:prompt_mapping_default,
@@ -142,7 +142,7 @@ function! project#AddProjectFromUser(path, ...)
   let option = a:0 > 0 ? a:1 : {}
   call s:AddProject(a:path, option)
   call s:SaveToPluginConfigAdd(a:path)
-  call s:SaveToPluginConfigIgnore(a:path)
+  " call s:SaveToPluginConfigIgnore(a:path)
 endfunction
 
 function! project#AddProjectFromFile(path, ...)
@@ -156,7 +156,7 @@ function! s:AddProject(path, ...)
   let index = a:0>1 ? a:2 : len(g:vim_project_projects)
 
   if !isdirectory(fullpath)
-    call s:Info('Not directory: '.fullpath)
+    call s:Warn('Not directory: '.fullpath)
     return
   endif
   let hasProject = s:HasProjectWithSameFullPath(
@@ -446,7 +446,7 @@ function! s:AutoAddProject(path)
   call s:AddProject(a:path, {}, index)
   let s:from_auto = 0
   call s:SaveToPluginConfigAdd(a:path)
-  call s:SaveToPluginConfigIgnore(a:path)
+  " call s:SaveToPluginConfigIgnore(a:path)
   redraw
   call s:InfoHl('Added '.a:path)
 endfunction
