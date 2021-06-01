@@ -13,7 +13,7 @@ command ProjectRoot call project#OpenProjectRoot()
 command ProjectConfig call project#OpenProjectConfig()
 command ProjectTotalConfig call project#OpenTotalConfig()
 command -nargs=? ProjectOutput call project#OutputProjects(<q-args>)
-command -complete=custom,project#ListProjectNames -nargs=1
+command -complete=customlist,project#ListProjectNames -nargs=1
       \ ProjectOpen call project#OpenProjectByName(s:TrimQuote(<q-args>))
 
 command -complete=dir -nargs=1

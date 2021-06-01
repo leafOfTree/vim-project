@@ -1,4 +1,3 @@
-" Loaded earlier than autoload/project-core.vim
 if exists('g:vim_project_loaded') | finish | endif
 let g:vim_project_loaded = 1
 
@@ -48,7 +47,6 @@ function! s:Prepare()
         \'views': [],
         \'debug': 0,
         \}
-
 
   " Used by statusline
   let g:vim_project = {}
@@ -290,7 +288,8 @@ endfunction
 function! project#ListProjectNames(A, L, P)
   let projects = deepcopy(g:vim_project_projects)
   let names =  map(projects, {_, project -> "'".project.name."'"})
-  return join(names, "\n")
+  let matches = filter(names, {idx, val -> val =~ a:A})
+  return matches
 endfunction
 
 " Call this entry function first
