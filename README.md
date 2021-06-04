@@ -82,11 +82,9 @@ You can find and directly modify recorded projects in these files in `~/.vim/vim
     - Load session
     - Source project `init.vim`
 
-- Edit files
+- Quit the project
 
-- Exit the project
-
-    `:ProjectExit` | Open another project | Quit vim
+    `:ProjectQuit` | Open another project | Quit vim
     - Save session
     - Source project `quit.vim`
 
@@ -95,11 +93,12 @@ You can find and directly modify recorded projects in these files in `~/.vim/vim
 | command                             | description                               |
 |-------------------------------------|-------------------------------------------|
 | ProjectBase `<base>`                | Set base directory for following projects |
+| Project `<path>[, option]`          | Add project                               |
 | ProjectAdd `<path>[, option]`       | Add project                               |
 | ProjectList                         | Show projects                             |
 | ProjectOpen `<name>`                | Open a project by name                    |
 | ProjectInfo                         | Show project info                         |
-| ProjectExit                         | Exit project                              |
+| ProjectQuit                         | Quit project                              |
 | ProjectEntry                        | Open project entry directory              |
 | ProjectConfig                       | Open project config directory             |
 | ProjectTotalConfig                  | Open total config directory               |

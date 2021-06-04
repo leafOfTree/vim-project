@@ -891,11 +891,11 @@ function! project#OpenTotalConfig()
   execute 'edit '.s:config_path
 endfunction
 
-function! project#ExitProject()
+function! project#QuitProject()
   if s:IsProjectExist()
-    call s:Info('Exit: '.s:project.name)
+    call s:Info('Quit: '.s:project.name)
     call s:SaveSession()
-    call s:SourceExitFile()
+    call s:SourceQuitFile()
 
     let s:project = {}
     call s:UnsetEnvVariables()
@@ -988,7 +988,7 @@ endfunction
 function! s:OnVimLeave()
   augroup vim-project-leave
     autocmd! vim-project-leave
-    autocmd VimLeavePre * call project#ExitProject()
+    autocmd VimLeavePre * call project#QuitProject()
   augroup END
 endfunction
 
@@ -996,7 +996,7 @@ function! s:SourceInitFile()
   call s:SourceFile('init.vim')
 endfunction
 
-function! s:SourceExitFile()
+function! s:SourceQuitFile()
   call s:SourceFile('quit.vim')
 endfunction
 

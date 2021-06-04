@@ -6,7 +6,7 @@ function! s:TrimQuote(args)
 endfunction
 
 command ProjectList call project#ListProjects()
-command ProjectExit call project#ExitProject()
+command ProjectQuit call project#QuitProject()
 command ProjectInfo call project#ShowProjectInfo()
 command ProjectEntry call project#OpenProjectEntry()
 command ProjectConfig call project#OpenProjectConfig()
