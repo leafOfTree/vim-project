@@ -4,13 +4,12 @@ let g:vim_project_loaded = 1
 function! s:Prepare()
   let s:name = 'vim-project'
   let s:prompt_prefix = 'Open a project:'
-  let s:prompt_suffix = ''
   let s:laststatus_save = &laststatus
   let s:origin_height = 0
   let s:head_file_job = 0
   let s:project = {}
   let s:branch = ''
-  let s:branch_default = '__default__'
+  let s:branch_default = '_'
   let s:list_buffer = '__projects__'
   let s:nerdtree_tmp = '__vim_project_nerdtree_tmp__'
   let s:format_cache = 0
@@ -110,8 +109,8 @@ function! s:InitConfig()
   let s:config = s:GetConfig('config', {})
   let s:config_path = s:config.config_path
   let s:open_entry = s:config.entry
-  let s:ignore_branch = s:config.branch
-  let s:session = s:config.session
+  let s:enable_branch = s:config.branch
+  let s:enable_session = s:config.session
 
   " options: 'always'(default), 'ask', 'no'
   let s:auto_detect = s:config.auto_detect
@@ -309,7 +308,7 @@ endfunction
 
 function! s:SaveToPluginConfigAdd(path)
   let file = s:config_path.'/'.s:add_file
-  let cmd = "ProjectFromFile '".a:path."'"
+  let cmd = 'ProjectFromFile '.a:path
   call writefile([cmd], file, 'a')
 endfunction
 
@@ -373,7 +372,7 @@ function! s:AutoloadOnVimEnter()
     let buf = expand('<amatch>')
     " Avoid conflict with opened buffer like nerdtree
     enew
-    ProjectOpen project.name
+    execute 'ProjectOpen '.project.name
 
     if project.fullpath is s:startup_buf
       " Follow session files if open the entry path
@@ -744,7 +743,7 @@ function! s:HandleInput()
   call s:FormatProjects()
   let projects = s:ShowProjects()
   redraw
-  echo s:prompt_prefix.' '.s:prompt_suffix
+  echo s:prompt_prefix.' '
 
   " Read input
   let input = ''
@@ -785,7 +784,7 @@ function! s:HandleInput()
       let projects = s:ShowProjects(input, offset)
 
       redraw
-      echo s:prompt_prefix.' '.input.s:prompt_suffix
+      echo s:prompt_prefix.' '.input
     endwhile
   catch /^Vim:Interrupt$/
     call s:CloseListBuffer()
@@ -1014,7 +1013,7 @@ function! s:SourceFile(file)
 endfunction
 
 function! s:FindBranch(...)
-  if s:ignore_branch
+  if !s:enable_branch
     let s:branch = s:branch_default
     return
   endif
@@ -1058,7 +1057,7 @@ function! s:GetSessionFile()
 endfunction
 
 function! s:LoadSession()
-  if !s:session
+  if !s:enable_session
     return
   endif
 
@@ -1067,12 +1066,12 @@ function! s:LoadSession()
     call s:Debug('Load session file: '.file)
     execute 'source '.file
   else
-    call s:Debug('Not found session file: '.file)
+    call s:Debug('Not session file found: '.file)
   endif
 endfunction
 
 function! s:StartWatchJob()
-  let should_watch = !s:ignore_branch && executable('tail') == 1
+  let should_watch = s:enable_branch && executable('tail') == 1
   if should_watch
     let cmd = s:GetWatchCmd()
     if !empty(cmd)
@@ -1113,7 +1112,7 @@ function! s:WatchHeadFileNeoVim(cmd)
 endfunction
 
 function! s:SaveSession()
-  if !s:session
+  if !s:enable_session
     return
   endif
 

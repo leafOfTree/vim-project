@@ -18,31 +18,14 @@ A vim plugin to manage projects
 - Configs per project 
 - Sessions per project and per branch
 
-    It requires both vim feature `job` and shell command `tail` to notice branch
+    To notice branch, it requires both vim feature `job` and shell command `tail` 
 
 ## Usage
 
 - `:ProjectAdd </path/to/project>`
 - `:ProjectList` 
 
-    Show all projects that have been added. You can navigate to target project and then press <kbd>Enter</kbd> to open it
-
-## Add projects
-
-### Manually
-
-`:ProjectAdd </path/to/project>`
-
-### Auto
-
-When opening a file in a new project, `vim-project` will automatically add it if its directory contains `.git, .svn, package.json, pom.xml, Gemfile`. You can adjust related options at [Config](#config)
-
-### Projects cache
-
-You can find and directly modify recorded projects in these files in `~/.vim/vim-project-config/`
-
-- Projects added are saved to `project.add.vim`
-- Projects ignored to `project.ignore.vim`
+    It shows all projects that have been added. Navigate to target project and then press <kbd>Enter</kbd> to open it
 
 ## Installation
 
@@ -68,6 +51,24 @@ You can find and directly modify recorded projects in these files in `~/.vim/vim
 
 <br />
 </details>
+
+
+## Adding projects
+
+### Manually
+
+`:ProjectAdd </path/to/project>`
+
+### Auto
+
+When opening a file in a new project, `vim-project` will automatically add it if its directory contains `.git, .svn, package.json, pom.xml, Gemfile`. You can adjust related options at [Config](#config)
+
+### Projects cache
+
+You can find and directly modify recorded projects in these files in `~/.vim/vim-project-config/`
+
+- Projects added are saved to `project.add.vim`
+- Projects ignored to `project.ignore.vim`
 
 ## Workflow
 
@@ -104,14 +105,14 @@ You can find and directly modify recorded projects in these files in `~/.vim/vim
 | ProjectTotalConfig                  | Open total config directory               |
 | ProjectIgnore `<path>`              | Ignore project for auto detection         |
 
-**ProjectAdd option**
+#### `:ProjectAdd` option
 
 ```vim
-Project '/path/to/demo', { 'entry': 'src', 'note': 'A demo' }
+ProjectAdd '/path/to/demo', { 'entry': 'src', 'note': 'A demo' }
 ```
 
 - `entry`: directory or file used as project entry
-- `note`: note shown on project list
+- `note`: text description shown on project list
 
 ## Config
 There is only one config `g:vim_project_config`. Its default value is below. You can copy it as a starting point
@@ -125,7 +126,6 @@ let g:vim_project_config = {
       \'auto_detect': 'always',
       \'auto_detect_file': '.git, .svn, package.json',
       \'auto_load_on_start': 0,
-      \'prompt_mapping': {},
       \'views': [],
       \'debug': 1,
       \}
@@ -148,14 +148,14 @@ let g:vim_project_config.prompt_mapping = {
 | Option               | Description                                                                   | Type    |
 |----------------------|-------------------------------------------------------------------------------|---------|
 | config_path          | The config directory                                                          | string  |
-| session              | Load and save session                                                         | boolean |
-| branch               | Keep a session for each branch                                                | boolean |
-| entry                | Open project entry regardless of session                                      | boolean |
+| session              | Enable session                                                                | boolean |
+| branch               | When session enabled, keep one for each branch                                | boolean |
+| entry                | When session enabled, always open project entry                               | boolean |
 | auto_detect          | Auto detect projects when opening a file. <br>Choose 'always', 'ask', or 'no' | string  |
 | auto_detect_file     | File used to detect potential projects                                        | string  |
 | auto_load_on_start   | Auto load a project if Vim starts from its directory                          | boolean |
 | prompt_mapping       | Mapping for prompt                                                            | dict    |
-| views                | Views config with shape [[show, hide?], ...]                                  | list    |
+| views                | Define views by [[show-pattern, hide-pattern?], ...]                          | list    |
 | debug                | Show debug messages                                                           | boolean |
 
 ### Config files structure
@@ -193,26 +193,26 @@ let g:vim_project_config.views = [
 
 ## Global variables
 
-- `g:vim_project` *Dict*. Current project info
-- `$vim_project` *String*. Current project path
-- `$vim_project_config` *String*. Current project config path
+- `g:vim_project` *dict*. Current project info
+- `$vim_project` *string*. Current project path
+- `$vim_project_config` *string*. Current project config path
 
 ## Statusline
 
 You can get current project info from `g:vim_project`. Try `echo g:vim_project` after opening a project
 
-For example, define a function called `GetProjectInfo` and add `[%{GetProjectInfo()}]` to `statusline` to show current project name and branch.
+For example, define a function called `GetProjectInfo` and add `%{GetProjectInfo()}` to `statusline` to show current project name and branch.
 
 ```vim
 function! GetProjectInfo()
   if exists('g:vim_project_loaded')
     let name = get(g:vim_project,'name','')
     let branch = get(g:vim_project,'branch','')
-    return empty(name) ? '' : name.','.branch
+    return empty(name) ? '' : '['.name.','.branch.']'
   endif
 endfunction
 
-set statusline=%<%t%m\ %y\ %=[%{GetProjectInfo()}]
+set statusline=%<%t%m\ %y\ %=%{GetProjectInfo()}
 ```
 
 ## Credits
