@@ -88,6 +88,10 @@ You can find and directly modify recorded projects in these files in `~/.vim/vim
     - Save session
     - Source project `quit.vim`
 
+- Remove projects
+
+    `:ProjectRemove <name>`
+
 ## Commands
 
 | command                             | description                               |
@@ -97,12 +101,15 @@ You can find and directly modify recorded projects in these files in `~/.vim/vim
 | ProjectAdd `<path>[, option]`       | Add project                               |
 | ProjectList                         | Show projects                             |
 | ProjectOpen `<name>`                | Open a project by name                    |
+| ProjectRemove `<name>`              | Remove a project by name                  |
 | ProjectInfo                         | Show project info                         |
 | ProjectQuit                         | Quit project                              |
 | ProjectEntry                        | Open project entry directory              |
 | ProjectConfig                       | Open project config directory             |
 | ProjectTotalConfig                  | Open total config directory               |
 | ProjectIgnore `<path>`              | Ignore project for auto detection         |
+
+> You can try `set wildmenu` for enhanced command-line completion
 
 #### `:ProjectAdd` option
 

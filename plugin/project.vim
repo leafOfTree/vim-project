@@ -14,6 +14,8 @@ command ProjectTotalConfig call project#OpenTotalConfig()
 command -nargs=? ProjectOutput call project#OutputProjects(<q-args>)
 command -complete=customlist,project#ListProjectNames -nargs=1
       \ ProjectOpen call project#OpenProjectByName(s:TrimQuote(<q-args>))
+command -complete=customlist,project#ListProjectNames -nargs=1
+      \ ProjectRemove call project#RemoveProjectByName(s:TrimQuote(<q-args>))
 
 command -complete=dir -nargs=+
       \ Project call project#AddProjectFromUser(s:TrimQuote(<q-args>))

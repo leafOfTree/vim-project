@@ -312,6 +312,21 @@ function! s:SaveToPluginConfigAdd(path)
   call writefile([cmd], file, 'a')
 endfunction
 
+function! s:RemoveItemInPluginConfigAdd(path)
+  let target = substitute(a:path, expand('~'), '~', '')
+  let file = s:config_path.'/'.s:add_file
+  let adds = readfile(file)
+  let idx = 0
+  for line in adds
+    if count(line, target)
+      break
+    endif
+    let idx += 1 
+  endfor
+  call remove(adds, idx)
+  call writefile(adds, file)
+endfunction
+
 function! s:SaveToPluginConfigIgnore(path)
   let file = s:config_path.'/'.s:ignore_file
   let cmd = "ProjectIgnore '".a:path."'"
@@ -827,6 +842,15 @@ function! project#OpenProjectByName(name)
   endif
 endfunction
 
+function! project#RemoveProjectByName(name)
+  let project = s:GetProjectByName(a:name)
+  if !empty(project)
+    call s:RemoveProject(project)
+  else
+    call s:Warn('Project not found: '.a:name)
+  endif
+endfunction
+
 function! s:OpenProject(project)
   let prev = s:project
   let current = a:project
@@ -849,6 +873,22 @@ function! s:OpenProject(project)
   else
     call s:Info('Already opened')
   endif
+endfunction
+
+function! s:RemoveProject(project)
+  let current = s:project
+  let target = a:project
+  let projects = s:GetAllProjects()
+
+  if target == current
+    ProjectQuit
+  endif
+
+  let idx = index(projects, target)
+  call remove(projects, idx)
+  call s:Info('Removed: '. target.name)
+  call s:SaveToPluginConfigIgnore(target.fullpath)
+  call s:RemoveItemInPluginConfigAdd(target.fullpath)
 endfunction
 
 function! s:SetEnvVariables()
