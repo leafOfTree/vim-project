@@ -18,7 +18,6 @@ function! s:Prepare()
   let s:base = '~/'
   let s:add_file = 'project.add.vim'
   let s:ignore_file = 'project.ignore.vim'
-  let s:from_auto = 0
 
   let s:prompt_mapping_default = {
         \'open_project': "\<cr>",
@@ -30,18 +29,17 @@ function! s:Prepare()
         \'next_item': ["\<c-j>", "\<down>"],
         \'first_item': ["\<c-h>", "\<left>"],
         \'last_item': ["\<c-l>", "\<right>"],
-        \'next_view': "\<tab>",
         \'prev_view': "\<s-tab>",
+        \'next_view': "\<tab>",
         \}
 
   let s:default = {
         \'config_path': '~/.vim',
         \'session': 0,
         \'branch': 0,
-        \'root': 0,
+        \'entry': 0,
         \'auto_detect': 'always',
         \'auto_detect_file': '.git, .svn, package.json, pom.xml, Gemfile',
-        \'auto_detect_row_mark': '',
         \'auto_load_on_start': 0,
         \'prompt_mapping': s:prompt_mapping_default,
         \'views': [],
@@ -50,7 +48,6 @@ function! s:Prepare()
 
   " Used by statusline
   let g:vim_project = {}
-  let g:vim_project_branch = ''
 
   let g:vim_project_projects = []
   let g:vim_project_projects_ignore = []
@@ -112,16 +109,14 @@ endfunction
 function! s:InitConfig()
   let s:config = s:GetConfig('config', {})
   let s:config_path = s:config.config_path
-  let s:open_root = s:config.root
+  let s:open_entry = s:config.entry
   let s:ignore_branch = s:config.branch
   let s:session = s:config.session
 
   " options: 'always'(default), 'ask', 'no'
   let s:auto_detect = s:config.auto_detect
   let s:auto_detect_file = s:config.auto_detect_file
-  let s:auto_detect_row_mark = s:config.auto_detect_row_mark
   let s:auto_load_on_start = s:config.auto_load_on_start
-
   let s:views = s:config.views
   let s:view_index = -1
   let s:prompt_mapping = s:config.prompt_mapping
@@ -136,26 +131,34 @@ function! project#SetBase(base)
   let s:base = base
 endfunction
 
-function! project#AddProjectFromUser(path, ...)
-  let option = a:0 > 0 ? a:1 : {}
-  call s:AddProject(a:path, option)
-  call s:SaveToPluginConfigAdd(a:path)
-  " call s:SaveToPluginConfigIgnore(a:path)
+function! s:GetAddArgs(args)
+  let args = split(a:args, ',\s*\ze{')
+  let path = args[0]
+  let option = len(args) > 1 ? js_decode(args[1]) : {}
+  return [path, option]
 endfunction
 
-function! project#AddProjectFromFile(path, ...)
-  let option = a:0 > 0 ? a:1 : {}
-  call s:AddProject(a:path, option)
+function! project#AddProjectFromUser(args)
+  let [path, option] = s:GetAddArgs(a:args)
+  let error = s:AddProject(path, option)
+  if !error
+    call s:SaveToPluginConfigAdd(path)
+  endif
+endfunction
+
+function! project#AddProjectFromFile(args)
+  let [path, option] = s:GetAddArgs(a:args)
+  call s:AddProject(path, option)
 endfunction
 
 function! s:AddProject(path, ...)
   let fullpath = s:GetFullPath(a:path)
   let option = a:0 > 0 ? a:1 : {}
-  let index = a:0>1 ? a:2 : len(g:vim_project_projects)
+  let index = a:0 >1 ? a:2 : len(g:vim_project_projects)
 
   if !isdirectory(fullpath)
     call s:Warn('Not directory: '.fullpath)
-    return
+    return -1
   endif
   let hasProject = s:HasProjectWithSameFullPath(
         \fullpath,
@@ -163,17 +166,12 @@ function! s:AddProject(path, ...)
         \)
   if hasProject
     call s:Debug('Already have '.fullpath)
-    return
+    return -1
   endif
 
   let name = matchstr(fullpath, '/\zs[^/]*$')
   let path = substitute(fullpath, '/[^/]*$', '', '')
   let note = get(option, 'note', '')
-  if s:from_auto
-    let note = empty(note)
-          \ ? s:auto_detect_row_mark 
-          \ : note.' '.s:auto_detect_row_mark
-  endif
 
   " fullpath: with project name
   " path: without project name
@@ -182,7 +180,6 @@ function! s:AddProject(path, ...)
         \'path': path, 
         \'fullpath': fullpath,
         \'note': note, 
-        \'auto': s:from_auto,
         \'option': option,
         \}
   call s:InitProjectConfig(project)
@@ -303,9 +300,7 @@ function! s:SourcePluginConfigFiles()
   let add_file = s:config_path.'/'.s:add_file
   let ignore_file = s:config_path.'/'.s:ignore_file
   if filereadable(add_file)
-    let s:from_auto = 1
     execute 'source '.add_file
-    let s:from_auto = 0
   endif
   if filereadable(ignore_file)
     execute 'source '.ignore_file
@@ -381,7 +376,7 @@ function! s:AutoloadOnVimEnter()
     ProjectOpen project.name
 
     if project.fullpath is s:startup_buf
-      " Follow session files if open the root path
+      " Follow session files if open the entry path
       " Use timer to avoid conflict with Fern.vim
       call timer_start(1, 'VimProject_HandleFileManagerPlugin')
     else
@@ -441,11 +436,8 @@ endfunction
 
 function! s:AutoAddProject(path)
   let index = s:FindLastAutoAddProjectIndex()
-  let s:from_auto = 1
   call s:AddProject(a:path, {}, index)
-  let s:from_auto = 0
   call s:SaveToPluginConfigAdd(a:path)
-  " call s:SaveToPluginConfigIgnore(a:path)
   redraw
   call s:InfoHl('Added '.a:path)
 endfunction
@@ -692,9 +684,15 @@ function! s:FilterProjects(projects, filter)
   if a:filter != ''
     let filter = join(split(a:filter, '\zs'), '.*')
     call s:FilterList(projects, filter)
+  else
+    call sort(projects, 's:SortInauguralList')
   endif
 
   return projects
+endfunction
+
+function! s:SortInauguralList(a1, a2)
+  return a:a1.name < a:a2.name ? 1 : -1
 endfunction
 
 function! s:AddRightPadding(string, length)
@@ -891,9 +889,9 @@ function! s:IsProjectExist()
   endif
 endfunction
 
-function! project#OpenProjectRoot()
+function! project#OpenProjectEntry()
   if s:IsProjectExist()
-    let path = s:GetProjectRootPath()
+    let path = s:GetProjectEntryPath()
     if !empty(path)
       execute 'edit '.path
     endif
@@ -931,12 +929,12 @@ function! s:SyncGlobalVariables()
           \'path': s:project.path,
           \'fullpath': s:project.fullpath,
           \'note': s:project.note, 
-          \'option': s:project.option
+          \'option': s:project.option,
+          \'branch': s:branch,
           \}
   else
     let g:vim_project = {}
   endif
-  let g:vim_project_branch = s:branch
 endfunction
 
 function! project#ShowProjectInfo()
@@ -961,23 +959,27 @@ function! s:SetStartBuffer()
   let bufname = expand('%')
 
   let is_nerdtree_tmp = count(bufname, s:nerdtree_tmp) == 1
-  let open_root = s:open_root
+  let open_entry = s:open_entry
         \ || &buftype == 'nofile' 
         \ || bufname == '' 
         \ || is_nerdtree_tmp
-  let path = s:GetProjectRootPath()
-  if open_root
+  let path = s:GetProjectEntryPath()
+  if open_entry
     if is_nerdtree_tmp
       silent bdelete
     endif
-    call s:Debug('Open root from buf '.bufname)
+    call s:Debug('Open entry from buf '.bufname)
     if !empty(path)
-      if exists('g:loaded_nerd_tree')
-        let edit_cmd = 'NERDTree' 
+      if isdirectory(path)
+        if exists('g:loaded_nerd_tree')
+          let edit_cmd = 'NERDTree' 
+        else
+          let edit_cmd = 'edit'
+        endif
+        execute edit_cmd.' '.path.' | silent only |  cd '.path
       else
-        let edit_cmd = 'edit'
+        execute 'edit '.path
       endif
-      execute edit_cmd.' '.path.' | silent only |  cd '.path
     else
       execute 'silent only | enew'
     endif
@@ -986,11 +988,12 @@ function! s:SetStartBuffer()
   endif
 endfunction
 
-function! s:GetProjectRootPath()
+function! s:GetProjectEntryPath()
   let path = s:project.fullpath
-  if has_key(s:project.option, 'root')
-    let root = substitute(s:project.option.root, '^\.\?[/\\]', '', '')
-    let path = path.'/'.root
+  if has_key(s:project.option, 'entry')
+    " Remove the relative part './'
+    let entry = substitute(s:project.option.entry, '^\.\?[/\\]', '', '')
+    let path = path.'/'.entry
   endif
   if isdirectory(path) || filereadable(path)
     return path
@@ -1238,7 +1241,7 @@ function! ReloadSession(channel, msg, ...)
     call s:SaveSession()
     silent! %bdelete
     let s:branch = new_branch
-    let g:vim_project_branch = s:branch
+    let g:vim_project.branch = s:branch
     call s:LoadSession()
     call s:SetStartBuffer()
 

@@ -1,59 +1,48 @@
 # vim-project
 
-A vim plugin to manage projects and sessions
+<p align="center">
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-1.png" width="240" />
+➡️
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-2.png" width="240" />
+➡️
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-3.png" width="240" />
+➡️
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-4.png" width="240" />
+</p>
 
-It supports configurations and sessions per project and per branch. The branch awareness requires both vim feature `job` and shell command `tail`
+A vim plugin to manage projects
+
+**Features**
+
+- Switch between projects
+- Configs per project 
+- Sessions per project and per branch
+
+    It requires both vim feature `job` and shell command `tail` to notice branch
 
 ## Usage
 
-First, add `g:vim_project_*` related configs. And then call the entry function in `vimrc`
+- `:ProjectAdd </path/to/project>`
+- `:ProjectList` 
 
-```vim
-let g:vim_project_config = '~/.vim'
+    Show all projects that have been added. You can navigate to target project and then press <kbd>Enter</kbd> to open it
 
-" Call it after all the g:vim_project_* configs
-call project#begin()
-```
+## Add projects
 
-Next, you can open any file under a project to trigger auto detection as described below. Use `:ProjectList` to open project.
+### Manually
 
-### Auto detect projects
+`:ProjectAdd </path/to/project>`
 
-By default, `vim-project` will detect new projects which contain `.git,.svn,package.json` when opening any file under them.
+### Auto
 
-```vim
-let g:vim_project_config = '~/.vim'
+When opening a file in a new project, `vim-project` will automatically add it if its directory contains `.git, .svn, package.json, pom.xml, Gemfile`. You can adjust related options at [Config](#config)
 
-" options: 'ask'(default), 'always', 'no'
-let g:vim_project_auto_detect = 'ask'
+### Projects cache
 
-call project#begin()
-```
+You can find and directly modify recorded projects in these files in `~/.vim/vim-project-config/`
 
-The record is saved to either `~/.vim/vim-project-config/_add.vim` or `~/.vim/vim-project-config/_ignore.vim`(higher priority). You can manually add or modify projects in these files later.
-
-### Manually add proejcts
-
-You can also manually add projects by specifying their path **AFTER** entry function in `vimrc`. 
-```vim
-call project#begin()
-
-" Add '~/repository/project-name'
-ProjectBase '~/repository'
-Project 'project-name'
-
-ProjectBase '/path/to/vundle/plugins'
-Project 'vim-matchtag', { 'note': 'Just for test' }
-
-" Absolute path that starts with '~' or '/' or '\w:'
-Project '~/repository/svelte-mode'
-```
-
-### Show projects
-
-You can type `:ProjectList` to display the project list and press <kbd>Enter</kbd> to open a selected project. 
-
-Ref: [The prompt mapping](#prompt-mapping).
+- Projects added are saved to `project.add.vim`
+- Projects ignored to `project.ignore.vim`
 
 ## Installation
 
@@ -66,7 +55,7 @@ Ref: [The prompt mapping](#prompt-mapping).
 
 - [vim-pathogen][2]
 
-        cd ~/.vim/bundle && \
+        cd ~/.vim/bundle
         git clone https://github.com/leafOfTree/vim-project --depth 1
 
 - [vim-plug][3]
@@ -83,119 +72,103 @@ Ref: [The prompt mapping](#prompt-mapping).
 ## Workflow
 
 - Add projects
-    - Auto
 
-        Open any file under a project with auto detection enabled 
-
-    - Manually 
-
-        `:Project <project-name>[, options]` in `vimrc`
+    `:ProjectAdd <path/to/project>` | Open a file in a project
 
 - Open a project
 
-    `:ProjectList` or `:ProjectOpen <project-name>`
-
-    - Load the session
-
-    - Source project's `init.vim` if exists
+    `:ProjectList` | `:ProjectOpen <name>`
+    - Load session
+    - Source project `init.vim`
 
 - Edit files
 
-- Exit the project(`:ProjectExit`) / Open another project / Quit vim
+- Exit the project
 
-    - Save the session
-
-    - Source project's `quit.vim` if exists
+    `:ProjectExit` | Open another project | Quit vim
+    - Save session
+    - Source project `quit.vim`
 
 ## Commands
-
-First of all, `call project#begin()` to get the basic `ProjectBase` and `Project` commands.
 
 | command                             | description                               |
 |-------------------------------------|-------------------------------------------|
 | ProjectBase `<base>`                | Set base directory for following projects |
-| Project `<name or path>[, option]`  | Add project                               |
-| ProjectIgnore `<path>`              | Ignore project for auto detection         |
+| ProjectAdd `<path>[, option]`       | Add project                               |
 | ProjectList                         | Show projects                             |
+| ProjectOpen `<name>`                | Open a project by name                    |
 | ProjectInfo                         | Show project info                         |
 | ProjectExit                         | Exit project                              |
-| ProjectRoot                         | Goto project root directory               |
-| ProjectConfig                       | Goto project config directory             |
-| ProjectPluginConfig                 | Goto plugin config directory              |
-| ProjectOpen `<name>`                | Open a project by name                    |
+| ProjectEntry                        | Open project entry directory              |
+| ProjectConfig                       | Open project config directory             |
+| ProjectTotalConfig                  | Open total config directory               |
+| ProjectIgnore `<path>`              | Ignore project for auto detection         |
 
-### Project option
-
-```vim
-Project 'demo', { 'note': 'Just for demo', 'root': 'src' }
-```
-
-- `note`: note shown on project list.
-- `root`: root used when opening project root.
-
-### Custom mapping for commands
-
-You can add custom mappings for some useful commands as needed
-```vim
-nnoremap ;p    :ProjectList<cr>
-nnoremap ;i    :ProjectInfo<cr>
-nnoremap ;e    :ProjectExit<cr>
-nnoremap ;r    :ProjectRoot<cr>
-nnoremap ;c    :ProjectConfig<cr> 
-nnoremap ;h    :ProjectPluginConfig<cr> 
-
-" You need to type the project name. You can use <tab> for autocompletion
-nnoremap ;o    :ProjectOpen 
-```
-
-## Configuration
-
-| variable                       | description                                                 | default                  |
-|--------------------------------|-------------------------------------------------------------|--------------------------|
-| g:vim_project_config           | The config directory                                        | `'~/.vim'`               |
-| g:vim_project_open_root        | Open project root regardless of sessions                    | 0                        |
-| g:vim_project_ignore_branch    | Ignore the branch change                                    | 0                        |
-| g:vim_project_ignore_session   | Ignore sessions. Thus no loading and saving                 | 0                        |
-| g:vim_project_prompt_mapping   | Mapping for prompt                                    | *see ^*                  |
-| g:vim_project_auto_detect      | Whether auto detect potential projects when opening a file. <br> Options are 'always', 'ask', or 'no'| `'ask'`                    |
-| g:vim_project_auto_detect_sign | Sign for auto detecting potential projects                  | `'.git,.svn,package.json'`|
-| g:vim_project_auto_indicator   | Indicator for auto added projects in project list           | `''`                     |
-| g:vim_project_autoload_on_start| Autoload a project if Vim starts from its directory         | 0                        |
-| g:vim_project_views            | Project views config with shape [[show, hide], ...]         | []                       |
-| g:vim_project_debug            | Show debug messages                                         | 0                        |
-
-<a name="prompt-mapping"></a>
-**^**: The key mapping for prompt defaults to 
+**ProjectAdd option**
 
 ```vim
-let g:vim_project_prompt_mapping = {
-  \'open_project': "\<cr>",
-  \'close_list':   "\<esc>",
-  \'clear_char':   ["\<bs>", "\<c-a>"],
-  \'clear_word':   "\<c-w>",
-  \'clear_all':    "\<c-u>",
-  \'prev_item':    ["\<c-k>", "\<up>"],
-  \'next_item':    ["\<c-j>", "\<down>"],
-  \'first_item':   ["\<c-h>", "\<left>"],
-  \'last_item':    ["\<c-l>", "\<right>"],
-  \'next_view':    "\<tab>",
-  \'prev_view':    "\<s-tab>",
-  \}
+Project '/path/to/demo', { 'entry': 'src', 'note': 'A demo' }
 ```
 
-Note: Moving around the cursor in the prompt is not supported.
+- `entry`: directory or file used as project entry
+- `note`: note shown on project list
 
-### Plugin config files hierarchy
+## Config
+There is only one config `g:vim_project_config`. Its default value is below. You can copy it as a starting point
 
-The config directory for each project is like `~/.vim/vim-project-config/<project-name>/`.
+```vim
+let g:vim_project_config = {
+      \'config_path': '~/.vim',
+      \'session': 0,
+      \'branch': 0,
+      \'entry': 0,
+      \'auto_detect': 'always',
+      \'auto_detect_file': '.git, .svn, package.json',
+      \'auto_load_on_start': 0,
+      \'prompt_mapping': {},
+      \'views': [],
+      \'debug': 1,
+      \}
+
+let g:vim_project_config.prompt_mapping = {
+      \'open_project': "\<cr>",
+      \'close_list':   "\<esc>",
+      \'clear_char':   ["\<bs>", "\<c-a>"],
+      \'clear_word':   "\<c-w>",
+      \'clear_all':    "\<c-u>",
+      \'prev_item':    ["\<c-k>", "\<up>"],
+      \'next_item':    ["\<c-j>", "\<down>"],
+      \'first_item':   ["\<c-h>", "\<left>"],
+      \'last_item':    ["\<c-l>", "\<right>"],
+      \'prev_view':    "\<s-tab>",
+      \'next_view':    "\<tab>",
+      \}
+```
+
+| Option               | Description                                                                   | Type    |
+|----------------------|-------------------------------------------------------------------------------|---------|
+| config_path          | The config directory                                                          | string  |
+| session              | Load and save session                                                         | boolean |
+| branch               | Keep a session for each branch                                                | boolean |
+| entry                | Open project entry regardless of session                                      | boolean |
+| auto_detect          | Auto detect projects when opening a file. <br>Choose 'always', 'ask', or 'no' | string  |
+| auto_detect_file     | File used to detect potential projects                                        | string  |
+| auto_load_on_start   | Auto load a project if Vim starts from its directory                          | boolean |
+| prompt_mapping       | Mapping for prompt                                                            | dict    |
+| views                | Views config with shape [[show, hide?], ...]                                  | list    |
+| debug                | Show debug messages                                                           | boolean |
+
+### Config files structure
+
+The config files for each project is located at `~/.vim/vim-project-config/<project-name>/`
 
 ```
 ~/.vim/vim-project-config/
-                 | _add.vim    " auto added projects
-                 | _igonre.vim " auto ignored projects (including added ones)
+                 | project.add.vim           " Added projects
+                 | project.igonre.vim        " Ignored projects
                  | <project-name>/
-                                 | init.vim  " after loading session
-                                 | quit.vim  " after saving session
+                                 | init.vim  " Run after loading session
+                                 | quit.vim  " Run after saving session
                                  | sessions/ " session for each branch
                                            | master.vim
                                            | branch-1.vim
@@ -204,14 +177,14 @@ The config directory for each project is like `~/.vim/vim-project-config/<projec
 
 ### Session options
 
-Please see `:h sessionoptions`. It's recommended to `set sessionoptions-=options`.
+See `:h sessionoptions`. It's recommended to `set sessionoptions-=options` to avoid potential bugs
 
 ### Project views
 
-On project list, you can switch between different views with mapping <kbd>tab</kbd> and <kbd>s-tab</kbd>. You can define views by setting `g:vim_project_views` to `[[show_pattern, hide_patten], ...]` like below.
+On project list, you can switch between different views with <kbd>tab</kbd> and <kbd>s-tab</kbd>. You can define views by setting `g:vim_project_config.views` to `[[show_pattern, hide_patten], ...]` like below.
 
 ```vim
-let g:vim_project_views = [
+let g:vim_project_config.views = [
       \['vim', 'plugin'],
       \['^vue'],
       \['^react'],
@@ -220,29 +193,31 @@ let g:vim_project_views = [
 
 ## Global variables
 
-- `g:vim_project` Dict. Current project info.
-- `$vim_project` String. Current project path.
-- `$vim_project_config` String. Current project config path.
+- `g:vim_project` *Dict*. Current project info
+- `$vim_project` *String*. Current project path
+- `$vim_project_config` *String*. Current project config path
 
 ## Statusline
 
-You can get current project info from `g:vim_project` which is a dict variable. Try `echo g:vim_project` after opening a project.
+You can get current project info from `g:vim_project`. Try `echo g:vim_project` after opening a project
 
-For example, define a function called `GetProjectInfo` and add `[%{GetProjectInfo()}]` to the statusline for showing current project name and branch.
+For example, define a function called `GetProjectInfo` and add `[%{GetProjectInfo()}]` to `statusline` to show current project name and branch.
 
 ```vim
 function! GetProjectInfo()
   if exists('g:vim_project_loaded')
     let name = get(g:vim_project,'name','')
-    let branch = g:vim_project_branch
+    let branch = get(g:vim_project,'branch','')
     return empty(name) ? '' : name.','.branch
   endif
 endfunction
+
+set statusline=%<%t%m\ %y\ %=[%{GetProjectInfo()}]
 ```
 
 ## Credits
 
-Thanks to timsofteng for the great idea. It all started with that.
+Thanks to timsofteng for the great idea. It all started with that
 
 [1]: https://github.com/VundleVim/Vundle.vim
 [2]: https://github.com/tpope/vim-pathogen
