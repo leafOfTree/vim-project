@@ -435,8 +435,7 @@ function! s:AutoDetectProject()
 endfunction
 
 function! s:AutoAddProject(path)
-  let index = s:FindLastAutoAddProjectIndex()
-  call s:AddProject(a:path, {}, index)
+  call s:AddProject(a:path, {})
   call s:SaveToPluginConfigAdd(a:path)
   redraw
   call s:InfoHl('Added '.a:path)
@@ -447,23 +446,6 @@ function! s:AutoIgnoreProject(path)
   call s:SaveToPluginConfigIgnore(a:path)
   redraw
   call s:InfoHl('Ignored '.a:path)
-endfunction
-
-function! s:FindLastAutoAddProjectIndex()
-  let projects = g:vim_project_projects
-  let i = 0
-  let index = i
-  for project in projects
-    let i = i + 1
-    if s:IsProjectAutoAdded(project)
-      let index = i
-    endif
-  endfor
-  return index
-endfunction
-
-function! s:IsProjectAutoAdded(project)
-  return a:project.auto
 endfunction
 
 function! s:GetPathContain(buf, pat)
@@ -968,7 +950,7 @@ function! s:SetStartBuffer()
     if is_nerdtree_tmp
       silent bdelete
     endif
-    call s:Debug('Open entry from buf '.bufname)
+    call s:Debug('Open entry'.(bufname ? ' from buf '.bufname : ''))
     if !empty(path)
       if isdirectory(path)
         if exists('g:loaded_nerd_tree')
