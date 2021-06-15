@@ -143,7 +143,7 @@ function! project#AddProject(args)
     let save_path = s:ReplaceHomeWithTide(s:GetFullPath(path))
     call s:SaveToPluginConfigAdd(save_path)
     redraw
-    call s:InfoHl('Added '.path)
+    call s:InfoHl('Added: '.path)
   endif
 endfunction
 
@@ -469,7 +469,7 @@ function! s:AutoAddProject(path)
   call s:AddProject(a:path, {})
   call s:SaveToPluginConfigAdd(a:path)
   redraw
-  call s:InfoHl('Added '.a:path)
+  call s:InfoHl('Added: '.a:path)
 endfunction
 
 function! s:AutoIgnoreProject(path)
