@@ -122,11 +122,7 @@ function! s:InitConfig()
 endfunction
 
 function! project#SetBase(base)
-  let base = a:base
-  if base[len(base)-1] != '/'
-    let base = base.'/'
-  endif
-  let s:base = base
+  let s:base = a:base
 endfunction
 
 function! s:GetAddArgs(args)
@@ -233,11 +229,19 @@ endfunction
 function! s:GetFullPath(path)
   let path = a:path
   if path[0] != '/' && path[0] != '~' && path[1] != ':'
-    let path = s:base.path
+    let path = s:GetAbsolutePath(path)
   endif
   let path = substitute(expand(path), '\', '\/', 'g')
   let path = substitute(path, '\/$', '', '')
   return path
+endfunction
+
+function! s:GetAbsolutePath(path)
+  let base = s:base
+  if base[len(base)-1] != '/'
+    let base = base.'/'
+  endif
+  return base.a:path
 endfunction
 
 function! s:InitProjectConfig(project)
