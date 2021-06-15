@@ -38,7 +38,7 @@ function! s:Prepare()
         \'config_path': '~/.vim',
         \'session': 0,
         \'branch': 0,
-        \'entry': 0,
+        \'open_entry': 0,
         \'auto_detect': 'always',
         \'auto_detect_file': '.git, .svn, package.json, pom.xml, Gemfile',
         \'auto_load_on_start': 0,
@@ -107,7 +107,7 @@ endfunction
 function! s:InitConfig()
   let s:config = s:GetConfig('config', {})
   let s:config_path = s:config.config_path
-  let s:open_entry = s:config.entry
+  let s:open_entry = s:config.open_entry
   let s:enable_branch = s:config.branch
   let s:enable_session = s:config.session
 

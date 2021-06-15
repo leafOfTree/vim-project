@@ -97,8 +97,7 @@ You can find and directly modify cached projects in these files in `~/.vim/vim-p
 | command                             | description                               |
 |-------------------------------------|-------------------------------------------|
 | ProjectBase `<base>`                | Set base directory for following projects |
-| Project `<path>[, option]`          | Add project                               |
-| ProjectAdd `<path>[, option]`       | Add project                               |
+| ProjectAdd `<path>[, option]`       | Add project.                              |
 | ProjectList                         | Show projects                             |
 | ProjectOpen `<name>`                | Open a project by name                    |
 | ProjectRemove `<name>`              | Remove a project by name                  |
@@ -111,11 +110,19 @@ You can find and directly modify cached projects in these files in `~/.vim/vim-p
 
 > You can try `set wildmenu` for enhanced command-line completion
 
-#### `:ProjectAdd` option
+### :ProjectAdd `<path>[, option]`
+
+You can also use `:Project <path>[, option]`. Example
 
 ```vim
 ProjectAdd '/path/to/demo', { 'entry': 'src', 'note': 'A demo' }
 ```
+
+#### Path
+
+If `path` is a relative path which doesn't start with `/`, `~` or `C:`, it'll be relative to `base` which is set by `:ProjectBase` and defaults to `~`.
+
+#### option
 
 - `entry`: directory or file used as project entry
 - `note`: text description shown on project list
@@ -128,7 +135,7 @@ let g:vim_project_config = {
       \'config_path': '~/.vim',
       \'session': 0,
       \'branch': 0,
-      \'entry': 0,
+      \'open_entry': 0,
       \'auto_detect': 'always',
       \'auto_detect_file': '.git, .svn, package.json, pom.xml, Gemfile',
       \'auto_load_on_start': 0,
@@ -156,7 +163,7 @@ let g:vim_project_config.prompt_mapping = {
 | config_path          | The config directory                                                          | string  |
 | session              | Enable session                                                                | boolean |
 | branch               | When session enabled, keep one for each branch                                | boolean |
-| entry                | When session enabled, always open project entry                               | boolean |
+| open_entry           | When session enabled, always open project entry                               | boolean |
 | auto_detect          | Auto detect projects when opening a file. <br>Choose 'always', 'ask', or 'no' | string  |
 | auto_detect_file     | File used to detect potential projects                                        | string  |
 | auto_load_on_start   | Auto load a project if Vim starts from its directory                          | boolean |
