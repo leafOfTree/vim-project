@@ -17,6 +17,8 @@ function! s:Prepare()
   let s:base = '~/'
   let s:add_file = 'project.add.vim'
   let s:ignore_file = 'project.ignore.vim'
+  let s:init_file = 'init.vim'
+  let s:quit_file = 'quit.vim'
 
   let s:prompt_mapping_default = {
         \'open_project': "\<cr>",
@@ -79,10 +81,7 @@ function! s:MergeUserConfigIntoDefault(user)
     endif
   endfor
   
-  if has_key(user, 'config_path')
-    let default.config_path = s:GetConfigPath(default.config_path)
-  endif
-
+  let default.config_path = s:GetConfigPath(default.config_path)
   return default
 endfunction
 
@@ -137,17 +136,15 @@ function! s:GetAddArgs(args)
   return [path, option]
 endfunction
 
-function! project#AddProjectFromUser(args)
+function! project#AddProject(args)
   let [path, option] = s:GetAddArgs(a:args)
   let error = s:AddProject(path, option)
-  if !error
-    call s:SaveToPluginConfigAdd(path)
+  if !error && !s:sourcing_file
+    let save_path = s:ReplaceHomeWithTide(s:GetFullPath(path))
+    call s:SaveToPluginConfigAdd(save_path)
+    redraw
+    call s:InfoHl('Added '.path)
   endif
-endfunction
-
-function! project#AddProjectFromFile(args)
-  let [path, option] = s:GetAddArgs(a:args)
-  call s:AddProject(path, option)
 endfunction
 
 function! s:AddProject(path, ...)
@@ -156,7 +153,7 @@ function! s:AddProject(path, ...)
   let index = a:0 >1 ? a:2 : len(g:vim_project_projects)
 
   if !isdirectory(fullpath)
-    call s:Warn('Not directory: '.fullpath)
+    call s:Warn('No directory: '.s:ReplaceHomeWithTide(fullpath))
     return -1
   endif
   let hasProject = s:HasProjectWithSameFullPath(
@@ -164,7 +161,7 @@ function! s:AddProject(path, ...)
         \g:vim_project_projects
         \)
   if hasProject
-    call s:Debug('Already have '.fullpath)
+    call s:Info('Already have it')
     return -1
   endif
 
@@ -182,7 +179,6 @@ function! s:AddProject(path, ...)
         \'option': option,
         \}
   call s:InitProjectConfig(project)
-  call s:Debug('Added '.name.', '.path)
   call insert(g:vim_project_projects, project, index)
 endfunction
 
@@ -197,12 +193,31 @@ function! s:HasProjectWithSameFullPath(fullpath, projects)
 endfunction
 
 function! project#IgnoreProject(path)
-  call s:IgnoreProject(a:path)
+  let path = s:ReplaceHomeWithTide(a:path)
+  let error = s:IgnoreProject(path)
+  if !error && !s:sourcing_file
+    call s:SaveToPluginConfigIgnore(path)
+    redraw
+    call s:InfoHl('Ignored '.path)
+  endif
+endfunction
+
+function! s:ReplaceHomeWithTide(path)
+  return substitute(a:path, '^'.expand('~'), '~', '')
 endfunction
 
 " Ignore path for auto adding
 function! s:IgnoreProject(path)
   let fullpath = s:GetFullPath(a:path)
+  let hasProject = s:HasProjectWithSameFullPath(
+        \fullpath,
+        \g:vim_project_projects
+        \)
+  if hasProject
+    call s:Debug('Already ignored '.fullpath)
+    return -1
+  endif
+
   let name = matchstr(fullpath, '/\zs[^/]*$')
   let path = substitute(fullpath, '/[^/]*$', '', '')
   " path: with project name
@@ -212,7 +227,6 @@ function! s:IgnoreProject(path)
         \'path': path, 
         \'fullpath': fullpath,
         \}
-  call s:Debug('Ignored '.name.', '.path)
   call add(g:vim_project_projects_ignore, project)
 endfunction
 
@@ -234,8 +248,8 @@ function! s:InitProjectConfig(project)
     " Create project-specific config files
     call mkdir(config_path, 'p')
 
-    " Generate init.vim
-    let init_file = config_path.'/init.vim'
+    " Generate init file
+    let init_file = config_path.'/'.s:init_file
     let init_content = [
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \'" When: sourced after session is loaded',
@@ -247,8 +261,8 @@ function! s:InitProjectConfig(project)
           \]
     call writefile(init_content, init_file)
 
-    " Generate quit.vim
-    let quit_file = config_path.'/quit.vim'
+    " Generate quit file
+    let quit_file = config_path.'/'.s:quit_file
     let quit_content = [
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \'" When: sourced after session is saved',
@@ -271,8 +285,7 @@ function! s:Info(msg)
 endfunction
 
 function! s:InfoHl(msg)
-  echohl Statement | echon '['.s:name.'] ' | echohl None |
-        \echon a:msg
+  echohl Statement | echom '['.s:name.'] ' | echohl None | echon a:msg
 endfunction
 
 function! s:GetProjectConfigPath(config_path, project)
@@ -298,22 +311,24 @@ endfunction
 function! s:SourcePluginConfigFiles()
   let add_file = s:config_path.'/'.s:add_file
   let ignore_file = s:config_path.'/'.s:ignore_file
+  let s:sourcing_file = 1
   if filereadable(add_file)
     execute 'source '.add_file
   endif
   if filereadable(ignore_file)
     execute 'source '.ignore_file
   endif
+  let s:sourcing_file = 0
 endfunction
 
 function! s:SaveToPluginConfigAdd(path)
+  let cmd = 'ProjectAdd '.a:path
   let file = s:config_path.'/'.s:add_file
-  let cmd = 'ProjectFromFile '.a:path
   call writefile([cmd], file, 'a')
 endfunction
 
 function! s:RemoveItemInPluginConfigAdd(path)
-  let target = substitute(a:path, expand('~'), '~', '')
+  let target = s:ReplaceHomeWithTide(a:path)
   let file = s:config_path.'/'.s:add_file
   let adds = readfile(file)
   let idx = 0
@@ -323,13 +338,15 @@ function! s:RemoveItemInPluginConfigAdd(path)
     endif
     let idx += 1 
   endfor
-  call remove(adds, idx)
-  call writefile(adds, file)
+  if idx < len(adds)
+    call remove(adds, idx)
+    call writefile(adds, file)
+  endif
 endfunction
 
 function! s:SaveToPluginConfigIgnore(path)
   let file = s:config_path.'/'.s:ignore_file
-  let cmd = "ProjectIgnore '".a:path."'"
+  let cmd = 'ProjectIgnore '.a:path
   call writefile([cmd], file, 'a')
 endfunction
 
@@ -411,7 +428,7 @@ function! s:AutoDetectProject()
             \g:vim_project_projects_ignore, path)
 
       if empty(project) && empty(ignore)
-        let path = substitute(path, expand('~'), '~', '')
+        let path = s:ReplaceHomeWithTide(path)
         if s:auto_detect == 'always'
           call s:AutoAddProject(path)
         else
@@ -1033,11 +1050,11 @@ function! s:OnVimLeave()
 endfunction
 
 function! s:SourceInitFile()
-  call s:SourceFile('init.vim')
+  call s:SourceFile(s:init_file)
 endfunction
 
 function! s:SourceQuitFile()
-  call s:SourceFile('quit.vim')
+  call s:SourceFile(s:quit_file)
 endfunction
 
 function! s:SourceFile(file)
@@ -1280,7 +1297,7 @@ function! s:GetDisplayRow(key, value)
   let home = expand('~')
   return value.__name.'  '
         \.value.__note.'  '
-        \.substitute(value.__path, '^'.expand('~'), '~', '')
+        \.s:ReplaceHomeWithTide(value.__path)
 endfunction
 
 function! s:Main()

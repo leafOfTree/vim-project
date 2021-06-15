@@ -18,11 +18,9 @@ command -complete=customlist,project#ListProjectNames -nargs=1
       \ ProjectRemove call project#RemoveProjectByName(s:TrimQuote(<q-args>))
 
 command -complete=dir -nargs=+
-      \ Project call project#AddProjectFromUser(s:TrimQuote(<q-args>))
+      \ Project call project#AddProject(s:TrimQuote(<q-args>))
 command -complete=dir -nargs=+
-      \ ProjectAdd call project#AddProjectFromUser(s:TrimQuote(<q-args>))
-command -complete=dir -nargs=+
-      \ ProjectFromFile call project#AddProjectFromFile(s:TrimQuote(<q-args>))
+      \ ProjectAdd call project#AddProject(s:TrimQuote(<q-args>))
 
 command -complete=dir -nargs=1
       \ ProjectBase call project#SetBase(s:TrimQuote(<q-args>))

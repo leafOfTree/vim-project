@@ -65,7 +65,7 @@ When opening a file in a new project, `vim-project` will automatically add it if
 
 ### Projects cache
 
-You can find and directly modify recorded projects in these files in `~/.vim/vim-project-config/`
+You can find and directly modify cached projects in these files in `~/.vim/vim-project-config/`
 
 - Projects added are saved to `project.add.vim`
 - Projects ignored to `project.ignore.vim`
@@ -88,7 +88,7 @@ You can find and directly modify recorded projects in these files in `~/.vim/vim
     - Save session
     - Source project `quit.vim`
 
-- Remove projects
+- Remove a project
 
     `:ProjectRemove <name>`
 
@@ -130,10 +130,10 @@ let g:vim_project_config = {
       \'branch': 0,
       \'entry': 0,
       \'auto_detect': 'always',
-      \'auto_detect_file': '.git, .svn, package.json',
+      \'auto_detect_file': '.git, .svn, package.json, pom.xml, Gemfile',
       \'auto_load_on_start': 0,
       \'views': [],
-      \'debug': 1,
+      \'debug': 0,
       \}
 
 let g:vim_project_config.prompt_mapping = {
