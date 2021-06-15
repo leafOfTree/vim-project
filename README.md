@@ -97,7 +97,7 @@ You can find and directly modify cached projects in these files in `~/.vim/vim-p
 | command                             | description                               |
 |-------------------------------------|-------------------------------------------|
 | ProjectBase `<base>`                | Set base directory for following projects |
-| ProjectAdd `<path>[, option]`       | Add project.                              |
+| ProjectAdd `<path>[, option]`       | Add project                               |
 | ProjectList                         | Show projects                             |
 | ProjectOpen `<name>`                | Open a project by name                    |
 | ProjectRemove `<name>`              | Remove a project by name                  |
