@@ -29,6 +29,3 @@ command -complete=customlist,project#ListDirs -nargs=1
       \ ProjectIgnore call project#IgnoreProject(s:TrimQuote(<q-args>))
 
 call project#begin()
-
-function! ProjectComplete(A, L, P)
-endfunction
