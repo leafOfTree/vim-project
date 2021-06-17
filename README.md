@@ -132,7 +132,7 @@ There is only one config `g:vim_project_config`. Its default value is below. You
 
 ```vim
 let g:vim_project_config = {
-      \'config_path': '~/.vim',
+      \'home': '~/.vim/vim-project-config',
       \'session': 0,
       \'branch': 0,
       \'open_entry': 0,
@@ -160,7 +160,7 @@ let g:vim_project_config.prompt_mapping = {
 
 | Option               | Description                                                                   | Type    |
 |----------------------|-------------------------------------------------------------------------------|---------|
-| config_path          | The config directory                                                          | string  |
+| home                 | The directory where all config files stay                                     | string  |
 | session              | Enable session                                                                | boolean |
 | branch               | When session enabled, keep one for each branch                                | boolean |
 | open_entry           | When session enabled, always open project entry                               | boolean |
@@ -177,24 +177,24 @@ The config files for each project is located at `~/.vim/vim-project-config/<proj
 
 ```
 ~/.vim/vim-project-config/
-                 | project.add.vim           " Added projects
-                 | project.igonre.vim        " Ignored projects
-                 | <project-name>/
-                                 | init.vim  " Run after loading session
-                                 | quit.vim  " Run after saving session
-                                 | sessions/ " session for each branch
-                                           | master.vim
-                                           | branch-1.vim
-                                           | branch-2.vim
+                         | project.add.vim                        " Added projects
+                         | project.igonre.vim                     " Ignored projects
+                         | <project-name>/
+                                         | init.vim               " Run after loading session
+                                         | quit.vim               " Run after saving session
+                                         | sessions/              " session for each branch
+                                                   | master.vim
+                                                   | branch-1.vim
+                                                   | branch-2.vim
 ```
 
 ### Session options
 
-See `:h sessionoptions`. It's recommended to `set sessionoptions-=options` to avoid potential bugs
+See `:h sessionoptions`
 
 ### Project views
 
-On project list, you can switch between different views with <kbd>tab</kbd> and <kbd>s-tab</kbd>. You can define views by setting `g:vim_project_config.views` to `[[show_pattern, hide_patten], ...]` like below.
+On project list, you can switch between different views with <kbd>tab</kbd> and <kbd>s-tab</kbd>. You can define views by setting `g:vim_project_config.views` to `[[show_pattern, hide_patten], ...]` like below
 
 ```vim
 let g:vim_project_config.views = [

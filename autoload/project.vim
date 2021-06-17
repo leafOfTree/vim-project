@@ -35,7 +35,7 @@ function! s:Prepare()
         \}
 
   let s:default = {
-        \'config_path': '~/.vim',
+        \'home': '~/.vim/vim-project-config',
         \'session': 0,
         \'branch': 0,
         \'open_entry': 0,
@@ -81,16 +81,7 @@ function! s:MergeUserConfigIntoDefault(user)
     endif
   endfor
   
-  let default.config_path = s:GetConfigPath(default.config_path)
   return default
-endfunction
-
-function! s:GetConfigPath(prefix)
-  let prefix = a:prefix
-  if prefix[len(prefix)-1] != '/'
-    let prefix = prefix.'/'
-  endif
-  return expand(prefix.s:name.'-config/')
 endfunction
 
 function! s:MergeUserMappingIntoDefault(user)
@@ -106,7 +97,7 @@ endfunction
 
 function! s:InitConfig()
   let s:config = s:GetConfig('config', {})
-  let s:config_path = s:config.config_path
+  let s:config_home = s:config.home
   let s:open_entry = s:config.open_entry
   let s:enable_branch = s:config.branch
   let s:enable_session = s:config.session
@@ -246,14 +237,14 @@ endfunction
 
 function! s:InitProjectConfig(project)
   let name = a:project.name
-  let config_path = s:GetProjectConfigPath(s:config_path, a:project)
+  let config = s:GetProjectConfigPath(s:config_home, a:project)
 
-  if !isdirectory(config_path) && exists('*mkdir')
+  if !isdirectory(config) && exists('*mkdir')
     " Create project-specific config files
-    call mkdir(config_path, 'p')
+    call mkdir(config, 'p')
 
     " Generate init file
-    let init_file = config_path.'/'.s:init_file
+    let init_file = config.'/'.s:init_file
     let init_content = [
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \'" When: sourced after session is loaded',
@@ -266,7 +257,7 @@ function! s:InitProjectConfig(project)
     call writefile(init_content, init_file)
 
     " Generate quit file
-    let quit_file = config_path.'/'.s:quit_file
+    let quit_file = config.'/'.s:quit_file
     let quit_content = [
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \'" When: sourced after session is saved',
@@ -292,10 +283,10 @@ function! s:InfoHl(msg)
   echohl Statement | echom '['.s:name.'] ' | echohl None | echon a:msg
 endfunction
 
-function! s:GetProjectConfigPath(config_path, project)
+function! s:GetProjectConfigPath(config_home, project)
   let id = substitute(a:project.path, '/', '_', 'g')
-  let folder = a:project.name.'__'.id
-  return a:config_path.folder
+  let project_folder = a:project.name.'__'.id
+  return a:config_home.'/'.project_folder
 endfunction
 
 function! project#ListProjectNames(A, L, P)
@@ -313,8 +304,8 @@ function! project#begin()
 endfunction
 
 function! s:SourcePluginConfigFiles()
-  let add_file = s:config_path.'/'.s:add_file
-  let ignore_file = s:config_path.'/'.s:ignore_file
+  let add_file = s:config_home.'/'.s:add_file
+  let ignore_file = s:config_home.'/'.s:ignore_file
   let s:sourcing_file = 1
   if filereadable(add_file)
     execute 'source '.add_file
@@ -327,13 +318,13 @@ endfunction
 
 function! s:SaveToPluginConfigAdd(path)
   let cmd = 'ProjectAdd '.a:path
-  let file = s:config_path.'/'.s:add_file
+  let file = s:config_home.'/'.s:add_file
   call writefile([cmd], file, 'a')
 endfunction
 
 function! s:RemoveItemInPluginConfigAdd(path)
   let target = s:ReplaceHomeWithTide(a:path)
-  let file = s:config_path.'/'.s:add_file
+  let file = s:config_home.'/'.s:add_file
   let adds = readfile(file)
   let idx = 0
   for line in adds
@@ -349,7 +340,7 @@ function! s:RemoveItemInPluginConfigAdd(path)
 endfunction
 
 function! s:SaveToPluginConfigIgnore(path)
-  let file = s:config_path.'/'.s:ignore_file
+  let file = s:config_home.'/'.s:ignore_file
   let cmd = 'ProjectIgnore '.a:path
   call writefile([cmd], file, 'a')
 endfunction
@@ -913,13 +904,14 @@ function! s:RemoveProject(project)
 endfunction
 
 function! s:SetEnvVariables()
-    let $vim_project = s:project.fullpath
-    let $vim_project_config = s:config_path.s:project.name
+  let $vim_project = s:project.fullpath
+  let $vim_project_config =
+        \s:GetProjectConfigPath(s:config_home, s:project)
 endfunction
 
 function! s:UnsetEnvVariables()
-    unlet $vim_project
-    unlet $vim_project_config
+  unlet $vim_project
+  unlet $vim_project_config
 endfunction
 
 function! s:IsProjectExist()
@@ -942,14 +934,13 @@ endfunction
 
 function! project#OpenProjectConfig()
   if s:IsProjectExist()
-    let config_path = s:GetProjectConfigPath(
-          \s:config_path, s:project)
-    execute 'edit '.config_path
+    let config = s:GetProjectConfigPath(s:config_home, s:project)
+    execute 'edit '.config
   endif
 endfunction
 
 function! project#OpenTotalConfig()
-  execute 'edit '.s:config_path
+  execute 'edit '.s:config_home
 endfunction
 
 function! project#QuitProject()
@@ -1063,8 +1054,8 @@ endfunction
 
 function! s:SourceFile(file)
   let name = s:project.name.'-'.s:project.path
-  let config_path = s:GetProjectConfigPath(s:config_path, s:project)
-  let file = config_path.'/'.a:file
+  let config = s:GetProjectConfigPath(s:config_home, s:project)
+  let file = config.'/'.a:file
   if filereadable(file)
     call s:Debug('Source file: '.file)
     execute 'source '.file
@@ -1100,8 +1091,8 @@ endfunction
 
 function! s:GetSessionFolder()
   if s:IsProjectExist()
-    let config_path = s:GetProjectConfigPath(s:config_path, s:project)
-    return config_path.'/sessions'
+    let config = s:GetProjectConfigPath(s:config_home, s:project)
+    return config.'/sessions'
   else
     return ''
   endif
@@ -1110,8 +1101,8 @@ endfunction
 
 function! s:GetSessionFile()
   if s:IsProjectExist()
-    let config_path = s:GetProjectConfigPath(s:config_path, s:project)
-    return config_path.'/sessions/'.s:branch.'.vim'
+    let config = s:GetProjectConfigPath(s:config_home, s:project)
+    return config.'/sessions/'.s:branch.'.vim'
   else
     return ''
   endif
