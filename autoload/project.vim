@@ -98,7 +98,7 @@ endfunction
 
 function! s:InitConfig()
   let s:config = s:GetConfig('config', {})
-  let s:config_home = s:config.home
+  let s:config_home = expand(s:config.home)
   let s:base = s:config.project_base
   let s:open_entry = s:config.open_entry
   let s:enable_branch = s:config.branch
@@ -205,7 +205,6 @@ function! s:IgnoreProject(path)
         \g:vim_project_projects
         \)
   if hasProject
-    call s:Debug('Already ignored '.fullpath)
     return -1
   endif
 
