@@ -96,7 +96,6 @@ You can find and directly modify cached projects in these files in `~/.vim/vim-p
 
 | command                             | description                               |
 |-------------------------------------|-------------------------------------------|
-| ProjectBase `<base>`                | Set base directory for following projects |
 | ProjectAdd `<path>[, option]`       | Add project                               |
 | ProjectList                         | Show projects                             |
 | ProjectOpen `<name>`                | Open a project by name                    |
@@ -107,6 +106,7 @@ You can find and directly modify cached projects in these files in `~/.vim/vim-p
 | ProjectConfig                       | Open project config directory             |
 | ProjectTotalConfig                  | Open total config directory               |
 | ProjectIgnore `<path>`              | Ignore project for auto detection         |
+| ProjectBase `<base>`                | Set base directory for relative project path |
 
 > You can try `set wildmenu` for enhanced command-line completion
 
@@ -120,7 +120,7 @@ ProjectAdd '/path/to/demo', { 'entry': 'src', 'note': 'A demo' }
 
 #### Path
 
-If `path` is a relative path which doesn't start with `/`, `~` or `C:`, it'll be relative to `base` which is set by `:ProjectBase` and defaults to `~`.
+If `path` is a relative path which doesn't start with `/`, `~` or `C:`, it'll be relative to `base`. `base` is initialized by `g:vim_project_config.project_base` and can be modified by `:ProjectBase`. It defaults to `~`.
 
 #### option
 
@@ -139,6 +139,7 @@ let g:vim_project_config = {
       \'auto_detect': 'always',
       \'auto_detect_file': '.git, .svn, package.json, pom.xml, Gemfile',
       \'auto_load_on_start': 0,
+      \'project_base': '~',
       \'views': [],
       \'debug': 0,
       \}
@@ -168,6 +169,7 @@ let g:vim_project_config.prompt_mapping = {
 | auto_detect_file     | File used to detect potential projects                                        | string  |
 | auto_load_on_start   | Auto load a project if Vim starts from its directory                          | boolean |
 | prompt_mapping       | Mapping for prompt                                                            | dict    |
+| project_base         | The directory for relative project path                                       | string  |
 | views                | Define views by [[show-pattern, hide-pattern?], ...]                          | list    |
 | debug                | Show debug messages                                                           | boolean |
 

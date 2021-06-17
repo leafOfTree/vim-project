@@ -35,7 +35,6 @@ function! s:Prepare()
 
   let s:default = {
         \'home': '~/.vim/vim-project-config',
-        \'base': '~',
         \'session': 0,
         \'branch': 0,
         \'open_entry': 0,
@@ -43,6 +42,7 @@ function! s:Prepare()
         \'auto_detect_file': '.git, .svn, package.json, pom.xml, Gemfile',
         \'auto_load_on_start': 0,
         \'prompt_mapping': s:prompt_mapping_default,
+        \'project_base': '~',
         \'views': [],
         \'debug': 0,
         \}
@@ -98,7 +98,7 @@ endfunction
 function! s:InitConfig()
   let s:config = s:GetConfig('config', {})
   let s:config_home = s:config.home
-  let s:base = s:config.base
+  let s:base = s:config.project_base
   let s:open_entry = s:config.open_entry
   let s:enable_branch = s:config.branch
   let s:enable_session = s:config.session
