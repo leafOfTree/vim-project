@@ -50,9 +50,9 @@ function! s:Prepare()
   " Used by statusline
   let g:vim_project = {}
 
-  let g:vim_project_projects = []
-  let s:vim_project_projects_ignore = []
-  let s:vim_project_projects_error = []
+  let s:projects = []
+  let s:projects_ignore = []
+  let s:projects_error = []
 endfunction
 
 
@@ -139,11 +139,11 @@ endfunction
 function! s:AddProject(path, ...)
   let fullpath = s:GetFullPath(a:path)
   let option = a:0 > 0 ? a:1 : {}
-  let index = a:0 >1 ? a:2 : len(g:vim_project_projects)
+  let index = a:0 >1 ? a:2 : len(s:projects)
 
   let hasProject = s:HasProjectWithSameFullPath(
         \fullpath,
-        \g:vim_project_projects
+        \s:projects
         \)
   if hasProject
     call s:Info('Already have it')
@@ -165,11 +165,11 @@ function! s:AddProject(path, ...)
         \}
   if !isdirectory(fullpath)
     call s:Warn('No directory: '.s:ReplaceHomeWithTide(fullpath))
-    call insert(s:vim_project_projects_error, project)
+    call insert(s:projects_error, project)
     return -1
   else
     call s:InitProjectConfig(project)
-    call insert(g:vim_project_projects, project, index)
+    call insert(s:projects, project, index)
   endif
 endfunction
 
@@ -202,7 +202,7 @@ function! s:IgnoreProject(path)
   let fullpath = s:GetFullPath(a:path)
   let hasProject = s:HasProjectWithSameFullPath(
         \fullpath,
-        \g:vim_project_projects
+        \s:projects
         \)
   if hasProject
     return -1
@@ -217,7 +217,7 @@ function! s:IgnoreProject(path)
         \'path': path, 
         \'fullpath': fullpath,
         \}
-  call add(s:vim_project_projects_ignore, project)
+  call add(s:projects_ignore, project)
 endfunction
 
 function! s:GetFullPath(path)
@@ -303,8 +303,15 @@ function! s:GetProjectConfigPath(config_home, project)
 endfunction
 
 function! project#ListProjectNames(A, L, P)
-  let projects = deepcopy(g:vim_project_projects)
-  let names =  map(projects, {_, project -> "'".project.name."'"})
+  let projects = deepcopy(s:projects)
+  let names =  map(projects, {_, project -> project.name})
+  let matches = filter(names, {idx, val -> val =~ a:A})
+  return matches
+endfunction
+
+function! project#ListAllProjectNames(A, L, P)
+  let projects = deepcopy(s:projects + s:projects_error)
+  let names =  map(projects, {_, project -> project.name})
   let matches = filter(names, {idx, val -> val =~ a:A})
   return matches
 endfunction
@@ -368,11 +375,12 @@ endfunction
 
 function! s:RemoveItemInPluginConfigAdd(path)
   let target = s:ReplaceHomeWithTide(a:path)
+  let target_pat = '\s'.escape(target, '~\/').'[\/]\?$'
   let file = s:config_home.'/'.s:add_file
   let adds = readfile(file)
   let idx = 0
   for line in adds
-    if count(line, target)
+    if match(line, target_pat) != -1
       break
     endif
     let idx += 1 
@@ -409,11 +417,11 @@ function! s:PreCheckOnBufEnter()
   if !v:vim_did_enter
     let buf = expand('<amatch>')
     let s:startup_buf = buf
-    let project = s:GetProjectByFullpath(g:vim_project_projects, buf)
+    let project = s:GetProjectByFullpath(s:projects, buf)
     if empty(project)
       let path = s:GetPathContain(buf, s:auto_detect_file)
       if !empty(path)
-        let project = s:GetProjectByFullpath(g:vim_project_projects, path)
+        let project = s:GetProjectByFullpath(s:projects, path)
       endif
     endif
 
@@ -462,9 +470,9 @@ function! s:AutoDetectProject()
     let buf = expand('<amatch>')
     let path = s:GetPathContain(buf, s:auto_detect_file)
     if !empty(path)
-      let project = s:GetProjectByFullpath(g:vim_project_projects, path)
+      let project = s:GetProjectByFullpath(s:projects, path)
       let ignore = s:GetProjectByFullpath(
-            \s:vim_project_projects_ignore, path)
+            \s:projects_ignore, path)
 
       if empty(project) && empty(ignore)
         let path = s:ReplaceHomeWithTide(path)
@@ -596,10 +604,7 @@ function! s:ShowProjects(...)
 
   normal! ggdG
 
-  let projects = s:FilterProjects(
-        \copy(s:GetAllProjects()),
-        \input, 
-        \)
+  let projects = s:FilterProjects(copy(s:projects), input)
   let result = s:GetDisplayList(projects)
 
   let result_len = len(result)
@@ -752,22 +757,15 @@ function! s:AddRightPadding(string, length)
   return a:string.padding
 endfunction
 
-function! s:GetAllProjects()
-  let projects = exists('g:vim_project_projects')
-        \ ? g:vim_project_projects
-        \ : []
-  return projects
-endfunction
-
 function! project#OutputProjects(...)
   let filter = a:0>0 ? a:1 : ''
-  let projects = s:GetAllProjects()
+  let projects = s:projects
   let projects = s:FilterProjects(projects, filter)
   echo projects
 endfunction
 
 function! s:FormatProjects()
-  let list = s:GetAllProjects()
+  let list = s:projects
   if s:format_cache == len(list)
     return
   else
@@ -878,9 +876,8 @@ function! s:IsValidProject(project)
   return isdirectory(fullpath) || filereadable(fullpath)
 endfunction
 
-function! s:GetProjectByName(name)
-  let projects = s:GetAllProjects()
-  for project in projects
+function! s:GetProjectByName(name, projects)
+  for project in a:projects
     if project.name == a:name
       return project
     endif
@@ -890,7 +887,7 @@ function! s:GetProjectByName(name)
 endfunction
 
 function! project#OpenProjectByName(name)
-  let project = s:GetProjectByName(a:name)
+  let project = s:GetProjectByName(a:name, s:projects)
   if !empty(project)
     call s:OpenProject(project)
   else
@@ -899,7 +896,11 @@ function! project#OpenProjectByName(name)
 endfunction
 
 function! project#RemoveProjectByName(name)
-  let project = s:GetProjectByName(a:name)
+  let project = s:GetProjectByName(a:name, s:projects)
+  if empty(project)
+    let project = s:GetProjectByName(a:name, s:projects_error)
+  endif
+
   if !empty(project)
     call s:RemoveProject(project)
   else
@@ -932,11 +933,10 @@ function! s:OpenProject(project)
 endfunction
 
 function! s:RemoveProject(project)
-  let current = s:project
   let target = a:project
-  let projects = s:GetAllProjects()
+  let projects = s:projects
 
-  if target == current
+  if target == s:project
     ProjectQuit
   endif
 
