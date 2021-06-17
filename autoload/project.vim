@@ -14,7 +14,6 @@ function! s:Prepare()
   let s:nerdtree_tmp = '__vim_project_nerdtree_tmp__'
   let s:format_cache = 0
 
-  let s:base = '~/'
   let s:add_file = 'project.add.vim'
   let s:ignore_file = 'project.ignore.vim'
   let s:init_file = 'init.vim'
@@ -36,6 +35,7 @@ function! s:Prepare()
 
   let s:default = {
         \'home': '~/.vim/vim-project-config',
+        \'base': '~',
         \'session': 0,
         \'branch': 0,
         \'open_entry': 0,
@@ -98,6 +98,7 @@ endfunction
 function! s:InitConfig()
   let s:config = s:GetConfig('config', {})
   let s:config_home = s:config.home
+  let s:base = s:config.base
   let s:open_entry = s:config.open_entry
   let s:enable_branch = s:config.branch
   let s:enable_session = s:config.session
