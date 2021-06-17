@@ -17,15 +17,18 @@ command -complete=customlist,project#ListProjectNames -nargs=1
 command -complete=customlist,project#ListProjectNames -nargs=1
       \ ProjectRemove call project#RemoveProjectByName(s:TrimQuote(<q-args>))
 
-command -complete=dir -nargs=+
+command -complete=customlist,project#ListDirs -nargs=+
       \ Project call project#AddProject(s:TrimQuote(<q-args>))
-command -complete=dir -nargs=+
+command -complete=customlist,project#ListDirs -nargs=+
       \ ProjectAdd call project#AddProject(s:TrimQuote(<q-args>))
 
 command -complete=dir -nargs=1
       \ ProjectBase call project#SetBase(s:TrimQuote(<q-args>))
 
-command -complete=dir -nargs=1
+command -complete=customlist,project#ListDirs -nargs=1
       \ ProjectIgnore call project#IgnoreProject(s:TrimQuote(<q-args>))
 
 call project#begin()
+
+function! ProjectComplete(A, L, P)
+endfunction

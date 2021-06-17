@@ -51,7 +51,8 @@ function! s:Prepare()
   let g:vim_project = {}
 
   let g:vim_project_projects = []
-  let g:vim_project_projects_ignore = []
+  let s:vim_project_projects_ignore = []
+  let s:vim_project_projects_error = []
 endfunction
 
 
@@ -140,10 +141,6 @@ function! s:AddProject(path, ...)
   let option = a:0 > 0 ? a:1 : {}
   let index = a:0 >1 ? a:2 : len(g:vim_project_projects)
 
-  if !isdirectory(fullpath)
-    call s:Warn('No directory: '.s:ReplaceHomeWithTide(fullpath))
-    return -1
-  endif
   let hasProject = s:HasProjectWithSameFullPath(
         \fullpath,
         \g:vim_project_projects
@@ -166,8 +163,14 @@ function! s:AddProject(path, ...)
         \'note': note, 
         \'option': option,
         \}
-  call s:InitProjectConfig(project)
-  call insert(g:vim_project_projects, project, index)
+  if !isdirectory(fullpath)
+    call s:Warn('No directory: '.s:ReplaceHomeWithTide(fullpath))
+    call insert(s:vim_project_projects_error, project)
+    return -1
+  else
+    call s:InitProjectConfig(project)
+    call insert(g:vim_project_projects, project, index)
+  endif
 endfunction
 
 function! s:HasProjectWithSameFullPath(fullpath, projects)
@@ -215,25 +218,35 @@ function! s:IgnoreProject(path)
         \'path': path, 
         \'fullpath': fullpath,
         \}
-  call add(g:vim_project_projects_ignore, project)
+  call add(s:vim_project_projects_ignore, project)
 endfunction
 
 function! s:GetFullPath(path)
   let path = a:path
-  if path[0] != '/' && path[0] != '~' && path[1] != ':'
-    let path = s:GetAbsolutePath(path)
-  endif
+  let path = s:GetAbsolutePath(path)
   let path = substitute(expand(path), '\', '\/', 'g')
   let path = substitute(path, '\/$', '', '')
   return path
 endfunction
 
+function! s:IsRelativePath(path)
+  let path = a:path
+  let first = path[0]
+  let second = path[1]
+  return first != '/' && first != '~' && second != ':'
+endfunction
+
 function! s:GetAbsolutePath(path)
-  let base = s:base
-  if base[len(base)-1] != '/'
-    let base = base.'/'
+  let path = a:path
+  if s:IsRelativePath(path)
+    let base = s:base
+    if base[len(base)-1] != '/'
+      let base = base.'/'
+    endif
+    return base.path
+  else
+    return path
   endif
-  return base.a:path
 endfunction
 
 function! s:InitProjectConfig(project)
@@ -295,6 +308,37 @@ function! project#ListProjectNames(A, L, P)
   let names =  map(projects, {_, project -> "'".project.name."'"})
   let matches = filter(names, {idx, val -> val =~ a:A})
   return matches
+endfunction
+
+function! project#ListDirs(A, L, P)
+  let head = s:GetPathHead(a:A)
+  if s:IsRelativePath(a:A)
+    let head = s:GetAbsolutePath(head)
+    let tail = a:A
+  else
+    let tail = s:GetPathTail(a:A)
+  endif
+  let dirs = split(globpath(head, '*'), "\n")
+
+  call filter(dirs,
+        \{idx, val -> match(s:GetPathTail(val), tail) == 0})
+  call filter(dirs,
+        \{idx, val -> isdirectory(expand(val))})
+  call map(dirs,
+        \{idx, val -> s:ReplaceHomeWithTide(val)})
+
+  if len(dirs) == 1 && isdirectory(expand(dirs[0]))
+    let dirs[0] .= '/'
+  endif
+  return dirs
+endfunction
+
+function! s:GetPathHead(path)
+  return matchstr(a:path, '.*/\ze[^/]*$')
+endfunction
+
+function! s:GetPathTail(path)
+  return matchstr(a:path, '.*/\zs[^/]*$')
 endfunction
 
 " Call this entry function first
@@ -421,7 +465,7 @@ function! s:AutoDetectProject()
     if !empty(path)
       let project = s:GetProjectByFullpath(g:vim_project_projects, path)
       let ignore = s:GetProjectByFullpath(
-            \g:vim_project_projects_ignore, path)
+            \s:vim_project_projects_ignore, path)
 
       if empty(project) && empty(ignore)
         let path = s:ReplaceHomeWithTide(path)
