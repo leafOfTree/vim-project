@@ -44,7 +44,7 @@ function! s:Prepare()
         \'prompt_mapping': s:prompt_mapping_default,
         \'project_base': '~',
         \'views': [],
-        \'file_open_type': {
+        \'open_file': {
           \'': 'edit',
           \'v': 'vsplit',
           \'s': 'split',
@@ -117,7 +117,7 @@ function! s:InitConfig()
   let s:views = s:config.views
   let s:view_index = -1
   let s:prompt_mapping = s:config.prompt_mapping
-  let s:open_types = s:config.file_open_type
+  let s:open_types = s:config.open_file
   let s:debug = s:config.debug
 endfunction
 
@@ -1396,10 +1396,20 @@ endfunction
 
 function! g:VimProjectGotoLinkedFile(link, open_type)
   let linked_files = a:link.file
-  let current = expand('%:e')
-  let current_index = index(linked_files, current)
-  if current_index != -1
+  let current_index = index(linked_files, expand('%:e'))
+  
+  if current_index != -1 " By file extension
     let target =  expand('%:p:r').'.'.linked_files[1 - current_index]
+  else " By specific file, default to first one
+    let current_file = substitute(expand('%:p'), $vim_project.'/', '', '')
+    let current_index = index(linked_files, current_file)
+    if current_index != -1
+      let target = linked_files[1 - current_index]
+    elseif linked_files[0] !~ '^\w*$'
+      let target = linked_files[0]
+    endif
+  endif
+  if exists('target')
     call g:VimProjectOpenFile(a:open_type, target)
   endif
 endfunction
