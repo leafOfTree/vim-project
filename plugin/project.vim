@@ -10,7 +10,7 @@ command ProjectQuit call project#QuitProject()
 command ProjectInfo call project#ShowProjectInfo()
 command ProjectEntry call project#OpenProjectEntry()
 command ProjectConfig call project#OpenProjectConfig()
-command ProjectTotalConfig call project#OpenTotalConfig()
+command ProjectAllConfig call project#OpenAllConfig()
 command -nargs=? ProjectOutput call project#OutputProjects(<q-args>)
 command -complete=customlist,project#ListProjectNames -nargs=1
       \ ProjectOpen call project#OpenProjectByName(s:TrimQuote(<q-args>))

@@ -983,7 +983,7 @@ function! project#OpenProjectConfig()
   endif
 endfunction
 
-function! project#OpenTotalConfig()
+function! project#OpenAllConfig()
   execute 'edit '.s:config_home
 endfunction
 

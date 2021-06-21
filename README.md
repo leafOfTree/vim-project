@@ -96,15 +96,16 @@ You can find and directly modify cached projects in these files in `~/.vim/vim-p
 
 | command                             | description                               |
 |-------------------------------------|-------------------------------------------|
+| Project `<path>[, option]`          | Add project                               |
 | ProjectAdd `<path>[, option]`       | Add project                               |
 | ProjectList                         | Show projects                             |
 | ProjectOpen `<name>`                | Open a project by name                    |
 | ProjectRemove `<name>`              | Remove a project by name                  |
 | ProjectInfo                         | Show project info                         |
 | ProjectQuit                         | Quit project                              |
-| ProjectEntry                        | Open project entry directory              |
+| ProjectEntry                        | Open project entry directory or file      |
 | ProjectConfig                       | Open project config directory             |
-| ProjectTotalConfig                  | Open total config directory               |
+| ProjectAllConfig                    | Open all config directory                 |
 | ProjectIgnore `<path>`              | Ignore project for auto detection         |
 | ProjectBase `<base>`                | Set base directory for relative project path |
 
