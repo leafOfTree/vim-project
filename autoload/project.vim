@@ -1381,7 +1381,7 @@ function! s:MapDirectFile(direct)
     let file = a:direct.file[index]
     for [open_key, open_type] in items(s:open_types)
       execute "nnoremap '".open_key.key.' :update<cr>'
-            \.':call g:VimProjectOpenFile("'.open_type.'", "'.file.'")<cr>'
+            \.':call <SID>OpenFile("'.open_type.'", "'.file.'")<cr>'
     endfor
     let index += 1
   endfor
@@ -1389,26 +1389,31 @@ endfunction
 
 function! s:MapLinkedFile(link)
   if len(a:link.file) == 2
-    let g:VimProjectGotoLinked =
-          \function('g:VimProjectGotoLinkedFile', [a:link])
+    let s:GotoLinked =
+          \function('s:GotoLinkedFile', [a:link])
     for [open_key, open_type] in items(s:open_types)
       execute "nnoremap '".open_key.a:link.key
-            \.' :update<cr>:call g:VimProjectGotoLinked("'.open_type.'")<cr>'
+            \.' :update<cr>:call <SID>GotoLinked("'.open_type.'")<cr>'
     endfor
   endif
 endfunction
 
 function! s:MapCustomFile(custom)
+  let s:CustomFuncRef = a:custom.file
+  " It seems that only function... can be called by <SID> in map
+  function! s:CustomFunc()
+    return s:CustomFuncRef()
+  endfunction
+
   for [open_key, open_type] in items(s:open_types)
-    let g:CustomFunc = a:custom.file
+    let sid = expand('<SID>')
     execute "nnoremap '".open_key.a:custom.key
-          \.' :update<cr>:let g:vim_vue_plugin_tmpvar ='
-          \.' g:CustomFunc()<cr>'
-          \.' :call g:VimProjectOpenFile("'.open_type.'", g:vim_vue_plugin_tmpvar)<cr>'
+          \.' :update<cr>'
+          \.' :call <SID>OpenFile("'.open_type.'", '.sid.'CustomFunc())<cr>'
   endfor
 endfunction
 
-function! g:VimProjectGotoLinkedFile(link, open_type)
+function! s:GotoLinkedFile(link, open_type)
   let linked_files = a:link.file
   let current_index = index(linked_files, expand('%:e'))
   
@@ -1424,11 +1429,11 @@ function! g:VimProjectGotoLinkedFile(link, open_type)
     endif
   endif
   if exists('target')
-    call g:VimProjectOpenFile(a:open_type, target)
+    call s:OpenFile(a:open_type, target)
   endif
 endfunction
 
-function! g:VimProjectOpenFile(open_type, target)
+function! s:OpenFile(open_type, target)
   let target = a:target
   if s:IsRelativePath(target)
     let target = $vim_project.'/'.target
