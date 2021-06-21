@@ -145,7 +145,14 @@ let g:vim_project_config = {
       \'debug': 0,
       \}
 
-let g:vim_project_config.prompt_mapping = {
+let g:vim_project_config.open_file = {
+      \'': 'edit',
+      \'v': 'vsplit',
+      \'s': 'split',
+      \'t': 'tabedit',
+      \}
+
+let g:vim_project_config.project_list_mapping = {
       \'open_project': "\<cr>",
       \'close_list':   "\<esc>",
       \'clear_char':   ["\<bs>", "\<c-a>"],
@@ -169,8 +176,8 @@ let g:vim_project_config.prompt_mapping = {
 | auto_detect          | Auto detect projects when opening a file. <br>Choose 'always', 'ask', or 'no' | string  |
 | auto_detect_file     | File used to detect potential projects                                        | string  |
 | auto_load_on_start   | Auto load a project if Vim starts from its directory                          | boolean |
-| prompt_mapping       | Mapping for prompt                                                            | dict    |
-| project_base         | The directory for relative project path                                       | string  |
+| project_list_mapping | Mapping for project list prompt                                               | dict    |
+| project_base         | The base directory for relative project path                                  | string  |
 | views                | Define views by [[show-pattern, hide-pattern?], ...]                          | list    |
 | debug                | Show debug messages                                                           | boolean |
 
@@ -189,6 +196,69 @@ The config files for each project is located at `~/.vim/vim-project-config/<proj
                                                    | master.vim
                                                    | branch-1.vim
                                                    | branch-2.vim
+```
+
+### Switch between files
+
+You can define mappings to frequently changed files in `~/.vim/vim-project-config/<project-name>/init.vim`
+
+For example, with below example, you can
+
+- Switch to `autoload/project.vim` by `'a` and so on.
+
+- Switch between `['autoload/project.vim', 'plugin/project.vim']` by `'l`
+
+- Switch to file returned by user-defined function by `'c`
+
+```vim
+function! UpperStyle()
+  let upper_dir = expand('%:p:h:h')
+  let name = expand('%:r')
+  return upper_dir.'/'.name.'.css'
+endfunction
+
+call project#MapFile({
+  \'direct': {
+    \'file': ['autoload/project.vim', 'plugin/project.vim', $vim_project_config.'/init.vim', 'README.md'],
+    \'key': ['a', 'p', 'i', 'r'],
+  \},
+  \'link': {
+    \'file': ['autoload/project.vim', 'plugin/project.vim'],
+    \'key': 'l',
+  \},
+  \'custom': {
+    \'file': function('UpperStyle'),
+    \'key': 'c',
+  \},
+\})
+```
+
+Another example where you can
+
+- Switch between linked file type such as `*.html` and `*.css` at the same path
+- Switch to file returned by `:h lambda` expression
+
+```vim
+call project#MapFile({
+  \'link': {
+    \'file': ['html', 'css'],
+    \'key': 'l',
+  \},
+  \'custom': {
+    \'file': {->expand('%:p:h:h').'/'.expand('%:r').'.css'},
+    \'key': 'c',
+  \},
+\})
+```
+
+With `open_file`, you can use `'a`, `'va`, `'sa`, `'ta'` to edit file in different ways
+```vim
+let g:vim_project_config.open_file = {
+      \'': 'edit',
+      \'v': 'vsplit',
+      \'s': 'split',
+      \'t': 'tabedit',
+      \}
 ```
 
 ### Session options

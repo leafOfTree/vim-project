@@ -3,7 +3,7 @@ let g:vim_project_loaded = 1
 
 function! s:Prepare()
   let s:name = 'vim-project'
-  let s:prompt_prefix = 'Open a project:'
+  let s:project_list_prefix = 'Open a project:'
   let s:laststatus_save = &laststatus
   let s:origin_height = 0
   let s:head_file_job = 0
@@ -19,7 +19,7 @@ function! s:Prepare()
   let s:init_file = 'init.vim'
   let s:quit_file = 'quit.vim'
 
-  let s:prompt_mapping_default = {
+  let s:project_list_mapping_default = {
         \'open_project': "\<cr>",
         \'close_list': "\<esc>",
         \'clear_char': ["\<bs>", "\<c-a>"],
@@ -41,16 +41,28 @@ function! s:Prepare()
         \'auto_detect': 'always',
         \'auto_detect_file': '.git, .svn, package.json, pom.xml, Gemfile',
         \'auto_load_on_start': 0,
-        \'prompt_mapping': s:prompt_mapping_default,
         \'project_base': '~',
         \'views': [],
-        \'open_file': {
-          \'': 'edit',
-          \'v': 'vsplit',
-          \'s': 'split',
-          \'t': 'tabedit',
-        \},
         \'debug': 0,
+        \}
+  let s:default.open_file = {
+        \'': 'edit',
+        \'v': 'vsplit',
+        \'s': 'split',
+        \'t': 'tabedit',
+        \}
+  let s:default.project_list_mapping = {
+        \'open_project': "\<cr>",
+        \'close_list':   "\<esc>",
+        \'clear_char':   ["\<bs>", "\<c-a>"],
+        \'clear_word':   "\<c-w>",
+        \'clear_all':    "\<c-u>",
+        \'prev_item':    ["\<c-k>", "\<up>"],
+        \'next_item':    ["\<c-j>", "\<down>"],
+        \'first_item':   ["\<c-h>", "\<left>"],
+        \'last_item':    ["\<c-l>", "\<right>"],
+        \'prev_view':    "\<s-tab>",
+        \'next_view':    "\<tab>",
         \}
 
   " Used by statusline
@@ -77,9 +89,9 @@ function! s:MergeUserConfigIntoDefault(user)
   let user = a:user
   let default = s:default
 
-  if has_key(user, 'prompt_mapping')
-    let user.prompt_mapping = 
-          \ s:MergeUserMappingIntoDefault(user.prompt_mapping)
+  if has_key(user, 'project_list_mapping')
+    let user.project_list_mapping =
+          \ s:MergeUserMappingIntoDefault(user.project_list_mapping)
   endif
 
   for key in keys(default)
@@ -93,7 +105,7 @@ endfunction
 
 function! s:MergeUserMappingIntoDefault(user)
   let user = a:user
-  let default = s:prompt_mapping_default
+  let default = s:project_list_mapping_default
   for key in keys(default)
     if has_key(user, key)
       let default[key] = user[key]
@@ -116,7 +128,7 @@ function! s:InitConfig()
   let s:auto_load_on_start = s:config.auto_load_on_start
   let s:views = s:config.views
   let s:view_index = -1
-  let s:prompt_mapping = s:config.prompt_mapping
+  let s:project_list_mapping = s:config.project_list_mapping
   let s:open_types = s:config.open_file
   let s:debug = s:config.debug
 endfunction
@@ -304,8 +316,10 @@ function! s:InfoHl(msg)
 endfunction
 
 function! s:GetProjectConfigPath(config_home, project)
-  let id = substitute(a:project.path, '/', '_', 'g')
-  let project_folder = a:project.name.'__'.id
+  let id = a:project.path
+  let id = s:ReplaceHomeWithTide(id)
+  let id = substitute(id, '/', '_', 'g')
+  let project_folder = a:project.name.'___@'.id
   return a:config_home.'/'.project_folder
 endfunction
 
@@ -800,7 +814,7 @@ endfunction
 
 function! s:GetPromptCommand(char)
   let command = ''
-  for [key, value] in items(s:prompt_mapping)
+  for [key, value] in items(s:project_list_mapping)
     if type(value) == v:t_string
       let match = value == a:char
     else
@@ -819,7 +833,7 @@ function! s:HandleInput()
   call s:FormatProjects()
   let projects = s:ShowProjects()
   redraw
-  echo s:prompt_prefix.' '
+  echo s:project_list_prefix.' '
 
   " Read input
   let input = ''
@@ -860,7 +874,7 @@ function! s:HandleInput()
       let projects = s:ShowProjects(input, offset)
 
       redraw
-      echo s:prompt_prefix.' '.input
+      echo s:project_list_prefix.' '.input
     endwhile
   catch /^Vim:Interrupt$/
     call s:CloseListBuffer()
