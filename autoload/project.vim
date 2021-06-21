@@ -44,6 +44,12 @@ function! s:Prepare()
         \'prompt_mapping': s:prompt_mapping_default,
         \'project_base': '~',
         \'views': [],
+        \'file_open_type': {
+          \'': 'edit',
+          \'v': 'vsplit',
+          \'s': 'split',
+          \'t': 'tabedit',
+        \},
         \'debug': 0,
         \}
 
@@ -111,6 +117,7 @@ function! s:InitConfig()
   let s:views = s:config.views
   let s:view_index = -1
   let s:prompt_mapping = s:config.prompt_mapping
+  let s:open_types = s:config.file_open_type
   let s:debug = s:config.debug
 endfunction
 
@@ -1337,6 +1344,72 @@ function! s:GetDisplayRow(key, value)
   return value.__name.'  '
         \.value.__note.'  '
         \.s:ReplaceHomeWithTide(value.__path)
+endfunction
+
+function! project#MapFile(config)
+  let config = a:config
+  if has_key(config, 'direct')
+    call s:MapDirectFile(config.direct)
+  endif
+
+  if has_key(config, 'link')
+    call s:MapLinkedFile(config.link)
+  endif
+
+  if has_key(config, 'custom')
+    call s:MapCustomFile(config.custom)
+  endif
+endfunction
+
+function! s:MapDirectFile(direct)
+  let index = 0
+  for key in a:direct.key
+    let file = a:direct.file[index]
+    for [open_key, open_type] in items(s:open_types)
+      execute "nnoremap '".open_key.key.' :update<cr>'
+            \.':call g:VimProjectOpenFile("'.open_type.'", "'.file.'")<cr>'
+    endfor
+    let index += 1
+  endfor
+endfunction
+
+function! s:MapLinkedFile(link)
+  if len(a:link.file) == 2
+    let g:VimProjectGotoLinked =
+          \function('g:VimProjectGotoLinkedFile', [a:link])
+    for [open_key, open_type] in items(s:open_types)
+      execute "nnoremap '".open_key.a:link.key
+            \.' :update<cr>:call g:VimProjectGotoLinked("'.open_type.'")<cr>'
+    endfor
+  endif
+endfunction
+
+function! s:MapCustomFile(custom)
+  for [open_key, open_type] in items(s:open_types)
+    let g:CustomFunc = a:custom.file
+    execute "nnoremap '".open_key.a:custom.key
+          \.' :update<cr>:let g:vim_vue_plugin_tmpvar ='
+          \.' g:CustomFunc()<cr>'
+          \.' :call g:VimProjectOpenFile("'.open_type.'", g:vim_vue_plugin_tmpvar)<cr>'
+  endfor
+endfunction
+
+function! g:VimProjectGotoLinkedFile(link, open_type)
+  let linked_files = a:link.file
+  let current = expand('%:e')
+  let current_index = index(linked_files, current)
+  if current_index != -1
+    let target =  expand('%:p:r').'.'.linked_files[1 - current_index]
+    call g:VimProjectOpenFile(a:open_type, target)
+  endif
+endfunction
+
+function! g:VimProjectOpenFile(open_type, target)
+  let target = a:target
+  if s:IsRelativePath(target)
+    let target = $vim_project.'/'.target
+  endif
+  execute a:open_type.' '.expand(target)
 endfunction
 
 function! s:Main()
