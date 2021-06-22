@@ -664,9 +664,10 @@ function! s:KeepOriginHeight(height)
   endif
 endfunction
 
-function! s:FilterList(list, filter)
+function! s:FilterList(list, filter, origin)
   let list = a:list
   let filter = a:filter
+  let origin = a:origin
 
   for item in list
     let item._match_type = ''
@@ -674,6 +675,10 @@ function! s:FilterList(list, filter)
 
     let match_index = match(item.name, filter)
     if match_index != -1
+      " Prefer continous match
+      if len(origin) > 1 && count(item.name, origin) == 0
+        let match_index = match_index + 10
+      endif
       let item._match_type = 'name'
       let item._match_index = match_index
     endif
@@ -761,7 +766,7 @@ function! s:FilterProjects(projects, filter)
 
   if a:filter != ''
     let filter = join(split(a:filter, '\zs'), '.*')
-    call s:FilterList(projects, filter)
+    call s:FilterList(projects, filter, a:filter)
   else
     call sort(projects, 's:SortInauguralList')
   endif
