@@ -601,8 +601,8 @@ function! s:PrepareListBuffer()
 endfunction
 
 function! s:OpenListBuffer()
-  let s:host_height = winheight(0)
-  let s:host_width = winwidth(0)
+  let s:max_height = winheight(0) - 5
+  let s:max_width = winwidth(0)
   let win = s:list_buffer
   let num = bufwinnr(win)
   if num == -1
@@ -637,42 +637,44 @@ endfunction
 
 " Default 
 " @input: ''
-" @offset: { 'value': 0 }
+" @offset: { 'value': 0 }, range -N,...-2,-1,0
 function! s:ShowInListBuffer(display, input, offset)
   " Avoid clearing other files by mistake
   if expand('%') != s:list_buffer
     return
   endif
-
   normal! ggdG
-
   let display = a:display
   let input = a:input
   let offset = a:offset
-  let height = len(display)
-  execute 'resize'.' '.height
+  let length = len(display)
+  execute 'resize'.' '.length
   sign unplace 9
-  if height > 0
+  if length > 0
     call append(0, display)
 
-    let lastline = height
+    let current = length
     if offset.value > 0
       let offset.value = 0
-    elseif lastline + offset.value < 1
-      let offset.value = 1 - lastline
+    elseif current + offset.value < 1
+      let offset.value = 1 - current
     endif
-    let lastline += offset.value
-    execute 'sign place 9 line='.lastline.' name=selected'
+    let current += offset.value
+    execute 'sign place 9 line='.current.' name=selected'
   endif
   if input == ''
-    let s:initial_height = height
+    let s:initial_height = length
   endif
-  call s:ConfineHeight(height, s:initial_height, s:host_height - 10)
+  call s:ConfineHeight(length, s:initial_height, s:max_height)
 
   " Remove extra blank lines
   normal! Gdd
   normal! gg 
   normal! G 
+
+  if length > s:max_height
+    execute 'normal! '.string(current).'G'
+  endif
 endfunction
 
 function! s:ConfineHeight(current, min, max)
@@ -840,10 +842,7 @@ function! s:TabulateList(list, keys, max_col_width)
   for value in values(max)
     let max_width += value
   endfor
-  echom max_width
-  echom s:host_width
-  echom max_col_width
-  if max_width > s:host_width
+  if max_width > s:max_width
     let max = {}
     for item in list
       for key in a:keys
@@ -884,7 +883,7 @@ function! s:GetProjectListCommand(char)
 endfunction
 
 function! s:ProjectListBufferInit()
-  let max_col_width = s:host_width / 2 - 10
+  let max_col_width = s:max_width / 2 - 10
   call s:TabulateList(s:projects, ['name', 'path', 'note'], max_col_width)
   return s:ProjectListBufferUpdate('', { 'value': 0 })
 endfunction
@@ -941,7 +940,8 @@ endfunction
 function! s:GetSearchFiles(dir, oldfiles)
   let oldfiles = a:oldfiles
   let cmd = "cd ".a:dir." && find . \\( -name .git -o -name .config \\) -prune -false -o -type f"
-  let list = split(system(cmd), '\n')
+  let list = split(system(cmd), '\n')[0:s:max_height-1]
+
   call filter(list, {_, val -> !count(oldfiles, val)})
   call map(list, {idx, val -> 
         \{ 
@@ -966,17 +966,22 @@ function! s:SearchFilesBufferInit()
   let dir = fnamemodify('~/repository/react', ':p')
   let oldfiles = s:GetSearchFilesFromOldFiles(dir)
   let list = s:GetSearchFiles(dir, oldfiles)
-
-  let max_col_width = s:host_width / 2 - 12
+  let max_col_width = s:max_width / 2 - 12
   call s:TabulateList(list, ['file', 'path'], max_col_width)
-
   let display = s:GetSearchFilesDisplay(list, len(oldfiles))
   call s:ShowInListBuffer(display, '', { 'value': 0 })
   return list
 endfunction
 
 function! s:SearchFilesBufferUpdate(input, offset)
-  return s:ShowInListBuffer(s:projects, a:input, a:offset)
+  let dir = fnamemodify('~/repository/react', ':p')
+  let oldfiles = s:GetSearchFilesFromOldFiles(dir)
+  let list = s:GetSearchFiles(dir, oldfiles)
+  let max_col_width = s:max_width / 2 - 12
+  call s:TabulateList(list, ['file', 'path'], max_col_width)
+  let display = s:GetSearchFilesDisplay(list, len(oldfiles))
+  call s:ShowInListBuffer(display, a:input, a:offset)
+  return list
 endfunction
 
 function! s:SearchFilesBufferOpen(project)
