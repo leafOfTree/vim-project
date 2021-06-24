@@ -6,7 +6,7 @@ function! s:Prepare()
   let s:project_list_prefix = 'Open a project:'
   let s:search_files_prefix = 'Search files by name:'
   let s:laststatus_save = &laststatus
-  let s:origin_height = 0
+  let s:initial_height = 0
   let s:head_file_job = 0
   let s:project = {}
   let s:branch = ''
@@ -601,6 +601,8 @@ function! s:PrepareListBuffer()
 endfunction
 
 function! s:OpenListBuffer()
+  let s:host_height = winheight(0)
+  let s:host_width = winwidth(0)
   let win = s:list_buffer
   let num = bufwinnr(win)
   if num == -1
@@ -663,9 +665,9 @@ function! s:ShowInListBuffer(display, input, offset)
     execute 'sign place 9 line='.lastline.' name=selected'
   endif
   if input == ''
-    let s:origin_height = height
+    let s:initial_height = height
   endif
-  call s:KeepOriginHeight(height)
+  call s:ConfineHeight(height, s:initial_height, s:host_height - 10)
 
   " Remove extra blank lines
   normal! Gdd
@@ -673,11 +675,18 @@ function! s:ShowInListBuffer(display, input, offset)
   normal! G 
 endfunction
 
-function! s:KeepOriginHeight(height)
-  if a:height < s:origin_height
-    let counts = s:origin_height - a:height
+function! s:ConfineHeight(current, min, max)
+  let current = a:current
+  let min = a:min
+  let max = a:max
+
+  if current < min
+    " Set min height
+    let counts = min - current
     call append(0, repeat([''], counts))
-    execute 'resize '.s:origin_height
+    execute 'resize '.min
+  elseif max > 0 && current > max
+    execute 'resize '.string(max)
   endif
 endfunction
 
@@ -796,8 +805,10 @@ function! s:SortInauguralProjectsList(a1, a2)
 endfunction
 
 function! s:AddRightPadding(string, length)
-  let padding = repeat(' ', a:length - len(a:string))
-  return a:string.padding
+  let string = a:string
+  let padding = repeat(' ', a:length - len(string))
+  let string .= padding
+  return string
 endfunction
 
 function! project#OutputProjects(...)
@@ -807,24 +818,51 @@ function! project#OutputProjects(...)
   echo projects
 endfunction
 
-function! s:TabulateList(list)
+function! s:TabulateList(list, keys, max_col_width)
   let list = a:list
+  let max_col_width = a:max_col_width
 
+  " Get max width of each column
   let max = {}
   for item in list
-    for key in keys(item)
-      if !has_key(max, key) 
-            \|| (type(item[key]) == v:t_string && len(item[key]) > max[key])
-        let max[key] = len(item[key])
+    for key in a:keys
+      let value = s:ReplaceHomeWithTide(item[key])
+      let item['__'.key] = value
+
+      if !has_key(max, key) || len(value) > max[key]
+        let max[key] = len(value)
       endif
     endfor
   endfor
 
+  " If necessary, trim value that is too long
+  let max_width = 0
+  for value in values(max)
+    let max_width += value
+  endfor
+  echom max_width
+  echom s:host_width
+  echom max_col_width
+  if max_width > s:host_width
+    let max = {}
+    for item in list
+      for key in a:keys
+        let value = item['__'.key]
+        if len(value) > max_col_width
+          let value = value[0:max_col_width-2].'..'
+          let item['__'.key] = value
+        endif
+        if !has_key(max, key) || len(value) > max[key]
+          let max[key] = len(value)
+        endif
+      endfor
+    endfor
+  endif
+
+  " Add right padding
   for item in list
-    for key in keys(item)
-      if type(item[key]) == v:t_string && key[0:1] != '__'
-        let item['__'.key] = s:AddRightPadding(item[key], max[key])
-      endif
+    for key in a:keys
+      let item['__'.key] = s:AddRightPadding(item['__'.key], max[key])
     endfor
   endfor
 endfunction
@@ -846,7 +884,8 @@ function! s:GetProjectListCommand(char)
 endfunction
 
 function! s:ProjectListBufferInit()
-  call s:TabulateList(s:projects)
+  let max_col_width = s:host_width / 2 - 10
+  call s:TabulateList(s:projects, ['name', 'path', 'note'], max_col_width)
   return s:ProjectListBufferUpdate('', { 'value': 0 })
 endfunction
 
@@ -923,11 +962,14 @@ function! s:GetSearchFiles(dir, oldfiles)
 endfunction
 
 function! s:SearchFilesBufferInit()
-  let dir = fnamemodify($vim_project, ':p')
+  " let dir = fnamemodify($vim_project, ':p')
+  let dir = fnamemodify('~/repository/react', ':p')
   let oldfiles = s:GetSearchFilesFromOldFiles(dir)
   let list = s:GetSearchFiles(dir, oldfiles)
 
-  call s:TabulateList(list)
+  let max_col_width = s:host_width / 2 - 12
+  call s:TabulateList(list, ['file', 'path'], max_col_width)
+
   let display = s:GetSearchFilesDisplay(list, len(oldfiles))
   call s:ShowInListBuffer(display, '', { 'value': 0 })
   return list
