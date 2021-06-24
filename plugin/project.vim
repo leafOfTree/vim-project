@@ -28,4 +28,6 @@ command -complete=dir -nargs=1
 command -complete=customlist,project#ListDirs -nargs=1
       \ ProjectIgnore call project#IgnoreProject(s:TrimQuote(<q-args>))
 
+command ProjectSearchFiles call project#SearchFiles()
+
 call project#begin()

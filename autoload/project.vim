@@ -4,15 +4,15 @@ let g:vim_project_loaded = 1
 function! s:Prepare()
   let s:name = 'vim-project'
   let s:project_list_prefix = 'Open a project:'
+  let s:search_files_prefix = 'Search files by name:'
   let s:laststatus_save = &laststatus
   let s:origin_height = 0
   let s:head_file_job = 0
   let s:project = {}
   let s:branch = ''
   let s:branch_default = '_'
-  let s:list_buffer = '__projects__'
+  let s:list_buffer = '__vim_project_list__'
   let s:nerdtree_tmp = '__vim_project_nerdtree_tmp__'
-  let s:format_cache = 0
 
   let s:add_file = 'project.add.vim'
   let s:ignore_file = 'project.ignore.vim'
@@ -580,9 +580,24 @@ function! s:Warn(msg)
 endfunction
 
 function! project#ListProjects()
+  call s:PrepareListBuffer()
+  let Init = function('s:ProjectListBufferInit')
+  let Update = function('s:ProjectListBufferUpdate')
+  let Open = function('s:ProjectListBufferOpen')
+  call s:HandleListInput(s:project_list_prefix, Init, Update, Open)
+endfunction
+
+function! project#SearchFiles()
+  call s:PrepareListBuffer()
+  let Init = function('s:SearchFilesBufferInit')
+  let Update = function('s:SearchFilesBufferUpdate')
+  let Open = function('s:SearchFilesBufferOpen')
+  call s:HandleListInput(s:search_files_prefix, Init, Update, Open)
+endfunction
+
+function! s:PrepareListBuffer()
   call s:OpenListBuffer()
   call s:SetupListBuffer()
-  call s:HandleInput()
 endfunction
 
 function! s:OpenListBuffer()
@@ -598,6 +613,10 @@ endfunction
 function! s:CloseListBuffer()
   let &g:laststatus = s:laststatus_save
   quit
+  let num = bufnr(s:list_buffer)
+  if num != -1
+    execute 'bwipeout! '.num 
+  endif
   redraw!
   wincmd p
 endfunction
@@ -608,33 +627,33 @@ function! s:SetupListBuffer()
   setlocal nocursorline
   setlocal nowrap
   set laststatus=0
-  nnoremap<buffer> <esc> :quit<cr>
+  nnoremap<buffer> <esc> :call <SID>CloseListBuffer()<cr>
   highlight! link SignColumn Noise
-  highlight ProjectSelected gui=reverse term=reverse cterm=reverse
-  sign define selected text=> texthl=ProjectSelected linehl=ProjectSelected 
+  highlight ItemSelected gui=reverse term=reverse cterm=reverse
+  sign define selected text=> texthl=ItemSelected linehl=ItemSelected 
 endfunction
 
-function! s:ShowProjects(...)
-  let bufname = expand('%')
+" Default 
+" @input: ''
+" @offset: { 'value': 0 }
+function! s:ShowInListBuffer(display, input, offset)
   " Avoid clearing other files by mistake
-  if bufname != s:list_buffer
+  if expand('%') != s:list_buffer
     return
   endif
-  let input = a:0>0 ? a:1 : ''
-  let offset = a:0>1 ? a:2 : { 'value': 0 }
 
   normal! ggdG
 
-  let projects = s:FilterProjects(copy(s:projects), input)
-  let result = s:GetDisplayList(projects)
-
-  let result_len = len(result)
-  execute 'resize'.' '.result_len
+  let display = a:display
+  let input = a:input
+  let offset = a:offset
+  let height = len(display)
+  execute 'resize'.' '.height
   sign unplace 9
-  if result_len > 0
-    call append(0, result)
+  if height > 0
+    call append(0, display)
 
-    let lastline = result_len
+    let lastline = height
     if offset.value > 0
       let offset.value = 0
     elseif lastline + offset.value < 1
@@ -644,16 +663,14 @@ function! s:ShowProjects(...)
     execute 'sign place 9 line='.lastline.' name=selected'
   endif
   if input == ''
-    let s:origin_height = len(projects)
+    let s:origin_height = height
   endif
-  call s:KeepOriginHeight(result_len)
+  call s:KeepOriginHeight(height)
 
   " Remove extra blank lines
   normal! Gdd
   normal! gg 
   normal! G 
-
-  return projects
 endfunction
 
 function! s:KeepOriginHeight(height)
@@ -664,7 +681,7 @@ function! s:KeepOriginHeight(height)
   endif
 endfunction
 
-function! s:FilterList(list, filter, origin)
+function! s:FilterProjectsList(list, filter, origin)
   let list = a:list
   let filter = a:filter
   let origin = a:origin
@@ -702,11 +719,11 @@ function! s:FilterList(list, filter, origin)
     endif
   endfor
   call filter(list, { _, value -> value._match_type != '' })
-  call sort(list, 's:SortList')
+  call sort(list, 's:SortProjectsList')
   return list
 endfunction
 
-function! s:SortList(a1, a2)
+function! s:SortProjectsList(a1, a2)
   let type1 = a:a1._match_type
   let type2 = a:a2._match_type
   let index1 = a:a1._match_index
@@ -723,7 +740,7 @@ function! s:SortList(a1, a2)
   return -1
 endfunction
 
-function! s:FilterListName(list, filter, reverse)
+function! s:FilterProjectsListName(list, filter, reverse)
   let list = a:list
   let filter = a:filter
   call filter(list, { _, value -> empty(filter) || 
@@ -755,8 +772,8 @@ function! s:FilterProjectsByView(projects)
       let show = ''
       let hide = ''
     endif
-    call s:FilterListName(a:projects, show, 0)
-    call s:FilterListName(a:projects, hide, 1)
+    call s:FilterProjectsListName(a:projects, show, 0)
+    call s:FilterProjectsListName(a:projects, hide, 1)
   endif
 endfunction
 
@@ -766,15 +783,15 @@ function! s:FilterProjects(projects, filter)
 
   if a:filter != ''
     let filter = join(split(a:filter, '\zs'), '.*')
-    call s:FilterList(projects, filter, a:filter)
+    call s:FilterProjectsList(projects, filter, a:filter)
   else
-    call sort(projects, 's:SortInauguralList')
+    call sort(projects, 's:SortInauguralProjectsList')
   endif
 
   return projects
 endfunction
 
-function! s:SortInauguralList(a1, a2)
+function! s:SortInauguralProjectsList(a1, a2)
   return a:a1.name < a:a2.name ? 1 : -1
 endfunction
 
@@ -790,13 +807,8 @@ function! project#OutputProjects(...)
   echo projects
 endfunction
 
-function! s:FormatProjects()
-  let list = s:projects
-  if s:format_cache == len(list)
-    return
-  else
-    let s:format_cache = len(list)
-  endif
+function! s:TabulateList(list)
+  let list = a:list
 
   let max = {}
   for item in list
@@ -817,7 +829,7 @@ function! s:FormatProjects()
   endfor
 endfunction
 
-function! s:GetPromptCommand(char)
+function! s:GetProjectListCommand(char)
   let command = ''
   for [key, value] in items(s:project_list_mapping)
     if type(value) == v:t_string
@@ -833,12 +845,112 @@ function! s:GetPromptCommand(char)
   return command
 endfunction
 
-function! s:HandleInput()
+function! s:ProjectListBufferInit()
+  call s:TabulateList(s:projects)
+  return s:ProjectListBufferUpdate('', { 'value': 0 })
+endfunction
+
+function! s:ProjectListBufferUpdate(input, offset)
+  let list = s:FilterProjects(copy(s:projects), a:input)
+  let display = s:GetProjectsDisplay(list)
+  call s:ShowInListBuffer(display, a:input, a:offset)
+  return list
+endfunction
+
+function! s:ProjectListBufferOpen(project)
+  let project = a:project
+  if s:IsValidProject(project)
+    call s:OpenProject(project)
+  else
+    call s:Warn('Not accessible path: '.project.fullpath)
+  endif
+endfunction
+
+function! s:SortFilesList(a1, a2)
+  return len(a:a2.path) - len(a:a1.path)
+endfunction
+
+function! s:GetSearchFilesDisplay(list, oldfiles_len)
+  let display = map(copy(a:list), function('s:GetSearchFilesDisplayRow'))
+
+  if a:oldfiles_len > 0
+    let display_len = len(display)
+    let display[display_len - 1] .= '     recently opened'
+    let display[display_len - a:oldfiles_len - 1] .= '     file results'
+    match Comment /file results\|recently opened/
+  endif
+  return display
+endfunction
+
+function! s:GetSearchFilesDisplayRow(idx, value)
+  let value = a:value
+  return value.__file.'  '.value.__path
+endfunction
+
+function! s:GetSearchFilesFromOldFiles(dir)
+  let oldfiles = copy(v:oldfiles)
+  call map(oldfiles, {_, val -> fnamemodify(val, ':p')})
+  call filter(oldfiles, {_, val -> 
+        \count(val, a:dir) > 0
+        \ && fnamemodify(val, ':t') != 'ControlP'
+        \ && fnamemodify(val, ':t') != '__output__'
+        \})
+  call map(oldfiles, {_, val -> substitute(val, a:dir, './', '')})
+  return reverse(oldfiles)
+endfunction
+
+function! s:GetSearchFiles(dir, oldfiles)
+  let oldfiles = a:oldfiles
+  let cmd = "cd ".a:dir." && find . \\( -name .git -o -name .config \\) -prune -false -o -type f"
+  let list = split(system(cmd), '\n')
+  call filter(list, {_, val -> !count(oldfiles, val)})
+  call map(list, {idx, val -> 
+        \{ 
+        \'file': fnamemodify(val, ':t'), 
+        \'path': fnamemodify(val, ':h:s+\./\?++'),
+        \'recently': 0
+        \}})
+  call map(oldfiles, {idx, val -> 
+        \{ 
+        \'file': fnamemodify(val, ':t'), 
+        \'path': fnamemodify(val, ':h:s+\./\?++'),
+        \'recently': 1
+        \}})
+
+  call sort(list, 's:SortFilesList')
+  let list += oldfiles
+  return list
+endfunction
+
+function! s:SearchFilesBufferInit()
+  let dir = fnamemodify($vim_project, ':p')
+  let oldfiles = s:GetSearchFilesFromOldFiles(dir)
+  let list = s:GetSearchFiles(dir, oldfiles)
+
+  call s:TabulateList(list)
+  let display = s:GetSearchFilesDisplay(list, len(oldfiles))
+  call s:ShowInListBuffer(display, '', { 'value': 0 })
+  return list
+endfunction
+
+function! s:SearchFilesBufferUpdate(input, offset)
+  return s:ShowInListBuffer(s:projects, a:input, a:offset)
+endfunction
+
+function! s:SearchFilesBufferOpen(project)
+  let project = a:project
+  if s:IsValidProject(project)
+    call s:OpenProject(project)
+  else
+    call s:Warn('Not accessible path: '.project.fullpath)
+  endif
+endfunction
+
+function! s:HandleListInput(prefix, Init, Update, Open)
   " Init
-  call s:FormatProjects()
-  let projects = s:ShowProjects()
+  let list = a:Init()
   redraw
-  echo s:project_list_prefix.' '
+  echo a:prefix.' '
 
   " Read input
   let input = ''
@@ -847,7 +959,7 @@ function! s:HandleInput()
     while 1
       let c = getchar()
       let char = type(c) == v:t_string ? c : nr2char(c)
-      let cmd = s:GetPromptCommand(char)
+      let cmd = s:GetProjectListCommand(char)
       if cmd == 'close_list'
         call s:CloseListBuffer()
         break
@@ -862,7 +974,7 @@ function! s:HandleInput()
       elseif cmd == 'next_item'
         let offset.value += 1
       elseif cmd == 'first_item'
-        let offset.value = 1 - len(projects) 
+        let offset.value = 1 - len(list) 
       elseif cmd == 'last_item'
         let offset.value = 0
       elseif cmd == 'next_view'
@@ -876,24 +988,19 @@ function! s:HandleInput()
         let input = input.char
       endif
 
-      let projects = s:ShowProjects(input, offset)
-
+      let list = a:Update(input, offset)
       redraw
-      echo s:project_list_prefix.' '.input
+      echo a:prefix.' '.input
     endwhile
   catch /^Vim:Interrupt$/
     call s:CloseListBuffer()
-    call s:Debug('interrupt')
+    call s:Debug('Interrupt')
   endtry
 
   if cmd == 'open_project'
-    let index = len(projects) - 1 + offset.value
-    let project = projects[index]
-    if s:IsValidProject(project)
-      call s:OpenProject(project)
-    else
-      call s:Warn('Not accessible path: '.project.fullpath)
-    endif
+    let index = len(list) - 1 + offset.value
+    let target = list[index]
+    call a:Open(target)
   endif
 endfunction
 
@@ -1352,14 +1459,12 @@ function! ReloadSession(channel, msg, ...)
   endif
 endfunction
 
-function! s:GetDisplayList(list)
-  let list = copy(a:list)
-  return map(list, function('s:GetDisplayRow'))
+function! s:GetProjectsDisplay(list)
+  return map(copy(a:list), function('s:GetProjectsDisplayRow'))
 endfunction
 
-function! s:GetDisplayRow(key, value)
+function! s:GetProjectsDisplayRow(key, value)
   let value = a:value
-  let home = expand('~')
   return value.__name.'  '
         \.value.__note.'  '
         \.s:ReplaceHomeWithTide(value.__path)

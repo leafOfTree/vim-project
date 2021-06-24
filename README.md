@@ -109,7 +109,7 @@ You can find and directly modify cached projects in these files in `~/.vim/vim-p
 | ProjectIgnore `<path>`              | Ignore project for auto detection         |
 | ProjectBase `<base>`                | Set base directory for relative project path |
 
-> You can try `set wildmenu` for enhanced command-line completion
+> You can try adjust `wildmenu`, `wildmode` for enhanced command-line completion
 
 ### :ProjectAdd `<path>[, option]`
 
