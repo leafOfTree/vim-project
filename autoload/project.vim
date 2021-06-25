@@ -635,7 +635,9 @@ function! s:SetupListBuffer()
 
   highlight! link SignColumn Noise
   highlight link FirstColumn Keyword
+  highlight link InfoColumn Comment
 
+  syntax match Comment /file results\|recently opened/
   sign define selected text=> texthl=ItemSelected linehl=ItemSelected 
 endfunction
 
@@ -906,8 +908,19 @@ function! s:ProjectListBufferOpen(project)
   endif
 endfunction
 
-function! s:SortFilesList(a1, a2)
-  return len(a:a2.path) - len(a:a1.path)
+function! s:SortFilesList(input, a1, a2)
+  let file1 = a:a1.file
+  let file2 = a:a2.file
+  let input = a:input
+  let first = '\c'.input[0]
+
+  let start1 = match(file1, first)
+  let start2 = match(file2, first)
+  if start1 != start2
+    return start1 - start2
+  else
+    return len(file1) - len(file2)
+  endif
 endfunction
 
 function! s:GetSearchFilesDisplay(list, oldfiles_len)
@@ -920,7 +933,6 @@ function! s:GetSearchFilesDisplay(list, oldfiles_len)
     if display_len > oldfiles_len
       let display[display_len - oldfiles_len - 1] .= '  file results'
     endif
-    match Comment /file results\|recently opened/
   endif
   return display
 endfunction
@@ -943,38 +955,59 @@ function! s:GetSearchFilesFromOldFiles(dir)
 endfunction
 
 function! s:GetFindResult(dir, filter)
-  let ignore = '\( -name .git -o -name .config \)'
-  let cmd = 'cd '.a:dir.' && find . '.ignore.' -prune -false -o '.a:filter
+  let ignore = '\( -name .git -o -name .config \) -prune -false -o '
+  let cmd = 'cd '.a:dir.' && find . '.ignore.a:filter
   let result = split(system(cmd), '\n')
   return result
 endfunction
 
-function! s:GetSearchFiles(dir, oldfiles, input)
-  let oldfiles = a:oldfiles
+function! s:GetSearchFilesByFilter(dir, input)
+  let dir = a:dir
+  let input = a:input
   if empty(a:input)
-    let list = s:GetFindResult(a:dir, '-type f')
+    let filter = '-type f'
+    let list = s:GetFindResult(dir, filter)
   else
-    let list = s:GetFindResult(a:dir, '-name "*"'.a:input.'"*"')
-  endif
-  let list = list[0:s:max_height-1]
+    let filter = '-iname "'.input.'*"'
+    let list = s:GetFindResult(dir, filter)
 
-  call filter(list, {_, val -> !count(oldfiles, val)})
+    if len(list) < s:max_height-1
+      let filter2 = '-iname "*'.input.'*"'
+      let filter3 = '-iname "*'. join(split(input, '\zs'), '*').'*"'
+      let filter = '! '.filter.' '.filter3
+      let list += s:GetFindResult(dir, filter)
+    endif
+  endif
+
+  return list
+endfunction
+
+function! s:GetSearchFiles(dir, oldfiles, input)
+  let input = a:input
+  let oldfiles = a:oldfiles
+  let list = s:GetSearchFilesByFilter(a:dir, input)
+
+  call s:MapAndSortSearchFiles(list, input)
+  call s:MapAndSortSearchFiles(oldfiles, input)
+
+  let list = oldfiles + list
+  let list = list[0:s:max_height-1]
+  call uniq(list)
+  call reverse(list)
+  return list
+endfunction
+
+function! s:MapAndSortSearchFiles(list, input)
+  let list = a:list
+  let input = a:input
   call map(list, {idx, val -> 
         \{ 
         \'file': fnamemodify(val, ':t'), 
         \'path': fnamemodify(val, ':h:s+\./\?++'),
-        \'recently': 0
         \}})
-  call map(oldfiles, {idx, val -> 
-        \{ 
-        \'file': fnamemodify(val, ':t'), 
-        \'path': fnamemodify(val, ':h:s+\./\?++'),
-        \'recently': 1
-        \}})
-
-  call sort(list, 's:SortFilesList')
-  let list += oldfiles
-  return list
+  if !empty(input)
+    call sort(list, function('s:SortFilesList', [input]))
+  endif
 endfunction
 
 function! s:SearchFilesBufferInit()
@@ -986,6 +1019,7 @@ function! s:SearchFilesBufferInit()
   call s:TabulateList(list, ['file', 'path'], max_col_width)
   let display = s:GetSearchFilesDisplay(list, len(oldfiles))
   call s:ShowInListBuffer(display, '', { 'value': 0 })
+
   return list
 endfunction
 
@@ -997,6 +1031,8 @@ function! s:SearchFilesBufferUpdate(input, offset)
   call s:TabulateList(list, ['file', 'path'], max_col_width)
   let display = s:GetSearchFilesDisplay(list, len(oldfiles))
   call s:ShowInListBuffer(display, a:input, a:offset)
+
+  call s:MatchInputChars(a:input, a:offset)
   return list
 endfunction
 
@@ -1612,6 +1648,38 @@ function! s:OpenFile(open_type, target)
     let target = $vim_project.'/'.target
   endif
   execute a:open_type.' '.expand(target)
+endfunction
+
+function! s:MatchInputChars(input, offset)
+  call clearmatches()
+  let lastline = line('$')
+  let current = lastline + a:offset.value
+  for lnum in range(1, lastline)
+    if lnum != current
+      let pos = s:GetMatchPos(lnum, a:input)
+      if len(pos) > 0
+        for i in range(0, len(pos), 8)
+          call matchaddpos('Todo', pos[i:i+7])
+        endfor
+      endif
+    endif
+  endfor
+endfunction
+
+function! s:GetMatchPos(lnum, input)
+  let line = split(getline(a:lnum), '\zs')
+  let search = split(a:input, '\zs')
+  let pos = []
+  let start = 0
+  for char in search
+    let start = index(line, char, start, 1)
+    if start == -1
+      break
+    endif
+
+    call add(pos, [a:lnum, start+1])
+  endfor
+  return pos
 endfunction
 
 function! s:Main()
