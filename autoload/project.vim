@@ -630,8 +630,12 @@ function! s:SetupListBuffer()
   setlocal nowrap
   set laststatus=0
   nnoremap<buffer> <esc> :call <SID>CloseListBuffer()<cr>
-  highlight! link SignColumn Noise
+  syntax match FirstColumn /^\S*/
   highlight ItemSelected gui=reverse term=reverse cterm=reverse
+
+  highlight! link SignColumn Noise
+  highlight link FirstColumn Keyword
+
   sign define selected text=> texthl=ItemSelected linehl=ItemSelected 
 endfunction
 
@@ -908,11 +912,14 @@ endfunction
 
 function! s:GetSearchFilesDisplay(list, oldfiles_len)
   let display = map(copy(a:list), function('s:GetSearchFilesDisplayRow'))
+  let oldfiles_len = a:oldfiles_len
 
-  if a:oldfiles_len > 0
+  if oldfiles_len > 0
     let display_len = len(display)
-    let display[display_len - 1] .= '     recently opened'
-    let display[display_len - a:oldfiles_len - 1] .= '     file results'
+    let display[display_len - 1] .= '  recently opened'
+    if display_len > oldfiles_len
+      let display[display_len - oldfiles_len - 1] .= '  file results'
+    endif
     match Comment /file results\|recently opened/
   endif
   return display
