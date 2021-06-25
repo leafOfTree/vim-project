@@ -686,10 +686,8 @@ function! s:ConfineHeight(current, min, max)
     " Set min height
     let counts = min - current
     call append(0, repeat([''], counts))
-    execute 'resize '.min
-  elseif max > 0 && current > max
-    execute 'resize '.string(max)
   endif
+  execute 'resize '.min
 endfunction
 
 function! s:FilterProjectsList(list, filter, origin)
@@ -937,10 +935,21 @@ function! s:GetSearchFilesFromOldFiles(dir)
   return reverse(oldfiles)
 endfunction
 
-function! s:GetSearchFiles(dir, oldfiles)
+function! s:GetFindResult(dir, filter)
+  let ignore = '\( -name .git -o -name .config \)'
+  let cmd = 'cd '.a:dir.' && find . '.ignore.' -prune -false -o '.a:filter
+  let result = split(system(cmd), '\n')
+  return result
+endfunction
+
+function! s:GetSearchFiles(dir, oldfiles, input)
   let oldfiles = a:oldfiles
-  let cmd = "cd ".a:dir." && find . \\( -name .git -o -name .config \\) -prune -false -o -type f"
-  let list = split(system(cmd), '\n')[0:s:max_height-1]
+  if empty(a:input)
+    let list = s:GetFindResult(a:dir, '-type f')
+  else
+    let list = s:GetFindResult(a:dir, '-name "*"'.a:input.'"*"')
+  endif
+  let list = list[0:s:max_height-1]
 
   call filter(list, {_, val -> !count(oldfiles, val)})
   call map(list, {idx, val -> 
@@ -965,7 +974,7 @@ function! s:SearchFilesBufferInit()
   " let dir = fnamemodify($vim_project, ':p')
   let dir = fnamemodify('~/repository/react', ':p')
   let oldfiles = s:GetSearchFilesFromOldFiles(dir)
-  let list = s:GetSearchFiles(dir, oldfiles)
+  let list = s:GetSearchFiles(dir, oldfiles, '')
   let max_col_width = s:max_width / 2 - 12
   call s:TabulateList(list, ['file', 'path'], max_col_width)
   let display = s:GetSearchFilesDisplay(list, len(oldfiles))
@@ -976,7 +985,7 @@ endfunction
 function! s:SearchFilesBufferUpdate(input, offset)
   let dir = fnamemodify('~/repository/react', ':p')
   let oldfiles = s:GetSearchFilesFromOldFiles(dir)
-  let list = s:GetSearchFiles(dir, oldfiles)
+  let list = s:GetSearchFiles(dir, oldfiles, a:input)
   let max_col_width = s:max_width / 2 - 12
   call s:TabulateList(list, ['file', 'path'], max_col_width)
   let display = s:GetSearchFilesDisplay(list, len(oldfiles))
