@@ -6,7 +6,7 @@ function! s:Prepare()
   let s:project_list_prefix = 'Open a project:'
   let s:search_files_prefix = 'Search files by name:'
   let s:laststatus_save = &laststatus
-  let s:initial_height = 0
+  let s:initial_length = 0
   let s:head_file_job = 0
   let s:project = {}
   let s:branch = ''
@@ -606,7 +606,7 @@ function! s:OpenListBuffer()
   let win = s:list_buffer
   let num = bufwinnr(win)
   if num == -1
-    execute 'noautocmd botright split '.win
+    execute 'silent noautocmd botright split '.win
   else
     execute num.'wincmd w'
   endif
@@ -641,6 +641,36 @@ function! s:SetupListBuffer()
   sign define selected text=> texthl=ItemSelected linehl=ItemSelected 
 endfunction
 
+function! s:UpdateInListBuffer(display, input, offset)
+  " Avoid clearing other files by mistake
+  if expand('%') != s:list_buffer
+    return
+  endif
+  let display = a:display
+  let input = a:input
+  let offset = a:offset
+  let length = len(display)
+  sign unplace 9
+  if length > 0
+    let current = length
+    if offset.value > 0
+      let offset.value = 0
+    elseif current + offset.value < 1
+      let offset.value = 1 - current
+    endif
+    let current += offset.value
+    if length < s:initial_length
+      let current += s:initial_length - length
+    endif
+    execute 'sign place 9 line='.current.' name=selected'
+  endif
+
+  if length > s:max_height
+    execute 'normal! '.string(current).'G'
+  endif
+  " normal! G
+endfunction
+
 " Default 
 " @input: ''
 " @offset: { 'value': 0 }, range -N,...-2,-1,0
@@ -654,33 +684,18 @@ function! s:ShowInListBuffer(display, input, offset)
   let input = a:input
   let offset = a:offset
   let length = len(display)
-  execute 'resize'.' '.length
-  sign unplace 9
   if length > 0
     call append(0, display)
-
-    let current = length
-    if offset.value > 0
-      let offset.value = 0
-    elseif current + offset.value < 1
-      let offset.value = 1 - current
-    endif
-    let current += offset.value
-    execute 'sign place 9 line='.current.' name=selected'
   endif
   if input == ''
-    let s:initial_height = length
+    let s:initial_length = length
   endif
-  call s:ConfineHeight(length, s:initial_height, s:max_height)
+  call s:ConfineHeight(length, s:initial_length, s:max_height)
 
   " Remove extra blank lines
   normal! Gdd
   normal! gg 
   normal! G 
-
-  if length > s:max_height
-    execute 'normal! '.string(current).'G'
-  endif
 endfunction
 
 function! s:ConfineHeight(current, min, max)
@@ -886,16 +901,17 @@ function! s:GetProjectListCommand(char)
   return command
 endfunction
 
-function! s:ProjectListBufferInit()
+function! s:ProjectListBufferInit(input, offset)
   let max_col_width = s:max_width / 2 - 10
   call s:TabulateList(s:projects, ['name', 'path', 'note'], max_col_width)
-  return s:ProjectListBufferUpdate('', { 'value': 0 })
+  return s:ProjectListBufferUpdate(a:input, a:offset, 0, [])
 endfunction
 
-function! s:ProjectListBufferUpdate(input, offset)
+function! s:ProjectListBufferUpdate(input, offset, prev_input, prev_list)
   let list = s:FilterProjects(copy(s:projects), a:input)
   let display = s:GetProjectsDisplay(list)
   call s:ShowInListBuffer(display, a:input, a:offset)
+  call s:UpdateInListBuffer(display, a:input, a:offset)
   return list
 endfunction
 
@@ -1010,20 +1026,8 @@ function! s:MapAndSortSearchFiles(list, input)
   endif
 endfunction
 
-function! s:SearchFilesBufferInit()
+function! s:SearchFilesBufferInit(input, offset)
   " let dir = fnamemodify($vim_project, ':p')
-  let dir = fnamemodify('~/repository/react', ':p')
-  let oldfiles = s:GetSearchFilesFromOldFiles(dir)
-  let list = s:GetSearchFiles(dir, oldfiles, '')
-  let max_col_width = s:max_width / 2 - 12
-  call s:TabulateList(list, ['file', 'path'], max_col_width)
-  let display = s:GetSearchFilesDisplay(list, len(oldfiles))
-  call s:ShowInListBuffer(display, '', { 'value': 0 })
-
-  return list
-endfunction
-
-function! s:SearchFilesBufferUpdate(input, offset)
   let dir = fnamemodify('~/repository/react', ':p')
   let oldfiles = s:GetSearchFilesFromOldFiles(dir)
   let list = s:GetSearchFiles(dir, oldfiles, a:input)
@@ -1031,9 +1035,27 @@ function! s:SearchFilesBufferUpdate(input, offset)
   call s:TabulateList(list, ['file', 'path'], max_col_width)
   let display = s:GetSearchFilesDisplay(list, len(oldfiles))
   call s:ShowInListBuffer(display, a:input, a:offset)
-
-  call s:MatchInputChars(a:input, a:offset)
+  call s:UpdateInListBuffer(display, a:input, a:offset)
   return list
+endfunction
+
+function! s:SearchFilesBufferUpdate(input, offset, prev_input, prev_list)
+  if a:input != a:prev_input
+    let dir = fnamemodify('~/repository/react', ':p')
+    let oldfiles = s:GetSearchFilesFromOldFiles(dir)
+    let list = s:GetSearchFiles(dir, oldfiles, a:input)
+    let max_col_width = s:max_width / 2 - 12
+    call s:TabulateList(list, ['file', 'path'], max_col_width)
+    let display = s:GetSearchFilesDisplay(list, len(oldfiles))
+    call s:ShowInListBuffer(display, a:input, a:offset)
+    call s:UpdateInListBuffer(display, a:input, a:offset)
+    call s:MatchInputChars(a:input, a:offset)
+    return list
+  else
+    call s:UpdateInListBuffer(a:prev_list, a:input, a:offset)
+    call s:MatchInputChars(a:input, a:offset)
+    return a:prev_list
+  endif
 endfunction
 
 function! s:SearchFilesBufferOpen(project)
@@ -1047,13 +1069,14 @@ endfunction
 
 function! s:HandleListInput(prefix, Init, Update, Open)
   " Init
-  let list = a:Init()
+  let input = ''
+  let prev_input = ''
+  let offset = { 'value': 0 }
+  let list = a:Init(input, offset)
+  let prev_list = list
   redraw
   echo a:prefix.' '
 
-  " Read input
-  let input = ''
-  let offset = { 'value': 0 }
   try
     while 1
       let c = getchar()
@@ -1087,7 +1110,9 @@ function! s:HandleListInput(prefix, Init, Update, Open)
         let input = input.char
       endif
 
-      let list = a:Update(input, offset)
+      let list = a:Update(input, offset, prev_input, prev_list)
+      let prev_input = input
+      let prev_list = list
       redraw
       echo a:prefix.' '.input
     endwhile
@@ -1667,17 +1692,17 @@ function! s:MatchInputChars(input, offset)
 endfunction
 
 function! s:GetMatchPos(lnum, input)
-  let line = split(getline(a:lnum), '\zs')
+  let line = split(matchstr(getline(a:lnum), '^\S*'), '\zs')
   let search = split(a:input, '\zs')
   let pos = []
   let start = 0
   for char in search
-    let start = index(line, char, start, 1)
-    if start == -1
+    let start = index(line, char, start, 1) + 1
+    if start == 0
       break
     endif
 
-    call add(pos, [a:lnum, start+1])
+    call add(pos, [a:lnum, start])
   endfor
   return pos
 endfunction
