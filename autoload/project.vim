@@ -39,7 +39,7 @@ function! s:Prepare()
         \'branch': 0,
         \'open_entry': 0,
         \'auto_detect': 'always',
-        \'auto_detect_file': '.git, .svn, package.json, pom.xml, Gemfile',
+        \'auto_detect_file': '.git, .svn',
         \'auto_load_on_start': 0,
         \'project_base': '~',
         \'views': [],
