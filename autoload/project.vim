@@ -964,8 +964,8 @@ function! s:GetSearchFilesByOldFiles(dir)
 endfunction
 
 function! s:GetFindResult(dir, filter)
-  let ignore = '\( -name .git -o -name .config \) -prune -false -o '
-  let cmd = 'cd '.a:dir.' && find . '.ignore.a:filter
+  let ignore = '\( -name .git -o -name node_modules \) -prune -false -o '
+  let cmd = 'cd '.a:dir.' && find . -mindepth 1 '.ignore.a:filter
   let result = split(system(cmd), '\n')
   return result
 endfunction
@@ -974,7 +974,7 @@ function! s:GetSearchFilesByFind(dir, input)
   let dir = a:dir
   let input = a:input
   if empty(a:input)
-    let filter = '-type f'
+    let filter = '-iname "*"'
     let list = s:GetFindResult(dir, filter)
   else
     let filter = '-iname "*'. join(split(input, '\zs'), '*').'*"'
