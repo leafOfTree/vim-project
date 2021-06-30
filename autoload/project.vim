@@ -584,7 +584,7 @@ function! project#ListProjects()
   let Init = function('s:ProjectListBufferInit')
   let Update = function('s:ProjectListBufferUpdate')
   let Open = function('s:ProjectListBufferOpen')
-  call s:HandleListInput(s:project_list_prefix, Init, Update, Open)
+  call s:HandleInput(s:project_list_prefix, Init, Update, Open)
 endfunction
 
 function! project#SearchFiles()
@@ -592,7 +592,7 @@ function! project#SearchFiles()
   let Init = function('s:SearchFilesBufferInit')
   let Update = function('s:SearchFilesBufferUpdate')
   let Open = function('s:SearchFilesBufferOpen')
-  call s:HandleListInput(s:search_files_prefix, Init, Update, Open)
+  call s:HandleInput(s:search_files_prefix, Init, Update, Open)
 endfunction
 
 function! s:PrepareListBuffer()
@@ -624,20 +624,23 @@ function! s:CloseListBuffer()
 endfunction
 
 function! s:SetupListBuffer()
-  setlocal buftype=nofile bufhidden=delete filetype=projectlist
+  setlocal buftype=nofile bufhidden=delete nobuflisted
+  setlocal filetype=projectlist
   setlocal nonumber
   setlocal nocursorline
   setlocal nowrap
   set laststatus=0
   nnoremap<buffer> <esc> :call <SID>CloseListBuffer()<cr>
   syntax match FirstColumn /^\S*/
-  highlight ItemSelected gui=reverse term=reverse cterm=reverse
 
+  " highlight ItemSelected gui=reverse term=reverse cterm=reverse
+  highlight! link ItemSelected CursorLine
   highlight! link SignColumn Noise
   highlight link FirstColumn Keyword
   highlight link InfoColumn Comment
+  highlight link InputChar Constant
 
-  syntax match Comment /file results\|recently opened/
+  syntax match Comment /file results\|recently opened\|more\.\.\./
   sign define selected text=> texthl=ItemSelected linehl=ItemSelected 
 endfunction
 
@@ -668,7 +671,7 @@ function! s:UpdateInListBuffer(display, input, offset)
   if length > s:max_height
     execute 'normal! '.string(current).'G'
   endif
-  " normal! G
+  call s:MatchInputChars(a:input, a:offset)
 endfunction
 
 " Default 
@@ -950,6 +953,9 @@ function! s:GetSearchFilesDisplay(list, oldfiles_len)
       let display[display_len - oldfiles_len - 1] .= '  file results'
     endif
   endif
+  if len(a:list) > 0 && has_key(a:list[0], 'more') && a:list[0].more
+    let display[0] .= '  more...'
+  endif
   return display
 endfunction
 
@@ -958,13 +964,18 @@ function! s:GetSearchFilesDisplayRow(idx, value)
   return value.__file.'  '.value.__path
 endfunction
 
-function! s:GetSearchFilesFromOldFiles(dir)
+function! s:GetSearchFilesByOldFiles(dir)
   let oldfiles = copy(v:oldfiles)
+  for buf in getbufinfo({'buflisted': 1})
+    if count(oldfiles, s:ReplaceHomeWithTide(buf.name)) == 0
+      call insert(oldfiles, buf.name)
+    endif
+  endfor
+
   call map(oldfiles, {_, val -> fnamemodify(val, ':p')})
   call filter(oldfiles, {_, val -> 
         \count(val, a:dir) > 0
-        \ && fnamemodify(val, ':t') != 'ControlP'
-        \ && fnamemodify(val, ':t') != '__output__'
+        \ && count(['ControlP', ''], fnamemodify(val, ':t')) == 0
         \})
   call map(oldfiles, {_, val -> substitute(val, a:dir, './', '')})
   return reverse(oldfiles)
@@ -977,40 +988,44 @@ function! s:GetFindResult(dir, filter)
   return result
 endfunction
 
-function! s:GetSearchFilesByFilter(dir, input)
+function! s:GetSearchFilesByFind(dir, input)
   let dir = a:dir
   let input = a:input
   if empty(a:input)
     let filter = '-type f'
     let list = s:GetFindResult(dir, filter)
   else
-    let filter = '-iname "'.input.'*"'
+    let filter = '-iname "*'. join(split(input, '\zs'), '*').'*"'
     let list = s:GetFindResult(dir, filter)
-
-    if len(list) < s:max_height-1
-      let filter2 = '-iname "*'.input.'*"'
-      let filter3 = '-iname "*'. join(split(input, '\zs'), '*').'*"'
-      let filter = '! '.filter.' '.filter3
-      let list += s:GetFindResult(dir, filter)
-    endif
   endif
-
   return list
 endfunction
 
-function! s:GetSearchFiles(dir, oldfiles, input)
+function! s:GetSearchFiles(dir, input)
   let input = a:input
-  let oldfiles = a:oldfiles
-  let list = s:GetSearchFilesByFilter(a:dir, input)
+  let oldfiles = s:GetSearchFilesByOldFiles(a:dir)
+  let list = s:GetSearchFilesByFind(a:dir, input)
 
   call s:MapAndSortSearchFiles(list, input)
   call s:MapAndSortSearchFiles(oldfiles, input)
+  call filter(oldfiles, {_, val ->
+        \val.file =~ join(split(input, '\zs'), '.*')})
 
   let list = oldfiles + list
-  let list = list[0:s:max_height-1]
-  call uniq(list)
+
+  let show_length = s:max_height - 1
+  let current_length = len(list)
+
+  let list = list[0:show_length*2]
+  call s:UniqueList(list)
+  let list = list[0:show_length]
+
+  if current_length >= s:max_height
+    let list[len(list)-1].more = 1
+  endif
+
   call reverse(list)
-  return list
+  return [list, oldfiles]
 endfunction
 
 function! s:MapAndSortSearchFiles(list, input)
@@ -1027,47 +1042,31 @@ function! s:MapAndSortSearchFiles(list, input)
 endfunction
 
 function! s:SearchFilesBufferInit(input, offset)
-  " let dir = fnamemodify($vim_project, ':p')
-  let dir = fnamemodify('~/repository/react', ':p')
-  let oldfiles = s:GetSearchFilesFromOldFiles(dir)
-  let list = s:GetSearchFiles(dir, oldfiles, a:input)
-  let max_col_width = s:max_width / 2 - 12
-  call s:TabulateList(list, ['file', 'path'], max_col_width)
-  let display = s:GetSearchFilesDisplay(list, len(oldfiles))
-  call s:ShowInListBuffer(display, a:input, a:offset)
-  call s:UpdateInListBuffer(display, a:input, a:offset)
-  return list
+  return s:SearchFilesBufferUpdate(a:input, a:offset, '', '')
 endfunction
 
 function! s:SearchFilesBufferUpdate(input, offset, prev_input, prev_list)
-  if a:input != a:prev_input
-    let dir = fnamemodify('~/repository/react', ':p')
-    let oldfiles = s:GetSearchFilesFromOldFiles(dir)
-    let list = s:GetSearchFiles(dir, oldfiles, a:input)
+  if empty(a:input) || a:input != a:prev_input
+    let dir = fnamemodify($vim_project, ':p')
+    let [list, oldfiles] = s:GetSearchFiles(dir, a:input)
     let max_col_width = s:max_width / 2 - 12
     call s:TabulateList(list, ['file', 'path'], max_col_width)
     let display = s:GetSearchFilesDisplay(list, len(oldfiles))
     call s:ShowInListBuffer(display, a:input, a:offset)
     call s:UpdateInListBuffer(display, a:input, a:offset)
-    call s:MatchInputChars(a:input, a:offset)
     return list
   else
     call s:UpdateInListBuffer(a:prev_list, a:input, a:offset)
-    call s:MatchInputChars(a:input, a:offset)
     return a:prev_list
   endif
 endfunction
 
-function! s:SearchFilesBufferOpen(project)
-  let project = a:project
-  if s:IsValidProject(project)
-    call s:OpenProject(project)
-  else
-    call s:Warn('Not accessible path: '.project.fullpath)
-  endif
+function! s:SearchFilesBufferOpen(target)
+  let file = $vim_project.'/'.a:target.path.'/'.a:target.file
+  execute 'edit '.file
 endfunction
 
-function! s:HandleListInput(prefix, Init, Update, Open)
+function! s:HandleInput(prefix, Init, Update, Open)
   " Init
   let input = ''
   let prev_input = ''
@@ -1680,14 +1679,14 @@ function! s:MatchInputChars(input, offset)
   let lastline = line('$')
   let current = lastline + a:offset.value
   for lnum in range(1, lastline)
-    if lnum != current
+    " if lnum != current
       let pos = s:GetMatchPos(lnum, a:input)
       if len(pos) > 0
         for i in range(0, len(pos), 8)
-          call matchaddpos('Todo', pos[i:i+7])
+          call matchaddpos('InputChar', pos[i:i+7])
         endfor
       endif
-    endif
+    " endif
   endfor
 endfunction
 
@@ -1705,6 +1704,21 @@ function! s:GetMatchPos(lnum, input)
     call add(pos, [a:lnum, start])
   endfor
   return pos
+endfunction
+
+function! s:UniqueList(list)
+  let compare = copy(a:list)
+  call filter(a:list, function('s:UniqueListByFile', [compare]))
+endfunction
+
+function! s:UniqueListByFile(list, idx, val)
+  for i in range(0, a:idx - 1)
+    let item = a:list[i]
+    if item.file == a:val.file && item.path == a:val.path
+      return 0
+    endif
+  endfor
+  return 1
 endfunction
 
 function! s:Main()
