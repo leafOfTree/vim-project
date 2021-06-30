@@ -958,6 +958,7 @@ function! s:GetSearchFilesByOldFiles(dir)
   call filter(oldfiles, {_, val -> 
         \count(val, a:dir) > 0
         \ && count(['ControlP', ''], fnamemodify(val, ':t')) == 0
+        \ && (filereadable(val) || isdirectory(val))
         \})
   call map(oldfiles, {_, val -> substitute(val, a:dir, './', '')})
   return reverse(oldfiles)
