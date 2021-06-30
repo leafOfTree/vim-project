@@ -19,20 +19,6 @@ function! s:Prepare()
   let s:init_file = 'init.vim'
   let s:quit_file = 'quit.vim'
 
-  let s:project_list_mapping_default = {
-        \'open_project': "\<cr>",
-        \'close_list': "\<esc>",
-        \'clear_char': ["\<bs>", "\<c-a>"],
-        \'clear_word': "\<c-w>",
-        \'clear_all': "\<c-u>",
-        \'prev_item': ["\<c-k>", "\<up>"],
-        \'next_item': ["\<c-j>", "\<down>"],
-        \'first_item': ["\<c-h>", "\<left>"],
-        \'last_item': ["\<c-l>", "\<right>"],
-        \'prev_view': "\<s-tab>",
-        \'next_view': "\<tab>",
-        \}
-
   let s:default = {
         \'home': '~/.vim/vim-project-config',
         \'session': 0,
@@ -52,7 +38,7 @@ function! s:Prepare()
         \'t': 'tabedit',
         \}
   let s:default.project_list_mapping = {
-        \'open_project': "\<cr>",
+        \'open': "\<cr>",
         \'close_list':   "\<esc>",
         \'clear_char':   ["\<bs>", "\<c-a>"],
         \'clear_word':   "\<c-w>",
@@ -79,19 +65,26 @@ function! s:GetConfig(name, default)
   let value = exists(name) ? eval(name) : a:default
 
   if a:name == 'config'
-    let value = s:MergeUserConfigIntoDefault(value)
+    let value = s:MergeUserConfigIntoDefault(value, s:default)
   endif
 
   return value
 endfunction
 
-function! s:MergeUserConfigIntoDefault(user)
+function! s:MergeUserConfigIntoDefault(user, default)
   let user = a:user
-  let default = s:default
+  let default = a:default
+
+  if has_key(user, 'open_file')
+    let user.open_file = s:MergeUserConfigIntoDefault(
+          \user.open_file,
+          \default.open_file)
+  endif
 
   if has_key(user, 'project_list_mapping')
-    let user.project_list_mapping =
-          \ s:MergeUserMappingIntoDefault(user.project_list_mapping)
+    let user.project_list_mapping = s:MergeUserConfigIntoDefault(
+          \user.project_list_mapping,
+          \default.project_list_mapping)
   endif
 
   for key in keys(default)
@@ -100,17 +93,6 @@ function! s:MergeUserConfigIntoDefault(user)
     endif
   endfor
   
-  return default
-endfunction
-
-function! s:MergeUserMappingIntoDefault(user)
-  let user = a:user
-  let default = s:project_list_mapping_default
-  for key in keys(default)
-    if has_key(user, key)
-      let default[key] = user[key]
-    endif
-  endfor
   return default
 endfunction
 
@@ -1102,7 +1084,7 @@ function! s:HandleInput(prefix, Init, Update, Open)
         call s:NextView()
       elseif cmd == 'prev_view'
         call s:PreviousView()
-      elseif cmd == 'open_project'
+      elseif cmd == 'open'
         call s:CloseListBuffer()
         break
       else
@@ -1120,7 +1102,7 @@ function! s:HandleInput(prefix, Init, Update, Open)
     call s:Debug('Interrupt')
   endtry
 
-  if cmd == 'open_project'
+  if cmd == 'open'
     let index = len(list) - 1 + offset.value
     let target = list[index]
     call a:Open(target)
