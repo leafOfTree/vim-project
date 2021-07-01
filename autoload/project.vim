@@ -734,26 +734,30 @@ function! s:FilterProjectsList(list, filter, origin_filter)
     endif
 
     " Filter by path
-    " if item._match_type == ''
-      " let match_index = match(item.path, filter)
-      " if match_index != -1
-        " let item._match_type = 'path'
-        " let item._match_index = match_index
-      " endif
-    " endif
+    if item._match_type == ''
+      let match_index = match(item.path, filter)
+      if match_index != -1
+        let item._match_type = 'path'
+        let item._match_index = match_index
+      endif
+    endif
 
     " Filter by path+name
-    " if item._match_type == ''
-      " let match_index = match(item.path.item.name, filter)
-      " if match_index != -1
-        " let item._match_type = 'path_name'
-        " let item._match_index = match_index
-      " endif
-    " endif
+    if item._match_type == ''
+      let match_index = match(item.path.item.name, filter)
+      if match_index != -1
+        let item._match_type = 'path_name'
+        let item._match_index = match_index
+      endif
+    endif
   endfor
-  call filter(list, { _, value -> value._match_type != '' })
-  call sort(list, 's:SortProjectsList')
-  return list
+
+  let result = filter(copy(list), { _, value -> value._match_type == 'name' || value._match_type == 'note' })
+  if len(result) == 0
+    let result = filter(list, { _, value -> value._match_type != '' })
+  endif
+  call sort(result, 's:SortProjectsList')
+  return result
 endfunction
 
 function! s:SortProjectsList(a1, a2)
@@ -825,7 +829,7 @@ function! s:FilterProjects(projects, filter)
 
   if a:filter != ''
     let filter = join(split(a:filter, '\zs'), '.*')
-    call s:FilterProjectsList(projects, filter, a:filter)
+    let projects = s:FilterProjectsList(projects, filter, a:filter)
   else
     call sort(projects, 's:SortInauguralProjectsList')
   endif
