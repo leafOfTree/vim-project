@@ -734,22 +734,22 @@ function! s:FilterProjectsList(list, filter, origin_filter)
     endif
 
     " Filter by path
-    if item._match_type == ''
-      let match_index = match(item.path, filter)
-      if match_index != -1
-        let item._match_type = 'path'
-        let item._match_index = match_index
-      endif
-    endif
+    " if item._match_type == ''
+      " let match_index = match(item.path, filter)
+      " if match_index != -1
+        " let item._match_type = 'path'
+        " let item._match_index = match_index
+      " endif
+    " endif
 
     " Filter by path+name
-    if item._match_type == ''
-      let match_index = match(item.path.item.name, filter)
-      if match_index != -1
-        let item._match_type = 'path_name'
-        let item._match_index = match_index
-      endif
-    endif
+    " if item._match_type == ''
+      " let match_index = match(item.path.item.name, filter)
+      " if match_index != -1
+        " let item._match_type = 'path_name'
+        " let item._match_index = match_index
+      " endif
+    " endif
   endfor
   call filter(list, { _, value -> value._match_type != '' })
   call sort(list, 's:SortProjectsList')
