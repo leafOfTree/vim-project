@@ -25,9 +25,13 @@ function! s:Prepare()
         \'branch': 0,
         \'open_entry': 0,
         \'auto_detect': 'always',
-        \'auto_detect_file': '.git, .svn',
+        \'auto_detect_file': ['.git', '.svn'],
         \'auto_load_on_start': 0,
         \'project_base': '~',
+        \'search_include': [''],
+        \'search_exclude': ['.git', 'node_modules'],
+        \'grep_include': [''],
+        \'grep_exclude': ['.git', 'node_modules'],
         \'views': [],
         \'debug': 0,
         \}
@@ -47,7 +51,7 @@ function! s:Prepare()
         \'prev_view':    "\<s-tab>",
         \'next_view':    "\<tab>",
         \}
-  let s:default.open_file = {
+  let s:default.mapfile_open_types = {
         \'':  'edit',
         \'s': 'split',
         \'v': 'vsplit',
@@ -78,10 +82,10 @@ function! s:MergeUserConfigIntoDefault(user, default)
   let user = a:user
   let default = a:default
 
-  if has_key(user, 'open_file')
-    let user.open_file = s:MergeUserConfigIntoDefault(
-          \user.open_file,
-          \default.open_file)
+  if has_key(user, 'mapfile_open_types')
+    let user.mapfile_open_types = s:MergeUserConfigIntoDefault(
+          \user.mapfile_open_types,
+          \default.mapfile_open_types)
   endif
 
   if has_key(user, 'list_mapping')
@@ -114,7 +118,7 @@ function! s:InitConfig()
   let s:views = s:config.views
   let s:view_index = -1
   let s:list_mapping = s:config.list_mapping
-  let s:open_types = s:config.open_file
+  let s:open_types = s:config.mapfile_open_types
   let s:debug = s:config.debug
 endfunction
 
@@ -532,14 +536,13 @@ function! s:AutoIgnoreProject(path)
   call s:InfoHl('Ignored '.a:path)
 endfunction
 
-function! s:GetPathContain(buf, pat)
+function! s:GetPathContain(buf, pats)
   let segments = split(a:buf, '/\|\\', 1)
   let depth = len(segments)
-  let pats = split(a:pat, ',\s*')
 
   for i in range(0, depth-1)
     let path = join(segments[0:depth-1-i], '/')
-    for p in pats
+    for p in a:pats
       let matches = globpath(path, p, 1, 1)
       if len(matches) > 0
         return path
