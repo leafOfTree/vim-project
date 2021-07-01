@@ -31,14 +31,11 @@ function! s:Prepare()
         \'views': [],
         \'debug': 0,
         \}
-  let s:default.open_file = {
-        \'': 'edit',
-        \'v': 'vsplit',
-        \'s': 'split',
-        \'t': 'tabedit',
-        \}
-  let s:default.project_list_mapping = {
-        \'open': "\<cr>",
+  let s:default.list_mapping = {
+        \'open':         "\<cr>",
+        \'open_split':   "\<c-s>",
+        \'open_vsplit':  "\<c-v>",
+        \'open_tabedit': "\<c-t>",
         \'close_list':   "\<esc>",
         \'clear_char':   ["\<bs>", "\<c-a>"],
         \'clear_word':   "\<c-w>",
@@ -49,6 +46,12 @@ function! s:Prepare()
         \'last_item':    ["\<c-l>", "\<right>"],
         \'prev_view':    "\<s-tab>",
         \'next_view':    "\<tab>",
+        \}
+  let s:default.open_file = {
+        \'':  'edit',
+        \'s': 'split',
+        \'v': 'vsplit',
+        \'t': 'tabedit',
         \}
 
   " Used by statusline
@@ -81,10 +84,10 @@ function! s:MergeUserConfigIntoDefault(user, default)
           \default.open_file)
   endif
 
-  if has_key(user, 'project_list_mapping')
-    let user.project_list_mapping = s:MergeUserConfigIntoDefault(
-          \user.project_list_mapping,
-          \default.project_list_mapping)
+  if has_key(user, 'list_mapping')
+    let user.list_mapping = s:MergeUserConfigIntoDefault(
+          \user.list_mapping,
+          \default.list_mapping)
   endif
 
   for key in keys(default)
@@ -110,7 +113,7 @@ function! s:InitConfig()
   let s:auto_load_on_start = s:config.auto_load_on_start
   let s:views = s:config.views
   let s:view_index = -1
-  let s:project_list_mapping = s:config.project_list_mapping
+  let s:list_mapping = s:config.list_mapping
   let s:open_types = s:config.open_file
   let s:debug = s:config.debug
 endfunction
@@ -893,7 +896,7 @@ endfunction
 
 function! s:GetProjectListCommand(char)
   let command = ''
-  for [key, value] in items(s:project_list_mapping)
+  for [key, value] in items(s:list_mapping)
     if type(value) == v:t_string
       let match = value == a:char
     else
@@ -921,7 +924,7 @@ function! s:ProjectListBufferUpdate(input, offset, prev_input, prev_list)
   return list
 endfunction
 
-function! s:ProjectListBufferOpen(project)
+function! s:ProjectListBufferOpen(project, open_cmd)
   let project = a:project
   if s:IsValidProject(project)
     call s:OpenProject(project)
@@ -1040,16 +1043,11 @@ function! s:GetSearchFiles(dir, input)
   let list = s:GetSearchFilesByFind(a:dir, a:input)
 
   let list = oldfiles + list
-  let show_length = s:max_height - 1
-  let current_length = len(list)
 
+  let show_length = s:max_height - 1
   let list = list[0:show_length*3]
   call s:UniqueList(list)
   let list = list[0:show_length]
-
-  " if current_length >= s:max_height
-    " let list[len(list)-1].more = 1
-  " endif
 
   call reverse(list)
   return [list, oldfiles]
@@ -1089,9 +1087,11 @@ function! s:SearchFilesBufferUpdate(input, offset, prev_input, prev_list)
   endif
 endfunction
 
-function! s:SearchFilesBufferOpen(target)
+function! s:SearchFilesBufferOpen(target, open_cmd)
+  let cmd = substitute(a:open_cmd, 'open_\?', '', '')
+  let cmd = cmd == '' ? 'edit' : cmd
   let file = $vim_project.'/'.a:target.path.'/'.a:target.file
-  execute 'edit '.file
+  execute cmd.' '.file
 endfunction
 
 function! s:HandleInput(prefix, Init, Update, Open)
@@ -1104,6 +1104,7 @@ function! s:HandleInput(prefix, Init, Update, Open)
   redraw
   echo a:prefix.' '
 
+  let open_cmds = ['open', 'open_split', 'open_vsplit', 'open_tabedit']
   try
     while 1
       let c = getchar()
@@ -1130,7 +1131,7 @@ function! s:HandleInput(prefix, Init, Update, Open)
         call s:NextView()
       elseif cmd == 'prev_view'
         call s:PreviousView()
-      elseif cmd == 'open'
+      elseif count(open_cmds, cmd) > 0
         call s:CloseListBuffer()
         break
       else
@@ -1148,10 +1149,10 @@ function! s:HandleInput(prefix, Init, Update, Open)
     call s:Debug('Interrupt')
   endtry
 
-  if cmd == 'open'
+  if count(open_cmds, cmd) > 0
     let index = len(list) - 1 + offset.value
     let target = list[index]
-    call a:Open(target)
+    call a:Open(target, cmd)
   endif
 endfunction
 
