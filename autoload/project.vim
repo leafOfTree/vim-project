@@ -696,25 +696,27 @@ function! s:ConfineHeight(current, min, max)
   execute 'resize '.min
 endfunction
 
-function! s:FilterProjectsList(list, filter, origin)
+function! s:FilterProjectsList(list, filter, origin_filter)
   let list = a:list
   let filter = a:filter
-  let origin = a:origin
+  let origin_filter = a:origin_filter
 
   for item in list
     let item._match_type = ''
     let item._match_index = -1
 
+    " Filter by name
     let match_index = match(item.name, filter)
     if match_index != -1
       " Prefer continous match
-      if len(origin) > 1 && count(item.name, origin) == 0
+      if len(origin_filter) > 1 && count(item.name, origin_filter) == 0
         let match_index = match_index + 10
       endif
       let item._match_type = 'name'
       let item._match_index = match_index
     endif
 
+    " Filter by note
     if item._match_type != 'name'
       if has_key(item.option, 'note')
         let match_index = match(item.option.note, filter)
@@ -725,10 +727,20 @@ function! s:FilterProjectsList(list, filter, origin)
       endif
     endif
 
+    " Filter by path
     if item._match_type == ''
       let match_index = match(item.path, filter)
       if match_index != -1
         let item._match_type = 'path'
+        let item._match_index = match_index
+      endif
+    endif
+
+    " Filter by path+name
+    if item._match_type == ''
+      let match_index = match(item.path.item.name, filter)
+      if match_index != -1
+        let item._match_type = 'path_name'
         let item._match_index = match_index
       endif
     endif
@@ -743,14 +755,23 @@ function! s:SortProjectsList(a1, a2)
   let type2 = a:a2._match_type
   let index1 = a:a1._match_index
   let index2 = a:a2._match_index
+
+  " name > path_name > note > path
   if type1 == 'name' && type2 != 'name'
+    return 1
+  endif
+  if type1 == 'path_name' && type2 != 'name' && type2 != 'path_name'
     return 1
   endif
   if type1 == 'note' && type2 == 'path'
     return 1
   endif
   if type1 == type2
-    return index2 - index1
+    if index1 == index2
+      return len(a:a2.name) - len(a:a1.name)
+    else
+      return index2 - index1
+    endif
   endif
   return -1
 endfunction
@@ -824,7 +845,7 @@ function! project#OutputProjects(...)
   echo projects
 endfunction
 
-function! s:TabulateList(list, keys, max_col_width)
+function! s:TabulateList(list, keys, max_col_width, no_limit_keys)
   let list = a:list
   let max_col_width = a:max_col_width
 
@@ -851,7 +872,7 @@ function! s:TabulateList(list, keys, max_col_width)
     for item in list
       for key in a:keys
         let value = item['__'.key]
-        if len(value) > max_col_width
+        if len(value) > max_col_width && count(a:no_limit_keys, key) == 0
           let value = value[0:max_col_width-2].'..'
           let item['__'.key] = value
         endif
@@ -888,7 +909,7 @@ endfunction
 
 function! s:ProjectListBufferInit(input, offset)
   let max_col_width = s:max_width / 2 - 10
-  call s:TabulateList(s:projects, ['name', 'path', 'note'], max_col_width)
+  call s:TabulateList(s:projects, ['name', 'path', 'note'], max_col_width, ['note'])
   return s:ProjectListBufferUpdate(a:input, a:offset, 0, [])
 endfunction
 
@@ -912,15 +933,16 @@ endfunction
 function! s:SortFilesList(input, a1, a2)
   let file1 = a:a1.file
   let file2 = a:a2.file
-  let input = a:input
-  let first = '\c'.input[0]
+  let first = '\c'.a:input[0]
 
   let start1 = match(file1, first)
   let start2 = match(file2, first)
-  if start1 != start2
+  if start1 == start2
+    return len(file1) - len(file2)
+  elseif start1 != -1 && start2 != -1
     return start1 - start2
   else
-    return len(file1) - len(file2)
+    return start1 == -1 ? 1 : -1
   endif
 endfunction
 
@@ -946,8 +968,9 @@ function! s:GetSearchFilesDisplayRow(idx, value)
   return value.__file.'  '.value.__path
 endfunction
 
-function! s:GetSearchFilesByOldFiles(dir)
+function! s:GetSearchFilesByOldFiles(dir, input)
   let oldfiles = copy(v:oldfiles)
+
   for buf in getbufinfo({'buflisted': 1})
     if count(oldfiles, s:ReplaceHomeWithTide(buf.name)) == 0
       call insert(oldfiles, buf.name)
@@ -961,7 +984,14 @@ function! s:GetSearchFilesByOldFiles(dir)
         \ && (filereadable(val) || isdirectory(val))
         \})
   call map(oldfiles, {_, val -> substitute(val, a:dir, './', '')})
-  return reverse(oldfiles)
+
+  call s:MapSearchFiles(oldfiles)
+  let filter = join(split(a:input, '\zs'), '.*')
+  call filter(oldfiles, 
+        \{_, val -> val.path.val.file =~ filter})
+  call s:SortSearchFiles(oldfiles, a:input)
+
+  return oldfiles
 endfunction
 
 function! s:GetFindResult(dir, filter)
@@ -971,56 +1001,71 @@ function! s:GetFindResult(dir, filter)
   return result
 endfunction
 
+let s:find_result = []
 function! s:GetSearchFilesByFind(dir, input)
-  let dir = a:dir
-  let input = a:input
   if empty(a:input)
-    let filter = '-iname "*"'
-    let list = s:GetFindResult(dir, filter)
+    let filter = '-ipath "*"'
+    let s:find_result = s:GetFindResult(a:dir, filter)
+    call s:MapSearchFiles(s:find_result)
+    let list = copy(s:find_result)
   else
-    let filter = '-iname "*'. join(split(input, '\zs'), '*').'*"'
-    let list = s:GetFindResult(dir, filter)
+    " file
+    let filter1 = a:input
+    let list = filter(copy(s:find_result), {_, val -> val.file =~ filter1})
+    call s:SortSearchFiles(list, a:input)
+
+    if len(list) < s:max_height
+      let filter2 = join(split(a:input, '\zs'), '.*')
+      let list2 = filter(copy(s:find_result), {_, val -> val.file =~ filter2})
+      call s:SortSearchFiles(list2, a:input)
+      let list += list2
+    endif
+
+    " path.file
+    if len(list) < s:max_height
+      let list2 = filter(copy(s:find_result), {_, val -> val.path.val.file =~ filter1})
+      let list += list2
+    endif
+
+    if len(list) < s:max_height
+      let list2 = filter(copy(s:find_result), {_, val -> val.path.val.file =~ filter2})
+      let list += list2
+    endif
   endif
   return list
 endfunction
 
 function! s:GetSearchFiles(dir, input)
-  let input = a:input
-  let oldfiles = s:GetSearchFilesByOldFiles(a:dir)
-  let list = s:GetSearchFilesByFind(a:dir, input)
-
-  call s:MapAndSortSearchFiles(list, input)
-  call s:MapAndSortSearchFiles(oldfiles, input)
-  call filter(oldfiles, {_, val ->
-        \val.file =~ join(split(input, '\zs'), '.*')})
+  let oldfiles = s:GetSearchFilesByOldFiles(a:dir, a:input)
+  let list = s:GetSearchFilesByFind(a:dir, a:input)
 
   let list = oldfiles + list
-
   let show_length = s:max_height - 1
   let current_length = len(list)
 
-  let list = list[0:show_length*2]
+  let list = list[0:show_length*3]
   call s:UniqueList(list)
   let list = list[0:show_length]
 
-  if current_length >= s:max_height
-    let list[len(list)-1].more = 1
-  endif
+  " if current_length >= s:max_height
+    " let list[len(list)-1].more = 1
+  " endif
 
   call reverse(list)
   return [list, oldfiles]
 endfunction
 
-function! s:MapAndSortSearchFiles(list, input)
-  let list = a:list
-  let input = a:input
-  call map(list, {idx, val -> 
+function! s:MapSearchFiles(list)
+  call map(a:list, {idx, val -> 
         \{ 
         \'file': fnamemodify(val, ':t'), 
         \'path': fnamemodify(val, ':h:s+\./\?++'),
         \}})
-  if !empty(input)
-    call sort(list, function('s:SortFilesList', [input]))
+endfunction
+
+function! s:SortSearchFiles(list, input)
+  if !empty(a:input) && len(a:list) > 0
+    call sort(a:list, function('s:SortFilesList', [a:input]))
   endif
 endfunction
 
@@ -1032,8 +1077,8 @@ function! s:SearchFilesBufferUpdate(input, offset, prev_input, prev_list)
   if empty(a:input) || a:input != a:prev_input
     let dir = fnamemodify($vim_project, ':p')
     let [list, oldfiles] = s:GetSearchFiles(dir, a:input)
-    let max_col_width = s:max_width / 2 - 12
-    call s:TabulateList(list, ['file', 'path'], max_col_width)
+    let max_col_width = s:max_width / 8 * 5
+    call s:TabulateList(list, ['file', 'path'], max_col_width, ['path'])
     let display = s:GetSearchFilesDisplay(list, len(oldfiles))
     call s:ShowInListBuffer(display, a:input, a:offset)
     call s:UpdateInListBuffer(display, a:input, a:offset)
@@ -1662,30 +1707,72 @@ function! s:MatchInputChars(input, offset)
   let lastline = line('$')
   let current = lastline + a:offset.value
   for lnum in range(1, lastline)
-    " if lnum != current
-      let pos = s:GetMatchPos(lnum, a:input)
-      if len(pos) > 0
-        for i in range(0, len(pos), 8)
-          call matchaddpos('InputChar', pos[i:i+7])
-        endfor
-      endif
-    " endif
+    let pos = s:GetMatchPos(lnum, a:input)
+    if len(pos) > 0
+      for i in range(0, len(pos), 8)
+        call matchaddpos('InputChar', pos[i:i+7])
+      endfor
+    endif
   endfor
 endfunction
 
 function! s:GetMatchPos(lnum, input)
-  let line = split(matchstr(getline(a:lnum), '^\S*'), '\zs')
+  if empty(a:input)
+    return []
+  endif
+
+  let first_col_str = matchstr(getline(a:lnum), '^\S*')
+  let first_col = split(first_col_str, '\zs')
   let search = split(a:input, '\zs')
   let pos = []
   let start = 0
-  for char in search
-    let start = index(line, char, start, 1) + 1
-    if start == 0
-      break
-    endif
 
-    call add(pos, [a:lnum, start])
-  endfor
+  let full_match = match(first_col_str, a:input)
+  if full_match > 0
+    for start in range(full_match + 1, full_match + len(a:input))
+      call add(pos, [a:lnum, start])
+    endfor
+  endif
+
+  if start == 0
+    for char in search
+      let start = index(first_col, char, start, 1) + 1
+      if start == 0
+        let pos = []
+        break
+      endif
+
+      call add(pos, [a:lnum, start])
+    endfor
+  endif
+
+  if start == 0
+    let first_length = len(first_col)
+    let second_col = split(matchstr(getline(a:lnum), '\s\+\S*'), '\zs')
+    let second_index = 0
+    for char in search
+      let start = index(second_col, char, start, 1) + 1
+      if start == 0
+        break
+      endif
+
+      call add(pos, [a:lnum, start + first_length])
+      let second_index += 1 
+    endfor
+  endif
+
+  if start == 0
+    for char in search[second_index:]
+      let start = index(first_col, char, start, 1) + 1
+
+      if start == 0
+        break
+      endif
+
+      call add(pos, [a:lnum, start])
+    endfor
+  endif
+
   return pos
 endfunction
 
