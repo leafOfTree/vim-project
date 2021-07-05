@@ -5,6 +5,7 @@ function! s:Prepare()
   let s:name = 'vim-project'
   let s:project_list_prefix = 'Open a project:'
   let s:search_files_prefix = 'Search files by name:'
+  let s:find_in_files_prefix = 'Find in files:'
   let s:laststatus_save = &laststatus
   let s:initial_length = 0
   let s:head_file_job = 0
@@ -585,6 +586,14 @@ function! project#SearchFiles()
   call s:HandleInput(s:search_files_prefix, Init, Update, Open)
 endfunction
 
+function! project#FindInFiles()
+  call s:PrepareListBuffer()
+  let Init = function('s:FindInFilesBufferInit')
+  let Update = function('s:FindInFilesBufferUpdate')
+  let Open = function('s:FindInFilesBufferOpen')
+  call s:HandleInput(s:find_in_files_prefix, Init, Update, Open)
+endfunction
+
 function! s:PrepareListBuffer()
   call s:OpenListBuffer()
   call s:SetupListBuffer()
@@ -969,7 +978,7 @@ function! s:SortFilesList(input, a1, a2)
   endif
 endfunction
 
-function! s:GetSearchFilesDisplay(list, oldfiles_len)
+function! s:GetSearchFilesDisplayFromList(list, oldfiles_len)
   let display = map(copy(a:list), function('s:GetSearchFilesDisplayRow'))
   let oldfiles_len = a:oldfiles_len
 
@@ -1052,17 +1061,21 @@ function! s:GetFilesByGlob(dir)
     let search_include = ['.']
   endif
 
-  let search_exclude = copy(s:search_exclude)
-  let exclude = escape(join(search_exclude, '\|'), '.\ ')
-
+  let original_wildignore = &wildignore
   let cwd = getcwd()
   execute 'cd '.a:dir
+
+  for exclue in s:search_exclude
+    execute 'set wildignore+=*/'.exclue.'*'
+  endfor
+
   let result = []
   for path in search_include
     let result = result + glob(path.'/**/*', 0, 1)
   endfor
-  call filter(result, {_, val -> val !~ exclude})
+
   execute 'cd '.cwd
+  let &wildignore = original_wildignore
   return result
 endfunction
 
@@ -1084,6 +1097,7 @@ function! s:GetSearchFilesAll(dir)
   else
     let result = s:GetFilesByGlob(a:dir)
   endif
+  let result = s:GetFilesByGlob(a:dir)
 
   call s:MapSearchFiles(result)
   let s:list_result = result
@@ -1156,17 +1170,54 @@ function! s:SortSearchFiles(list, input)
   endif
 endfunction
 
+function! s:GetSearchFilesDisplay(input)
+  let dir = fnamemodify($vim_project, ':p')
+  let [list, oldfiles] = s:GetSearchFiles(dir, a:input)
+  let max_col_width = s:max_width / 8 * 5
+  call s:TabulateList(list, ['file', 'path'], max_col_width, ['path'])
+  let display = s:GetSearchFilesDisplayFromList(list, len(oldfiles))
+  return [list, display]
+endfunction
+
 function! s:SearchFilesBufferInit(input, offset)
   return s:SearchFilesBufferUpdate(a:input, a:offset, '', '')
 endfunction
 
 function! s:SearchFilesBufferUpdate(input, offset, prev_input, prev_list)
   if empty(a:input) || a:input != a:prev_input
+    let [list, display] = s:GetSearchFilesDisplay(a:input)
+    call s:ShowInListBuffer(display, a:input, a:offset)
+    call s:UpdateInListBuffer(display, a:input, a:offset)
+    return list
+  else
+    call s:UpdateInListBuffer(a:prev_list, a:input, a:offset)
+    return a:prev_list
+  endif
+endfunction
+
+function! s:SearchFilesBufferOpen(target, open_cmd)
+  let cmd = substitute(a:open_cmd, 'open_\?', '', '')
+  let cmd = cmd == '' ? 'edit' : cmd
+  let file = $vim_project.'/'.a:target.path.'/'.a:target.file
+  execute cmd.' '.file
+endfunction
+
+function! s:GetFindInFilesDisplay(input)
     let dir = fnamemodify($vim_project, ':p')
-    let [list, oldfiles] = s:GetSearchFiles(dir, a:input)
+    " let [list, oldfiles] = s:GetSearchFiles(dir, a:input)
+    let list = []
     let max_col_width = s:max_width / 8 * 5
     call s:TabulateList(list, ['file', 'path'], max_col_width, ['path'])
-    let display = s:GetSearchFilesDisplay(list, len(oldfiles))
+    let display = s:GetSearchFilesDisplayFromList(list, len(oldfiles))
+endfunction
+
+function! s:FindInFilesBufferInit(input, offset)
+  return s:FindInFilesBufferUpdate(a:input, a:offset, '', '')
+endfunction
+
+function! s:FindInFilesBufferUpdate(input, offset, prev_input, prev_list)
+  if empty(a:input) || a:input != a:prev_input
+    let display = s:GetFindInFilesDisplay(a:input)
     call s:ShowInListBuffer(display, a:input, a:offset)
     call s:UpdateInListBuffer(display, a:input, a:offset)
     return list
