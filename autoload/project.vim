@@ -28,7 +28,7 @@ function! s:Prepare()
         \'auto_detect_file': ['.git', '.svn'],
         \'auto_load_on_start': 0,
         \'project_base': '~',
-        \'search_include': [''],
+        \'search_include': ['./'],
         \'search_exclude': ['.git', 'node_modules'],
         \'grep_include': [''],
         \'grep_exclude': ['.git', 'node_modules'],
@@ -106,10 +106,12 @@ endfunction
 function! s:InitConfig()
   let s:config = s:GetConfig('config', {})
   let s:config_home = expand(s:config.home)
-  let s:base = s:config.project_base
   let s:open_entry = s:config.open_entry
   let s:enable_branch = s:config.branch
   let s:enable_session = s:config.session
+  let s:base = s:config.project_base
+  let s:search_include = s:config.search_include
+  let s:search_exclude = s:config.search_exclude
 
   " options: 'always'(default), 'ask', 'no'
   let s:auto_detect = s:config.auto_detect
@@ -1009,34 +1011,57 @@ function! s:GetSearchFilesByOldFiles(dir, input)
   call s:MapSearchFiles(oldfiles)
   let filter = join(split(a:input, '\zs'), '.*')
   call filter(oldfiles, 
-        \{_, val -> val.path.val.file =~ filter})
+        \{_, val -> val.file =~ filter})
   call s:SortSearchFiles(oldfiles, a:input)
 
   return oldfiles
 endfunction
 
 function! s:GetFilesByFind(dir)
+  let search_include = copy(s:search_include)
+  if empty(search_include)
+    let search_include = ['.']
+  endif
+  let include = join(search_include, ' ')
+
+  let search_exclude = copy(s:search_exclude)
+  let exclude_string = join(map(search_exclude, {_, val -> '-name '.val}), ' -o ')
+  let exclude = '\( '.exclude_string.' \) -prune -false -o '
+
   let filter = '-ipath "*"'
-  let ignore = '\( -name .git -o -name node_modules \) -prune -false -o '
-  let cmd = 'cd '.a:dir.' && find . -mindepth 1 '.ignore.filter
-  let result = split(system(cmd), '\n')
+  let cmd = 'cd '.a:dir.' && find '.include.' -mindepth 1 '.exclude.filter
+  let result = systemlist(cmd)
   return result
 endfunction
 
 function! s:GetFilesByFd(dir)
-  " let ignore = '\( -name .git -o -name node_modules \) -prune -false -o '
-  " let cmd = 'cd '.a:dir.' && fd . -mindepth 1 '.ignore.a:filter
-  let cmd = 'cd '.a:dir.' && fd'
-  let result = split(system(cmd), '\n')
+  let search_include = copy(s:search_include)
+  let include = join(search_include, ' ')
+
+  let search_exclude = copy(s:search_exclude)
+  let exclude = join(map(search_exclude, {_, val -> '-E '.val}), ' ')
+
+  let cmd = 'cd '.a:dir.' && fd -HI '.exclude.' . '.include
+  let result = systemlist(cmd)
   return result
 endfunction
 
 function! s:GetFilesByGlob(dir)
-  set wildignore+=*/node_modules/*
-  set wildignore+=.git/*
+  let search_include = s:search_include
+  if empty(search_include)
+    let search_include = ['.']
+  endif
+
+  let search_exclude = copy(s:search_exclude)
+  let exclude = escape(join(search_exclude, '\|'), '.\ ')
+
   let cwd = getcwd()
   execute 'cd '.a:dir
-  let result = glob('./**/*', 0, 1)
+  let result = []
+  for path in search_include
+    let result = result + glob(path.'/**/*', 0, 1)
+  endfor
+  call filter(result, {_, val -> val !~ exclude})
   execute 'cd '.cwd
   return result
 endfunction
@@ -1053,14 +1078,15 @@ endfunction
 function! s:GetSearchFilesAll(dir)
   " Try faster methods first
   if executable('fd')
-    let s:list_result = s:GetFilesByFd(a:dir)
+    let result = s:GetFilesByFd(a:dir)
   elseif executable('find')
-    let s:list_result = s:GetFilesByFind(a:dir)
+    let result = s:GetFilesByFind(a:dir)
   else
-    let s:list_result = s:GetFilesByGlob(a:dir)
+    let result = s:GetFilesByGlob(a:dir)
   endif
 
-  call s:MapSearchFiles(s:list_result)
+  call s:MapSearchFiles(result)
+  let s:list_result = result
   let list = copy(s:list_result)
   return list
 endfunction
@@ -1068,8 +1094,18 @@ endfunction
 function! s:GetSearchFilesByFilterAll(input)
   " file
   let filter1 = a:input
-  let list = filter(copy(s:list_result), {_, val -> val.file =~ filter1})
-  call s:SortSearchFiles(list, a:input)
+  let list = []
+
+  if len(a:input) < 3
+    let filter0 = '^'.filter1
+    let list = filter(copy(s:list_result), {_, val -> val.file =~ filter0})
+  endif
+
+  if len(list) < s:max_height
+    let list = filter(copy(s:list_result), {_, val -> val.file =~ filter1})
+    " Avoid sort long list for performance
+    call s:SortSearchFiles(list, a:input)
+  endif
 
   if len(list) < s:max_height
     let filter2 = join(split(a:input, '\zs'), '.*')
@@ -1110,7 +1146,7 @@ function! s:MapSearchFiles(list)
   call map(a:list, {idx, val -> 
         \{ 
         \'file': fnamemodify(val, ':t'), 
-        \'path': fnamemodify(val, ':h:s+\./\?++'),
+        \'path': fnamemodify(val, ':h:s+\./\|^\.$++'),
         \}})
 endfunction
 
@@ -1197,12 +1233,9 @@ function! s:HandleInput(prefix, Init, Update, Open)
     endwhile
   catch /^Vim:Interrupt$/
     call s:Debug('Interrupt')
-    echom 'catch'
   finally
-    echom 'cleanup'
   endtry
 
-  echom 'after try'
   call s:CloseListBuffer()
 
   if count(open_cmds, cmd) > 0
