@@ -716,12 +716,16 @@ function! s:ConfineHeight(current, min, max)
   let min = a:min
   let max = a:max
 
-  if current < min
-    " Set min height
-    let counts = min - current
-    call append(0, repeat([''], counts))
+  if min > 0
+    if current < min
+      " Set min height
+      let counts = min - current
+      call append(0, repeat([''], counts))
+    endif
+    execute 'resize '.min
+  else
+    execute 'resize '.max
   endif
-  execute 'resize '.min
 endfunction
 
 function! s:FilterProjectsList(list, filter, origin_filter)
@@ -939,7 +943,7 @@ function! s:GetProjectListCommand(char)
   return command
 endfunction
 
-function! s:ProjectListBufferInit(input, offset)
+function! s:ProjectListBufferInit(input, offset, prev_input, prev_list)
   let max_col_width = s:max_width / 2 - 10
   call s:TabulateList(s:projects, ['name', 'path', 'note'], max_col_width, ['note'])
   return s:ProjectListBufferUpdate(a:input, a:offset, 0, [])
@@ -978,7 +982,7 @@ function! s:SortFilesList(input, a1, a2)
   endif
 endfunction
 
-function! s:GetSearchFilesDisplayFromList(list, oldfiles_len)
+function! s:GetSearchFilesDisplay(list, oldfiles_len)
   let display = map(copy(a:list), function('s:GetSearchFilesDisplayRow'))
   let oldfiles_len = a:oldfiles_len
 
@@ -1175,16 +1179,16 @@ function! s:GetSearchFilesResult(input)
   let [list, oldfiles] = s:GetSearchFiles(dir, a:input)
   let max_col_width = s:max_width / 8 * 5
   call s:TabulateList(list, ['file', 'path'], max_col_width, ['path'])
-  let display = s:GetSearchFilesDisplayFromList(list, len(oldfiles))
+  let display = s:GetSearchFilesDisplay(list, len(oldfiles))
   return [list, display]
 endfunction
 
-function! s:SearchFilesBufferInit(input, offset)
-  return s:SearchFilesBufferUpdate(a:input, a:offset, '', '')
+function! s:SearchFilesBufferInit(input, offset, prev_input, prev_list)
+  return s:SearchFilesBufferUpdate(a:input, a:offset, a:prev_input, a:prev_list)
 endfunction
 
 function! s:SearchFilesBufferUpdate(input, offset, prev_input, prev_list)
-  if empty(a:input) || a:input != a:prev_input
+  if a:input != a:prev_input
     let [list, display] = s:GetSearchFilesResult(a:input)
     call s:ShowInListBuffer(display, a:input, a:offset)
     call s:UpdateInListBuffer(display, a:input, a:offset)
@@ -1202,22 +1206,46 @@ function! s:SearchFilesBufferOpen(target, open_cmd)
   execute cmd.' '.file
 endfunction
 
+function! s:GetGrepResult(input)
+  return s:GetVimGrepResult(a:input)
+endfunction
+
+function! s:GetVimGrepResult(input)
+  let input = escape(a:input, '/')
+  let cmd = 'silent vimgrep /'.input.'/j *'
+  execute cmd
+
+  let qflist = getqflist()
+  return map(qflist, {_, val -> { 
+        \'file': bufname(val.bufnr), 
+        \'line': val.text, 
+        \}})
+endfunction
+
 function! s:GetFindInFilesResult(input)
     let dir = fnamemodify($vim_project, ':p')
-    " let [list, oldfiles] = s:GetSearchFiles(dir, a:input)
-    let list = []
+    let list = s:GetGrepResult(a:input)
     let max_col_width = s:max_width / 8 * 5
-    call s:TabulateList(list, ['file', 'path'], max_col_width, ['path'])
-    let display = s:GetSearchFilesDisplayFromList(list, len(oldfiles))
+    call s:TabulateList(list, ['file', 'line'], max_col_width, ['line'])
+    let display = s:GetFindInFilesDisplay(list)
     return [list, display]
 endfunction
 
-function! s:FindInFilesBufferInit(input, offset)
-  return s:FindInFilesBufferUpdate(a:input, a:offset, '', '')
+function! s:GetFindInFilesDisplay(list)
+  return map(a:list, {_, val -> val.file.'  '.val.line})
+endfunction
+
+function! s:FindInFilesBufferInit(input, offset, prev_input, prev_list)
+  return []
+  " return s:FindInFilesBufferUpdate(a:input, a:offset, a:prev_input, a:prev_list)
 endfunction
 
 function! s:FindInFilesBufferUpdate(input, offset, prev_input, prev_list)
-  if empty(a:input) || a:input != a:prev_input
+  if len(a:input) < 2
+    return []
+  endif
+
+  if a:input != a:prev_input
     let [list, display] = s:GetFindInFilesResult(a:input)
     call s:ShowInListBuffer(display, a:input, a:offset)
     call s:UpdateInListBuffer(display, a:input, a:offset)
@@ -1228,7 +1256,7 @@ function! s:FindInFilesBufferUpdate(input, offset, prev_input, prev_list)
   endif
 endfunction
 
-function! s:SearchFilesBufferOpen(target, open_cmd)
+function! s:FindInFilesBufferOpen(target, open_cmd)
   let cmd = substitute(a:open_cmd, 'open_\?', '', '')
   let cmd = cmd == '' ? 'edit' : cmd
   let file = $vim_project.'/'.a:target.path.'/'.a:target.file
@@ -1238,9 +1266,11 @@ endfunction
 function! s:HandleInput(prefix, Init, Update, Open)
   " Init
   let input = ''
-  let prev_input = ''
+
+  " Make sure prev_input != input on init
+  let prev_input = -1
   let offset = { 'value': 0 }
-  let list = a:Init(input, offset)
+  let list = a:Init(input, offset, prev_input, [])
   let prev_list = list
   redraw
   echo a:prefix.' '
