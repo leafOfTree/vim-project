@@ -1043,21 +1043,21 @@ endfunction
 
 function! s:GetSearchFilesResult(dir, input)
   if !exists('s:list_result')
-    let list = s:GetSearchFilesAll(a:dir, a:input)
+    let list = s:GetSearchFilesAll(a:dir)
   else
     let list = s:GetSearchFilesByFilterAll(a:input)
   endif
   return list
 endfunction
 
-function! s:GetSearchFilesAll(dir, input)
+function! s:GetSearchFilesAll(dir)
   " Try faster methods first
   if executable('fd')
     let s:list_result = s:GetFilesByFd(a:dir)
   elseif executable('find')
     let s:list_result = s:GetFilesByFind(a:dir)
   else
-    let s:list_result = s:GetFilesByGlob(a:dir, filter)
+    let s:list_result = s:GetFilesByGlob(a:dir)
   endif
 
   call s:MapSearchFiles(s:list_result)
