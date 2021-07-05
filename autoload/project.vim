@@ -1079,7 +1079,7 @@ function! s:GetFilesByGlob(dir)
   return result
 endfunction
 
-function! s:GetSearchFilesResult(dir, input)
+function! s:GetSearchFilesResultList(dir, input)
   if !exists('s:list_result')
     let list = s:GetSearchFilesAll(a:dir)
   else
@@ -1143,9 +1143,9 @@ endfunction
 
 function! s:GetSearchFiles(dir, input)
   let oldfiles = s:GetSearchFilesByOldFiles(a:dir, a:input)
-  let list = s:GetSearchFilesResult(a:dir, a:input)
+  let search_list = s:GetSearchFilesResultList(a:dir, a:input)
 
-  let list = oldfiles + list
+  let list = oldfiles + search_list
 
   let show_length = s:max_height - 1
   let list = list[0:show_length*3]
@@ -1170,7 +1170,7 @@ function! s:SortSearchFiles(list, input)
   endif
 endfunction
 
-function! s:GetSearchFilesDisplay(input)
+function! s:GetSearchFilesResult(input)
   let dir = fnamemodify($vim_project, ':p')
   let [list, oldfiles] = s:GetSearchFiles(dir, a:input)
   let max_col_width = s:max_width / 8 * 5
@@ -1185,7 +1185,7 @@ endfunction
 
 function! s:SearchFilesBufferUpdate(input, offset, prev_input, prev_list)
   if empty(a:input) || a:input != a:prev_input
-    let [list, display] = s:GetSearchFilesDisplay(a:input)
+    let [list, display] = s:GetSearchFilesResult(a:input)
     call s:ShowInListBuffer(display, a:input, a:offset)
     call s:UpdateInListBuffer(display, a:input, a:offset)
     return list
@@ -1202,13 +1202,14 @@ function! s:SearchFilesBufferOpen(target, open_cmd)
   execute cmd.' '.file
 endfunction
 
-function! s:GetFindInFilesDisplay(input)
+function! s:GetFindInFilesResult(input)
     let dir = fnamemodify($vim_project, ':p')
     " let [list, oldfiles] = s:GetSearchFiles(dir, a:input)
     let list = []
     let max_col_width = s:max_width / 8 * 5
     call s:TabulateList(list, ['file', 'path'], max_col_width, ['path'])
     let display = s:GetSearchFilesDisplayFromList(list, len(oldfiles))
+    return [list, display]
 endfunction
 
 function! s:FindInFilesBufferInit(input, offset)
@@ -1217,7 +1218,7 @@ endfunction
 
 function! s:FindInFilesBufferUpdate(input, offset, prev_input, prev_list)
   if empty(a:input) || a:input != a:prev_input
-    let display = s:GetFindInFilesDisplay(a:input)
+    let [list, display] = s:GetFindInFilesResult(a:input)
     call s:ShowInListBuffer(display, a:input, a:offset)
     call s:UpdateInListBuffer(display, a:input, a:offset)
     return list
