@@ -601,6 +601,11 @@ function! s:OpenListBuffer()
 endfunction
 
 function! s:CloseListBuffer()
+  if !s:IsCurrentListBuffer()
+    return
+  endif
+
+  unlet! s:list_result
   let &g:laststatus = s:laststatus_save
   quit
   let num = bufnr(s:list_buffer)
@@ -632,11 +637,16 @@ function! s:SetupListBuffer()
   sign define selected text=> texthl=ItemSelected linehl=ItemSelected 
 endfunction
 
+function! s:IsCurrentListBuffer()
+  return expand('%') == s:list_buffer
+endfunction
+
 function! s:UpdateInListBuffer(display, input, offset)
   " Avoid clearing other files by mistake
-  if expand('%') != s:list_buffer
+  if !s:IsCurrentListBuffer()
     return
   endif
+
   let display = a:display
   let input = a:input
   let offset = a:offset
@@ -667,9 +677,10 @@ endfunction
 " @offset: { 'value': 0 }, range -N,...-2,-1,0
 function! s:ShowInListBuffer(display, input, offset)
   " Avoid clearing other files by mistake
-  if expand('%') != s:list_buffer
+  if !s:IsCurrentListBuffer()
     return
   endif
+
   normal! ggdG
   let display = a:display
   let input = a:input
@@ -1004,50 +1015,85 @@ function! s:GetSearchFilesByOldFiles(dir, input)
   return oldfiles
 endfunction
 
-function! s:GetFindResult(dir, filter)
+function! s:GetFilesByFind(dir)
+  let filter = '-ipath "*"'
   let ignore = '\( -name .git -o -name node_modules \) -prune -false -o '
-  let cmd = 'cd '.a:dir.' && find . -mindepth 1 '.ignore.a:filter
+  let cmd = 'cd '.a:dir.' && find . -mindepth 1 '.ignore.filter
   let result = split(system(cmd), '\n')
   return result
 endfunction
 
-let s:find_result = []
-function! s:GetSearchFilesByFind(dir, input)
-  if empty(a:input)
-    let filter = '-ipath "*"'
-    let s:find_result = s:GetFindResult(a:dir, filter)
-    call s:MapSearchFiles(s:find_result)
-    let list = copy(s:find_result)
+function! s:GetFilesByFd(dir)
+  " let ignore = '\( -name .git -o -name node_modules \) -prune -false -o '
+  " let cmd = 'cd '.a:dir.' && fd . -mindepth 1 '.ignore.a:filter
+  let cmd = 'cd '.a:dir.' && fd'
+  let result = split(system(cmd), '\n')
+  return result
+endfunction
+
+function! s:GetFilesByGlob(dir)
+  set wildignore+=*/node_modules/*
+  set wildignore+=.git/*
+  let cwd = getcwd()
+  execute 'cd '.a:dir
+  let result = glob('./**/*', 0, 1)
+  execute 'cd '.cwd
+  return result
+endfunction
+
+function! s:GetSearchFilesResult(dir, input)
+  if !exists('s:list_result')
+    let list = s:GetSearchFilesAll(a:dir, a:input)
   else
-    " file
-    let filter1 = a:input
-    let list = filter(copy(s:find_result), {_, val -> val.file =~ filter1})
-    call s:SortSearchFiles(list, a:input)
+    let list = s:GetSearchFilesByFilterAll(a:input)
+  endif
+  return list
+endfunction
 
-    if len(list) < s:max_height
-      let filter2 = join(split(a:input, '\zs'), '.*')
-      let list2 = filter(copy(s:find_result), {_, val -> val.file =~ filter2})
-      call s:SortSearchFiles(list2, a:input)
-      let list += list2
-    endif
+function! s:GetSearchFilesAll(dir, input)
+  " Try faster methods first
+  if executable('fd')
+    let s:list_result = s:GetFilesByFd(a:dir)
+  elseif executable('find')
+    let s:list_result = s:GetFilesByFind(a:dir)
+  else
+    let s:list_result = s:GetFilesByGlob(a:dir, filter)
+  endif
 
-    " path.file
-    if len(list) < s:max_height
-      let list2 = filter(copy(s:find_result), {_, val -> val.path.val.file =~ filter1})
-      let list += list2
-    endif
+  call s:MapSearchFiles(s:list_result)
+  let list = copy(s:list_result)
+  return list
+endfunction
 
-    if len(list) < s:max_height
-      let list2 = filter(copy(s:find_result), {_, val -> val.path.val.file =~ filter2})
-      let list += list2
-    endif
+function! s:GetSearchFilesByFilterAll(input)
+  " file
+  let filter1 = a:input
+  let list = filter(copy(s:list_result), {_, val -> val.file =~ filter1})
+  call s:SortSearchFiles(list, a:input)
+
+  if len(list) < s:max_height
+    let filter2 = join(split(a:input, '\zs'), '.*')
+    let list2 = filter(copy(s:list_result), {_, val -> val.file =~ filter2})
+    call s:SortSearchFiles(list2, a:input)
+    let list += list2
+  endif
+
+  " path.file
+  if len(list) < s:max_height
+    let list2 = filter(copy(s:list_result), {_, val -> val.path.val.file =~ filter1})
+    let list += list2
+  endif
+
+  if len(list) < s:max_height
+    let list2 = filter(copy(s:list_result), {_, val -> val.path.val.file =~ filter2})
+    let list += list2
   endif
   return list
 endfunction
 
 function! s:GetSearchFiles(dir, input)
   let oldfiles = s:GetSearchFilesByOldFiles(a:dir, a:input)
-  let list = s:GetSearchFilesByFind(a:dir, a:input)
+  let list = s:GetSearchFilesResult(a:dir, a:input)
 
   let list = oldfiles + list
 
@@ -1118,7 +1164,6 @@ function! s:HandleInput(prefix, Init, Update, Open)
       let char = type(c) == v:t_string ? c : nr2char(c)
       let cmd = s:GetProjectListCommand(char)
       if cmd == 'close_list'
-        call s:CloseListBuffer()
         break
       elseif cmd == 'clear_char'
         let input = len(input) == 1 ? '' : input[0:len(input)-2]
@@ -1139,7 +1184,6 @@ function! s:HandleInput(prefix, Init, Update, Open)
       elseif cmd == 'prev_view'
         call s:PreviousView()
       elseif count(open_cmds, cmd) > 0
-        call s:CloseListBuffer()
         break
       else
         let input = input.char
@@ -1152,9 +1196,14 @@ function! s:HandleInput(prefix, Init, Update, Open)
       echo a:prefix.' '.input
     endwhile
   catch /^Vim:Interrupt$/
-    call s:CloseListBuffer()
     call s:Debug('Interrupt')
+    echom 'catch'
+  finally
+    echom 'cleanup'
   endtry
+
+  echom 'after try'
+  call s:CloseListBuffer()
 
   if count(open_cmds, cmd) > 0
     let index = len(list) - 1 + offset.value
