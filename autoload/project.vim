@@ -680,7 +680,7 @@ function! s:UpdateInListBuffer(display, input, offset)
   if length > s:max_height
     execute 'normal! '.string(current).'G'
   endif
-  call s:MatchInputChars(a:input, a:offset)
+  call s:HighlightInputChars(a:input)
 endfunction
 
 " Default 
@@ -700,10 +700,15 @@ function! s:ShowInListBuffer(display, input, offset)
   if length > 0
     call append(0, display)
   endif
+
   if input == ''
-    let s:initial_length = length
+    if length > s:initial_length
+      let s:initial_length = length
+    elseif length == 0
+      let s:initial_length = s:max_height
+    endif
   endif
-  call s:ConfineHeight(length, s:initial_length, s:max_height)
+  call s:ConfineHeight(length, s:initial_length)
 
   " Remove extra blank lines
   normal! Gdd
@@ -711,21 +716,15 @@ function! s:ShowInListBuffer(display, input, offset)
   normal! G 
 endfunction
 
-function! s:ConfineHeight(current, min, max)
+function! s:ConfineHeight(current, height)
   let current = a:current
-  let min = a:min
-  let max = a:max
+  let height = a:height
 
-  if min > 0
-    if current < min
-      " Set min height
-      let counts = min - current
-      call append(0, repeat([''], counts))
-    endif
-    execute 'resize '.min
-  else
-    execute 'resize '.max
+  if current < height
+    let counts = height - current
+    call append(0, repeat([''], counts))
   endif
+  execute 'resize '.height
 endfunction
 
 function! s:FilterProjectsList(list, filter, origin_filter)
@@ -889,11 +888,13 @@ function! s:TabulateList(list, keys, max_col_width, no_limit_keys)
   let max = {}
   for item in list
     for key in a:keys
-      let value = s:ReplaceHomeWithTide(item[key])
-      let item['__'.key] = value
+      if has_key(item, key)
+        let value = s:ReplaceHomeWithTide(item[key])
+        let item['__'.key] = value
 
-      if !has_key(max, key) || len(value) > max[key]
-        let max[key] = len(value)
+        if !has_key(max, key) || len(value) > max[key]
+          let max[key] = len(value)
+        endif
       endif
     endfor
   endfor
@@ -907,13 +908,15 @@ function! s:TabulateList(list, keys, max_col_width, no_limit_keys)
     let max = {}
     for item in list
       for key in a:keys
-        let value = item['__'.key]
-        if len(value) > max_col_width && count(a:no_limit_keys, key) == 0
-          let value = value[0:max_col_width-2].'..'
-          let item['__'.key] = value
-        endif
-        if !has_key(max, key) || len(value) > max[key]
-          let max[key] = len(value)
+        if has_key(item, key)
+          let value = item['__'.key]
+          if len(value) > max_col_width && count(a:no_limit_keys, key) == 0
+            let value = value[0:max_col_width-2].'..'
+            let item['__'.key] = value
+          endif
+          if !has_key(max, key) || len(value) > max[key]
+            let max[key] = len(value)
+          endif
         endif
       endfor
     endfor
@@ -922,7 +925,9 @@ function! s:TabulateList(list, keys, max_col_width, no_limit_keys)
   " Add right padding
   for item in list
     for key in a:keys
-      let item['__'.key] = s:AddRightPadding(item['__'.key], max[key])
+      if has_key(item, key)
+        let item['__'.key] = s:AddRightPadding(item['__'.key], max[key])
+      endif
     endfor
   endfor
 endfunction
@@ -1207,17 +1212,40 @@ function! s:SearchFilesBufferOpen(target, open_cmd)
 endfunction
 
 function! s:GetGrepResult(input)
-  return s:GetVimGrepResult(a:input)
+  let list = s:GetVimGrepResult(a:input)
+
+  return s:GetMergedList(list)
+endfunction
+
+function! s:HasFile(list, file)
+  for item in a:list
+    if has_key(item, 'file') && item.file == a:file
+      return 1
+    endif
+  endfor
+  return 0
+endfunction
+
+function! s:GetMergedList(list)
+  let merged_list = []
+  for item in a:list
+    if !s:HasFile(merged_list, item.file)
+      call add(merged_list, { 'file': item.file })
+    endif
+    call add(merged_list, { 'lnum': item.lnum, 'line': item.line })
+  endfor
+  return merged_list
 endfunction
 
 function! s:GetVimGrepResult(input)
   let input = escape(a:input, '/')
-  let cmd = 'silent vimgrep /'.input.'/j *'
+  let cmd = 'silent! vimgrep /'.input.'/j **/*'
   execute cmd
 
   let qflist = getqflist()
   return map(qflist, {_, val -> { 
         \'file': bufname(val.bufnr), 
+        \'lnum': val.lnum,
         \'line': val.text, 
         \}})
 endfunction
@@ -1225,28 +1253,29 @@ endfunction
 function! s:GetFindInFilesResult(input)
     let dir = fnamemodify($vim_project, ':p')
     let list = s:GetGrepResult(a:input)
-    let max_col_width = s:max_width / 8 * 5
-    call s:TabulateList(list, ['file', 'line'], max_col_width, ['line'])
+    " let max_col_width = s:max_width / 8 * 5
+    " call s:TabulateList(list, ['lnum', 'line'], max_col_width, ['line'])
     let display = s:GetFindInFilesDisplay(list)
     return [list, display]
 endfunction
 
 function! s:GetFindInFilesDisplay(list)
-  return map(a:list, {_, val -> val.file.'  '.val.line})
+  return map(a:list, {_, val ->
+        \  has_key(val, 'file') ? val.file : '  '.val.line
+        \})
 endfunction
 
 function! s:FindInFilesBufferInit(input, offset, prev_input, prev_list)
-  return []
-  " return s:FindInFilesBufferUpdate(a:input, a:offset, a:prev_input, a:prev_list)
+  return s:FindInFilesBufferUpdate(a:input, a:offset, a:prev_input, a:prev_list)
 endfunction
 
 function! s:FindInFilesBufferUpdate(input, offset, prev_input, prev_list)
-  if len(a:input) < 2
-    return []
-  endif
-
   if a:input != a:prev_input
-    let [list, display] = s:GetFindInFilesResult(a:input)
+    if a:input == ''
+      let [list, display] = [[], []]
+    else
+      let [list, display] = s:GetFindInFilesResult(a:input)
+    endif
     call s:ShowInListBuffer(display, a:input, a:offset)
     call s:UpdateInListBuffer(display, a:input, a:offset)
     return list
@@ -1874,10 +1903,9 @@ function! s:OpenFile(open_type, target)
   execute a:open_type.' '.expand(target)
 endfunction
 
-function! s:MatchInputChars(input, offset)
+function! s:HighlightInputChars(input)
   call clearmatches()
   let lastline = line('$')
-  let current = lastline + a:offset.value
   for lnum in range(1, lastline)
     let pos = s:GetMatchPos(lnum, a:input)
     if len(pos) > 0
@@ -1888,17 +1916,22 @@ function! s:MatchInputChars(input, offset)
   endfor
 endfunction
 
+function! s:GetListBufferCol(lnum, index)
+endfunction
+
 function! s:GetMatchPos(lnum, input)
   if empty(a:input)
     return []
   endif
 
-  let first_col_str = matchstr(getline(a:lnum), '^\S*')
-  let first_col = split(first_col_str, '\zs')
   let search = split(a:input, '\zs')
   let pos = []
   let start = 0
 
+  let first_col_str = matchstr(getline(a:lnum), '^\S*')
+  let first_col = split(first_col_str, '\zs')
+
+  " Try first col full match
   let full_match = match(first_col_str, a:input)
   if full_match > 0
     for start in range(full_match + 1, full_match + len(a:input))
@@ -1906,6 +1939,7 @@ function! s:GetMatchPos(lnum, input)
     endfor
   endif
 
+  " Try first col
   if start == 0
     for char in search
       let start = index(first_col, char, start, 1) + 1
@@ -1918,10 +1952,26 @@ function! s:GetMatchPos(lnum, input)
     endfor
   endif
 
+  " No match in first col, try second col
   if start == 0
     let first_length = len(first_col)
-    let second_col = split(matchstr(getline(a:lnum), '\s\+\S*'), '\zs')
+    let second_col_str = matchstr(getline(a:lnum), '\s\+.*')
+    let second_col = split(second_col_str, '\zs')
     let second_index = 0
+  endif
+
+  " Try second col full match
+  if start == 0
+    let full_match = match(second_col_str, a:input)
+    if full_match > 0
+      for start in range(full_match + 1, full_match + len(a:input))
+        call add(pos, [a:lnum, start + first_length])
+      endfor
+    endif
+  endif
+
+  " Try second col
+  if start == 0
     for char in search
       let start = index(second_col, char, start, 1) + 1
       if start == 0
@@ -1933,7 +1983,8 @@ function! s:GetMatchPos(lnum, input)
     endfor
   endif
 
-  if start == 0
+  " Try first col after second col 
+  if start == 0 && second_index > 0
     for char in search[second_index:]
       let start = index(first_col, char, start, 1) + 1
 
