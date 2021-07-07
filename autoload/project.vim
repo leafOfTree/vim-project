@@ -3,6 +3,7 @@ let g:vim_project_loaded = 1
 
 function! s:Prepare()
   let s:name = 'vim-project'
+  let s:prefix = ''
   let s:project_list_prefix = 'Open a project:'
   let s:search_files_prefix = 'Search files by name:'
   let s:find_in_files_prefix = 'Find in files:'
@@ -575,7 +576,8 @@ function! project#ListProjects()
   let Init = function('s:ProjectListBufferInit')
   let Update = function('s:ProjectListBufferUpdate')
   let Open = function('s:ProjectListBufferOpen')
-  call s:HandleInput(s:project_list_prefix, Init, Update, Open)
+  let s:prefix = s:project_list_prefix
+  call s:HandleInput(Init, Update, Open)
 endfunction
 
 function! project#SearchFiles()
@@ -583,15 +585,17 @@ function! project#SearchFiles()
   let Init = function('s:SearchFilesBufferInit')
   let Update = function('s:SearchFilesBufferUpdate')
   let Open = function('s:SearchFilesBufferOpen')
-  call s:HandleInput(s:search_files_prefix, Init, Update, Open)
+  let s:prefix = s:search_files_prefix
+  call s:HandleInput(Init, Update, Open)
 endfunction
 
 function! project#FindInFiles()
   call s:PrepareListBuffer()
   let Init = function('s:FindInFilesBufferInit')
-  let Update = function('s:FindInFilesBufferUpdate')
+  let Update = function('s:FindInFilesBufferUpdateTimer')
   let Open = function('s:FindInFilesBufferOpen')
-  call s:HandleInput(s:find_in_files_prefix, Init, Update, Open)
+  let s:prefix = s:find_in_files_prefix
+  call s:HandleInput(Init, Update, Open)
 endfunction
 
 function! s:PrepareListBuffer()
@@ -652,16 +656,15 @@ function! s:IsCurrentListBuffer()
   return expand('%') == s:list_buffer
 endfunction
 
-function! s:UpdateInListBuffer(display, input, offset)
+function! s:HighlightListBuffer(length, input, offset)
   " Avoid clearing other files by mistake
   if !s:IsCurrentListBuffer()
     return
   endif
 
-  let display = a:display
+  let length = a:length
   let input = a:input
   let offset = a:offset
-  let length = len(display)
   sign unplace 9
   if length > 0
     let current = length
@@ -948,18 +951,18 @@ function! s:GetProjectListCommand(char)
   return command
 endfunction
 
-function! s:ProjectListBufferInit(input, offset, prev_input, prev_list)
+function! s:ProjectListBufferInit(input, offset)
   let max_col_width = s:max_width / 2 - 10
   call s:TabulateList(s:projects, ['name', 'path', 'note'], max_col_width, ['note'])
-  return s:ProjectListBufferUpdate(a:input, a:offset, 0, [])
+  return s:ProjectListBufferUpdate(a:input, a:offset)
 endfunction
 
-function! s:ProjectListBufferUpdate(input, offset, prev_input, prev_list)
+function! s:ProjectListBufferUpdate(input, offset)
   let list = s:FilterProjects(copy(s:projects), a:input)
   let display = s:GetProjectsDisplay(list)
   call s:ShowInListBuffer(display, a:input, a:offset)
-  call s:UpdateInListBuffer(display, a:input, a:offset)
-  return list
+  call s:HighlightListBuffer(len(display), a:input, a:offset)
+  let s:list = list
 endfunction
 
 function! s:ProjectListBufferOpen(project, open_cmd)
@@ -1188,19 +1191,20 @@ function! s:GetSearchFilesResult(input)
   return [list, display]
 endfunction
 
-function! s:SearchFilesBufferInit(input, offset, prev_input, prev_list)
-  return s:SearchFilesBufferUpdate(a:input, a:offset, a:prev_input, a:prev_list)
+function! s:SearchFilesBufferInit(input, offset)
+  return s:SearchFilesBufferUpdate(a:input, a:offset)
 endfunction
 
-function! s:SearchFilesBufferUpdate(input, offset, prev_input, prev_list)
-  if a:input != a:prev_input
+function! s:SearchFilesBufferUpdate(input, offset)
+  if a:input != s:input
     let [list, display] = s:GetSearchFilesResult(a:input)
     call s:ShowInListBuffer(display, a:input, a:offset)
-    call s:UpdateInListBuffer(display, a:input, a:offset)
-    return list
+    call s:HighlightListBuffer(len(display), a:input, a:offset)
+
+    let s:input = a:input
+    let s:list = list
   else
-    call s:UpdateInListBuffer(a:prev_list, a:input, a:offset)
-    return a:prev_list
+    call s:HighlightListBuffer(len(s:list), a:input, a:offset)
   endif
 endfunction
 
@@ -1251,12 +1255,13 @@ function! s:GetVimGrepResult(input)
 endfunction
 
 function! s:GetFindInFilesResult(input)
-    let dir = fnamemodify($vim_project, ':p')
-    let list = s:GetGrepResult(a:input)
-    " let max_col_width = s:max_width / 8 * 5
-    " call s:TabulateList(list, ['lnum', 'line'], max_col_width, ['line'])
-    let display = s:GetFindInFilesDisplay(list)
-    return [list, display]
+  if a:input == ''
+    return [[], []]
+  endif
+
+  let list = s:GetGrepResult(a:input)
+  let display = s:GetFindInFilesDisplay(list)
+  return [list, display]
 endfunction
 
 function! s:GetFindInFilesDisplay(list)
@@ -1265,24 +1270,34 @@ function! s:GetFindInFilesDisplay(list)
         \})
 endfunction
 
-function! s:FindInFilesBufferInit(input, offset, prev_input, prev_list)
-  return s:FindInFilesBufferUpdate(a:input, a:offset, a:prev_input, a:prev_list)
+function! s:FindInFilesBufferInit(input, offset)
+  return s:FindInFilesBufferUpdate(a:input, a:offset, 0)
 endfunction
 
-function! s:FindInFilesBufferUpdate(input, offset, prev_input, prev_list)
-  if a:input != a:prev_input
-    if a:input == ''
-      let [list, display] = [[], []]
-    else
-      let [list, display] = s:GetFindInFilesResult(a:input)
-    endif
+let s:update_timer = 0
+function! s:FindInFilesBufferUpdateTimer(input, offset)
+endfunction
+
+function! s:FindInFilesBufferUpdateTimer(input, offset)
+  call timer_stop(s:update_timer)
+  let s:update_timer = timer_start(300,
+        \function('s:FindInFilesBufferUpdate', [a:input, a:offset]))
+endfunction
+
+function! s:FindInFilesBufferUpdate(input, offset, id)
+  if a:input != s:input
+    let [list, display] = s:GetFindInFilesResult(a:input)
     call s:ShowInListBuffer(display, a:input, a:offset)
-    call s:UpdateInListBuffer(display, a:input, a:offset)
-    return list
-  else
-    call s:UpdateInListBuffer(a:prev_list, a:input, a:offset)
-    return a:prev_list
+
+    let s:input = a:input
+    let s:list = list
   endif
+
+  call s:HighlightListBuffer(len(s:list), a:input, a:offset)
+
+  redraw
+  echo ''
+  echo s:prefix.' '.a:input
 endfunction
 
 function! s:FindInFilesBufferOpen(target, open_cmd)
@@ -1292,19 +1307,24 @@ function! s:FindInFilesBufferOpen(target, open_cmd)
   execute cmd.' '.file
 endfunction
 
-function! s:HandleInput(prefix, Init, Update, Open)
-  " Init
-  let input = ''
-
-  " Make sure prev_input != input on init
-  let prev_input = -1
-  let offset = { 'value': 0 }
-  let list = a:Init(input, offset, prev_input, [])
-  let prev_list = list
+function! s:ShowInputLine(input)
   redraw
-  echo a:prefix.' '
+  echo s:prefix.' '.a:input
+endfunction
 
+function! s:HandleInput(Init, Update, Open)
+  " Init
+  " Make sure prev input != input on start
+  let s:input = -1
+  let s:list = []
   let open_cmds = ['open', 'open_split', 'open_vsplit', 'open_tabedit']
+
+  let input = ''
+  let offset = { 'value': 0 }
+  call a:Init(input, offset)
+
+  call s:ShowInputLine('')
+
   try
     while 1
       let c = getchar()
@@ -1323,7 +1343,7 @@ function! s:HandleInput(prefix, Init, Update, Open)
       elseif cmd == 'next_item'
         let offset.value += 1
       elseif cmd == 'first_item'
-        let offset.value = 1 - len(list) 
+        let offset.value = 1 - len(s:list) 
       elseif cmd == 'last_item'
         let offset.value = 0
       elseif cmd == 'next_view'
@@ -1336,11 +1356,8 @@ function! s:HandleInput(prefix, Init, Update, Open)
         let input = input.char
       endif
 
-      let list = a:Update(input, offset, prev_input, prev_list)
-      let prev_input = input
-      let prev_list = list
-      redraw
-      echo a:prefix.' '.input
+      call a:Update(input, offset)
+      call s:ShowInputLine(input)
     endwhile
   catch /^Vim:Interrupt$/
     call s:Debug('Interrupt')
@@ -1350,8 +1367,8 @@ function! s:HandleInput(prefix, Init, Update, Open)
   call s:CloseListBuffer()
 
   if count(open_cmds, cmd) > 0
-    let index = len(list) - 1 + offset.value
-    let target = list[index]
+    let index = len(s:list) - 1 + offset.value
+    let target = s:list[index]
     call a:Open(target, cmd)
   endif
 endfunction
