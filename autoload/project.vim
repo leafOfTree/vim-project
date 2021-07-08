@@ -8,7 +8,7 @@ function! s:Prepare()
   let s:search_files_prefix = 'Search files by name:'
   let s:find_in_files_prefix = 'Find in files:'
   let s:laststatus_save = &laststatus
-  let s:initial_length = 0
+  let s:initial_height = 0
   let s:head_file_job = 0
   let s:project = {}
   let s:branch = ''
@@ -621,7 +621,11 @@ function! s:CloseListBuffer()
   endif
 
   unlet! s:list_result
+  unlet! s:list
+  unlet! s:input
+  let s:initial_height = 0
   let &g:laststatus = s:laststatus_save
+
   quit
   let num = bufnr(s:list_buffer)
   if num != -1
@@ -656,14 +660,8 @@ function! s:IsCurrentListBuffer()
   return expand('%') == s:list_buffer
 endfunction
 
-function! s:HighlightListBuffer(length, input, offset)
-  " Avoid clearing other files by mistake
-  if !s:IsCurrentListBuffer()
-    return
-  endif
-
+function! s:HighlightCurrentLine(length, offset)
   let length = a:length
-  let input = a:input
   let offset = a:offset
   sign unplace 9
   if length > 0
@@ -674,8 +672,8 @@ function! s:HighlightListBuffer(length, input, offset)
       let offset.value = 1 - current
     endif
     let current += offset.value
-    if length < s:initial_length
-      let current += s:initial_length - length
+    if length < s:initial_height
+      let current += s:initial_height - length
     endif
     execute 'sign place 9 line='.current.' name=selected'
   endif
@@ -683,7 +681,6 @@ function! s:HighlightListBuffer(length, input, offset)
   if length > s:max_height
     execute 'normal! '.string(current).'G'
   endif
-  call s:HighlightInputChars(a:input)
 endfunction
 
 " Default 
@@ -704,14 +701,8 @@ function! s:ShowInListBuffer(display, input, offset)
     call append(0, display)
   endif
 
-  if input == ''
-    if length > s:initial_length
-      let s:initial_length = length
-    elseif length == 0
-      let s:initial_length = s:max_height
-    endif
-  endif
-  call s:ConfineHeight(length, s:initial_length)
+  call s:AdjustInitialHeight(length, input)
+  call s:AddEmptyLines(length, s:initial_height)
 
   " Remove extra blank lines
   normal! Gdd
@@ -719,15 +710,24 @@ function! s:ShowInListBuffer(display, input, offset)
   normal! G 
 endfunction
 
-function! s:ConfineHeight(current, height)
+function! s:AdjustInitialHeight(length, input)
+  if a:input == '' && s:initial_height == 0
+    if a:length == 0
+      let s:initial_height = s:max_height
+    else
+      let s:initial_height = a:length
+    endif
+    execute 'resize '.s:initial_height
+  endif
+endfunction
+
+function! s:AddEmptyLines(current, height)
   let current = a:current
   let height = a:height
-
   if current < height
     let counts = height - current
     call append(0, repeat([''], counts))
   endif
-  execute 'resize '.height
 endfunction
 
 function! s:FilterProjectsList(list, filter, origin_filter)
@@ -959,10 +959,13 @@ endfunction
 
 function! s:ProjectListBufferUpdate(input, offset)
   let list = s:FilterProjects(copy(s:projects), a:input)
+  let s:list = list
+
   let display = s:GetProjectsDisplay(list)
   call s:ShowInListBuffer(display, a:input, a:offset)
-  call s:HighlightListBuffer(len(display), a:input, a:offset)
-  let s:list = list
+
+  call s:HighlightCurrentLine(len(display), a:offset)
+  call s:HighlightInputChars(a:input)
 endfunction
 
 function! s:ProjectListBufferOpen(project, open_cmd)
@@ -1199,13 +1202,12 @@ function! s:SearchFilesBufferUpdate(input, offset)
   if a:input != s:input
     let [list, display] = s:GetSearchFilesResult(a:input)
     call s:ShowInListBuffer(display, a:input, a:offset)
-    call s:HighlightListBuffer(len(display), a:input, a:offset)
-
     let s:input = a:input
     let s:list = list
-  else
-    call s:HighlightListBuffer(len(s:list), a:input, a:offset)
   endif
+
+  call s:HighlightCurrentLine(len(s:list), a:offset)
+  call s:HighlightInputChars(a:input)
 endfunction
 
 function! s:SearchFilesBufferOpen(target, open_cmd)
@@ -1278,8 +1280,12 @@ let s:update_timer = 0
 
 function! s:FindInFilesBufferUpdateTimer(input, offset)
   call timer_stop(s:update_timer)
-  let s:update_timer = timer_start(300,
-        \function('s:FindInFilesBufferUpdate', [a:input, a:offset]))
+  if a:input == s:input
+    call s:FindInFilesBufferUpdate(a:input, a:offset, 0)
+  else
+    let s:update_timer = timer_start(300,
+          \function('s:FindInFilesBufferUpdate', [a:input, a:offset]))
+  endif
 endfunction
 
 function! s:FindInFilesBufferUpdate(input, offset, id)
@@ -1291,11 +1297,10 @@ function! s:FindInFilesBufferUpdate(input, offset, id)
     let s:list = list
   endif
 
-  call s:HighlightListBuffer(len(s:list), a:input, a:offset)
-
-  redraw
-  echo ''
-  echo s:prefix.' '.a:input
+  call s:HighlightCurrentLine(len(s:list), a:offset)
+  let pattern = '^\s\+.*\zs'.a:input
+  call s:HighlightInputCharsAsPattern(pattern)
+  call s:ShowInputLine(a:input)
 endfunction
 
 function! s:FindInFilesBufferOpen(target, open_cmd)
@@ -1333,7 +1338,11 @@ function! s:HandleInput(Init, Update, Open)
       elseif cmd == 'clear_char'
         let input = len(input) == 1 ? '' : input[0:len(input)-2]
       elseif cmd == 'clear_word'
-        let input = substitute(input, '\S*\s*$', '', '')
+        if input =~ '\w\s*$'
+          let input = substitute(input, '\w*\s*$', '', '')
+        else
+          let input = substitute(input, '\W*\s*$', '', '')
+        endif
       elseif cmd == 'clear_all'
         let input = ''
       elseif cmd == 'prev_item'
@@ -1918,10 +1927,16 @@ function! s:OpenFile(open_type, target)
   execute a:open_type.' '.expand(target)
 endfunction
 
+function! s:HighlightInputCharsAsPattern(input)
+  call clearmatches()
+
+  execute 'silent! match InputChar /'.a:input.'/'
+endfunction
+
 function! s:HighlightInputChars(input)
   call clearmatches()
-  let lastline = line('$')
-  for lnum in range(1, lastline)
+
+  for lnum in range(1, line('$'))
     let pos = s:GetMatchPos(lnum, a:input)
     if len(pos) > 0
       for i in range(0, len(pos), 8)
@@ -1929,9 +1944,6 @@ function! s:HighlightInputChars(input)
       endfor
     endif
   endfor
-endfunction
-
-function! s:GetListBufferCol(lnum, index)
 endfunction
 
 function! s:GetMatchPos(lnum, input)
