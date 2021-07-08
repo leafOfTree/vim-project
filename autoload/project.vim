@@ -1275,8 +1275,6 @@ function! s:FindInFilesBufferInit(input, offset)
 endfunction
 
 let s:update_timer = 0
-function! s:FindInFilesBufferUpdateTimer(input, offset)
-endfunction
 
 function! s:FindInFilesBufferUpdateTimer(input, offset)
   call timer_stop(s:update_timer)
@@ -1308,7 +1306,7 @@ function! s:FindInFilesBufferOpen(target, open_cmd)
 endfunction
 
 function! s:ShowInputLine(input)
-  redraw
+  redraw 
   echo s:prefix.' '.a:input
 endfunction
 
