@@ -3,10 +3,10 @@ let g:vim_project_loaded = 1
 
 function! s:Prepare()
   let s:name = 'vim-project'
-  let s:prefix = ''
   let s:project_list_prefix = 'Open a project:'
   let s:search_files_prefix = 'Search files by name:'
   let s:find_in_files_prefix = 'Find in files:'
+  let s:list_history = {}
   let s:laststatus_save = &laststatus
   let s:initial_height = 0
   let s:head_file_job = 0
@@ -32,6 +32,8 @@ function! s:Prepare()
         \'project_base': '~',
         \'search_include': ['./'],
         \'search_exclude': ['.git', 'node_modules'],
+        \'find_in_files_include': ['./'],
+        \'find_in_files_exclude': ['.git', 'node_modules'],
         \'grep_include': [''],
         \'grep_exclude': ['.git', 'node_modules'],
         \'views': [],
@@ -101,7 +103,7 @@ function! s:MergeUserConfigIntoDefault(user, default)
       let default[key] = user[key]
     endif
   endfor
-  
+
   return default
 endfunction
 
@@ -112,8 +114,12 @@ function! s:InitConfig()
   let s:enable_branch = s:config.branch
   let s:enable_session = s:config.session
   let s:base = s:config.project_base
-  let s:search_include = s:config.search_include
-  let s:search_exclude = s:config.search_exclude
+  let s:search_include = s:AdjustPathList(s:config.search_include)
+  let s:search_exclude = s:AdjustPathList(s:config.search_exclude)
+  let s:find_in_files_include =
+        \s:AdjustPathList(s:config.find_in_files_include)
+  let s:find_in_files_exclude =
+        \s:AdjustPathList(s:config.find_in_files_exclude)
 
   " options: 'always'(default), 'ask', 'no'
   let s:auto_detect = s:config.auto_detect
@@ -128,6 +134,16 @@ endfunction
 
 function! project#SetBase(base)
   let s:base = a:base
+endfunction
+
+function! s:AdjustPathList(paths)
+  let paths = a:paths
+  if empty(paths)
+    let paths = ['.']
+  endif
+  call map(paths, {_, val -> substitute(val, '\/$', '', '')})
+
+  return paths
 endfunction
 
 function! s:GetAddArgs(args)
@@ -168,11 +184,11 @@ function! s:AddProject(path, ...)
 
   " fullpath: with project name
   " path: without project name
-  let project = { 
-        \'name': name, 
-        \'path': path, 
+  let project = {
+        \'name': name,
+        \'path': path,
         \'fullpath': fullpath,
-        \'note': note, 
+        \'note': note,
         \'option': option,
         \}
   if !isdirectory(fullpath)
@@ -230,9 +246,9 @@ function! s:IgnoreProject(path)
   let path = substitute(fullpath, '/[^/]*$', '', '')
   " path: with project name
   " fullpath: no project name
-  let project = { 
-        \'name': name, 
-        \'path': path, 
+  let project = {
+        \'name': name,
+        \'path': path,
         \'fullpath': fullpath,
         \}
   call add(s:projects_ignore, project)
@@ -279,7 +295,7 @@ function! s:InitProjectConfig(project)
     let init_content = [
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \'" When: sourced after session is loaded',
-          \'" Project: '.name, 
+          \'" Project: '.name,
           \'" Variable: $vim_project, $vim_project_config',
           \'" Example: open `./src` on start',
           \'" - edit $vim_project/src',
@@ -292,7 +308,7 @@ function! s:InitProjectConfig(project)
     let quit_content = [
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \'" When: sourced after session is saved',
-          \'" Project: '.name, 
+          \'" Project: '.name,
           \'" Variable: $vim_project, $vim_project_config',
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \]
@@ -403,7 +419,7 @@ function! s:RemoveItemInPluginConfigAdd(path)
     if match(line, target_pat) != -1
       break
     endif
-    let idx += 1 
+    let idx += 1
   endfor
   if idx < len(adds)
     call remove(adds, idx)
@@ -583,6 +599,7 @@ function! project#ListProjects()
   let Update = function('s:ProjectListBufferUpdate')
   let Open = function('s:ProjectListBufferOpen')
   let s:prefix = s:project_list_prefix
+  let s:list_type = 'PROJECTS'
   call s:RenderList(Init, Update, Open)
 endfunction
 
@@ -592,6 +609,7 @@ function! project#SearchFiles()
   let Update = function('s:SearchFilesBufferUpdate')
   let Open = function('s:SearchFilesBufferOpen')
   let s:prefix = s:search_files_prefix
+  let s:list_type = 'SEARCH_FILES'
   call s:RenderList(Init, Update, Open)
 endfunction
 
@@ -601,6 +619,7 @@ function! project#FindInFiles()
   let Update = function('s:FindInFilesBufferUpdateTimer')
   let Open = function('s:FindInFilesBufferOpen')
   let s:prefix = s:find_in_files_prefix
+  let s:list_type = 'FIND_IN_FILES'
   call s:RenderList(Init, Update, Open)
 endfunction
 
@@ -626,13 +645,12 @@ function! s:CloseListBuffer()
     return
   endif
 
-  let s:initial_height = 0
   let &g:laststatus = s:laststatus_save
 
   quit
   let num = bufnr(s:list_buffer)
   if num != -1
-    execute 'bwipeout! '.num 
+    execute 'bwipeout! '.num
   endif
   redraw!
   wincmd p
@@ -645,11 +663,8 @@ function! s:SetupListBuffer()
   setlocal nocursorline
   setlocal nowrap
   set laststatus=0
-  nnoremap<buffer> <esc>
-        \ :call <SID>RemoveListVariables()<cr>:call <SID>CloseListBuffer()<cr>
   syntax match FirstColumn /^\S*/
 
-  " highlight ItemSelected gui=reverse term=reverse cterm=reverse
   highlight! link ItemSelected CursorLine
   highlight! link SignColumn Noise
   highlight link FirstColumn Keyword
@@ -657,7 +672,7 @@ function! s:SetupListBuffer()
   highlight link InputChar Constant
 
   syntax match Comment /file results\|recently opened\|more\.\.\./
-  sign define selected text=> texthl=ItemSelected linehl=ItemSelected 
+  sign define selected text=> texthl=ItemSelected linehl=ItemSelected
 endfunction
 
 function! s:IsCurrentListBuffer()
@@ -687,7 +702,7 @@ function! s:HighlightCurrentLine(length, offset)
   endif
 endfunction
 
-" Default 
+" Default
 " @input: ''
 " @offset: { 'value': 0 }, range -N,...-2,-1,0
 function! s:ShowInListBuffer(display, input, offset)
@@ -696,40 +711,43 @@ function! s:ShowInListBuffer(display, input, offset)
     return
   endif
 
-  normal! ggdG
-  let display = a:display
-  let input = a:input
-  let offset = a:offset
-  let length = len(display)
-  if length > 0
-    call append(0, display)
-  endif
+  call s:AddToListBuffer(a:display)
+  let length = len(a:display)
+  call s:AdjustHeight(length, a:input)
+  call s:AddEmptyLines(length)
 
-  call s:AdjustInitialHeight(length, input)
-  call s:AddEmptyLines(length, s:initial_height)
-
-  " Remove extra blank lines
-  normal! Gdd
-  normal! gg 
-  normal! G 
+  call s:RemoveExtraBlankLineAtBottom()
 endfunction
 
-function! s:AdjustInitialHeight(length, input)
-  if a:input == '' && s:initial_height == 0
+function! s:RemoveExtraBlankLineAtBottom()
+  normal! Gdd
+  normal! gg
+  normal! G
+endfunction
+
+function! s:AddToListBuffer(display)
+  normal! ggdG
+  if len(a:display) > 0
+    call append(0, a:display)
+  endif
+endfunction
+
+function! s:AdjustHeight(length, input)
+  if (a:input == '' && s:initial_height == 0)
     if a:length == 0
       let s:initial_height = s:max_height
     else
       let s:initial_height = a:length
     endif
+  endif
+  if winheight(0) != s:initial_height
     execute 'resize '.s:initial_height
   endif
 endfunction
 
-function! s:AddEmptyLines(current, height)
-  let current = a:current
-  let height = a:height
-  if current < height
-    let counts = height - current
+function! s:AddEmptyLines(current)
+  if a:current < s:initial_height
+    let counts = s:initial_height - a:current
     call append(0, repeat([''], counts))
   endif
 endfunction
@@ -821,7 +839,7 @@ endfunction
 function! s:FilterProjectsListName(list, filter, reverse)
   let list = a:list
   let filter = a:filter
-  call filter(list, { _, value -> empty(filter) || 
+  call filter(list, { _, value -> empty(filter) ||
         \(!a:reverse  ? value.name =~ filter : value.name !~ filter)
         \})
   return list
@@ -834,7 +852,7 @@ endfunction
 
 function! s:PreviousView()
   let max = len(s:views)
-  let s:view_index = s:view_index > 0 ? s:view_index - 1 : max 
+  let s:view_index = s:view_index > 0 ? s:view_index - 1 : max
 endfunction
 
 function! s:FilterProjectsByView(projects)
@@ -1029,7 +1047,7 @@ function! s:GetSearchFilesByOldFiles(dir, input)
   endfor
 
   call map(oldfiles, {_, val -> fnamemodify(val, ':p')})
-  call filter(oldfiles, {_, val -> 
+  call filter(oldfiles, {_, val ->
         \count(val, a:dir) > 0
         \ && count(['ControlP', ''], fnamemodify(val, ':t')) == 0
         \ && (filereadable(val) || isdirectory(val))
@@ -1038,7 +1056,7 @@ function! s:GetSearchFilesByOldFiles(dir, input)
 
   call s:MapSearchFiles(oldfiles)
   let filter = join(split(a:input, '\zs'), '.*')
-  call filter(oldfiles, 
+  call filter(oldfiles,
         \{_, val -> val.file =~ filter})
   call s:SortSearchFiles(oldfiles, a:input)
 
@@ -1083,7 +1101,6 @@ function! s:GetFilesByGlob(dir)
   let original_wildignore = &wildignore
   let cwd = getcwd()
   execute 'cd '.a:dir
-
   for exclue in s:search_exclude
     execute 'set wildignore+=*/'.exclue.'*'
   endfor
@@ -1116,7 +1133,9 @@ function! s:GetSearchFilesAll(dir)
   else
     let result = s:GetFilesByGlob(a:dir)
   endif
+
   let result = s:GetFilesByGlob(a:dir)
+  echom result
 
   call s:MapSearchFiles(result)
   let s:list_initial_result = result
@@ -1176,9 +1195,9 @@ function! s:GetSearchFiles(dir, input)
 endfunction
 
 function! s:MapSearchFiles(list)
-  call map(a:list, {idx, val -> 
-        \{ 
-        \'file': fnamemodify(val, ':t'), 
+  call map(a:list, {idx, val ->
+        \{
+        \'file': fnamemodify(val, ':t'),
         \'path': fnamemodify(val, ':h:s+\./\|^\.$++'),
         \}})
 endfunction
@@ -1250,21 +1269,28 @@ endfunction
 function! s:GetVimGrepResult(input)
   let input = escape(a:input, '/')
 
+  let original_wildignore = &wildignore
+  for exclue in s:find_in_files_exclude
+    execute 'set wildignore+=*/'.exclue.'*'
+  endfor
+
   let cmd = 'silent! vimgrep /'.input.'/j '.$vim_project.'/**/*'
   execute cmd
 
+  let &wildignore = original_wildignore
+
   let qflist = getqflist()
-  let result = map(qflist, {_, val -> { 
-        \'file': s:RemoveProjectPath(getbufinfo(val.bufnr)[0].name), 
+  let result = map(qflist, {_, val -> {
+        \'file': s:RemoveProjectPath(getbufinfo(val.bufnr)[0].name),
         \'lnum': val.lnum,
-        \'line': val.text, 
+        \'line': val.text,
         \}})
 
   return result
 endfunction
 
 function! s:GetFindInFilesResult(input)
-  if a:input == ''
+  if a:input == '' || len(a:input) == 1
     return [[], []]
   endif
 
@@ -1314,23 +1340,17 @@ function! s:FindInFilesBufferOpen(target, open_cmd)
   let cmd = substitute(a:open_cmd, 'open_\?', '', '')
   let cmd = cmd == '' ? 'edit' : cmd
   let file = $vim_project.'/'.a:target.file
-  execute cmd.' +'.a:target.lnum.' '.file
+  let lnum = has_key(a:target, 'lnum') ? a:target.lnum : 1
+  execute cmd.' +'.lnum.' '.file
 endfunction
 
 function! s:ShowInputLine(input)
-  redraw 
+  redraw
   echo s:prefix.' '.a:input
 endfunction
 
 function! s:RenderList(Init, Update, Open)
-  " Init
-  " Make sure prev input != input on start
-  let s:input = -1
-  let s:list = []
-
-  let input = ''
-  let offset = { 'value': 0 }
-  call a:Init(input, offset)
+  let [input, offset] = s:InitListVariables(a:Init)
 
   call s:ShowInputLine(input)
 
@@ -1342,7 +1362,26 @@ function! s:RenderList(Init, Update, Open)
     call s:OpenTarget(cmd, offset, a:Open)
   endif
 
-  call s:RemoveListVariables()
+  call s:ResetListVariables()
+endfunction
+
+function! s:InitListVariables(Init)
+  if has_key(s:list_history, s:list_type)
+    let prev = s:list_history[s:list_type]
+    let input = prev.input
+    let s:initial_height = prev.initial_height
+  else
+    let input = ''
+  endif
+
+  " Make sure s:input is differrent from input to trigger query
+  let s:input = -1
+
+  let s:list = []
+  let offset = { 'value': 0 }
+
+  call a:Init(input, offset)
+  return [input, offset]
 endfunction
 
 function! s:HandleInput(input, offset, Update)
@@ -1371,7 +1410,7 @@ function! s:HandleInput(input, offset, Update)
       elseif cmd == 'next_item'
         let offset.value += 1
       elseif cmd == 'first_item'
-        let offset.value = 1 - len(s:list) 
+        let offset.value = 1 - len(s:list)
       elseif cmd == 'last_item'
         let offset.value = 0
       elseif cmd == 'next_view'
@@ -1400,10 +1439,21 @@ function! s:IsOpenCmd(cmd)
   return count(open_cmds, a:cmd) > 0
 endfunction
 
-function! s:RemoveListVariables()
-  unlet! s:list
+function! s:ResetListVariables()
+  if s:list_type == 'FIND_IN_FILES'
+    let s:list_history[s:list_type] = {
+          \'input': s:input,
+          \'initial_height': s:initial_height
+          \}
+  endif
+
   unlet! s:input
+  let s:initial_height = 0
+
+  unlet! s:list
   unlet! s:list_initial_result
+  unlet! s:prefix
+  unlet! s:list_type
 endfunction
 
 function! s:OpenTarget(cmd, offset, Open)
@@ -1454,11 +1504,7 @@ function! s:OpenProject(project)
   let current = a:project
 
   if prev != current
-    if !empty(prev)
-      call s:Debug('Save previous project: '.prev.name)
-      call s:SaveSession()
-      silent! %bdelete
-    endif
+    call s:ClearPrevProject(prev)
     let s:project = current
 
     call s:LoadProject()
@@ -1470,6 +1516,16 @@ function! s:OpenProject(project)
     call s:Info('Open: '.s:project.name)
   else
     call s:Info('Already opened')
+  endif
+endfunction
+
+function! s:ClearPrevProject(prev)
+  if !empty(a:prev)
+    call s:Debug('Save previous project: '.a:prev.name)
+    call s:SaveSession()
+    silent! %bdelete
+
+    let s:list_history = {}
   endif
 endfunction
 
@@ -1542,11 +1598,11 @@ endfunction
 
 function! s:SyncGlobalVariables()
   if !empty(s:project)
-    let g:vim_project = { 
-          \'name': s:project.name, 
+    let g:vim_project = {
+          \'name': s:project.name,
           \'path': s:project.path,
           \'fullpath': s:project.fullpath,
-          \'note': s:project.note, 
+          \'note': s:project.note,
           \'option': s:project.option,
           \'branch': s:branch,
           \}
@@ -1578,8 +1634,8 @@ function! s:SetStartBuffer()
 
   let is_nerdtree_tmp = count(bufname, s:nerdtree_tmp) == 1
   let open_entry = s:open_entry
-        \ || &buftype == 'nofile' 
-        \ || bufname == '' 
+        \ || &buftype == 'nofile'
+        \ || bufname == ''
         \ || is_nerdtree_tmp
   let path = s:GetProjectEntryPath()
   if open_entry
@@ -1590,7 +1646,7 @@ function! s:SetStartBuffer()
     if !empty(path)
       if isdirectory(path)
         if exists('g:loaded_nerd_tree')
-          let edit_cmd = 'NERDTree' 
+          let edit_cmd = 'NERDTree'
         else
           let edit_cmd = 'edit'
         endif
@@ -1736,15 +1792,15 @@ function! s:WatchHeadFileVim(cmd)
   if type(s:head_file_job) == v:t_job
     call job_stop(s:head_file_job)
   endif
-  let s:head_file_job = job_start(a:cmd, 
+  let s:head_file_job = job_start(a:cmd,
         \ { 'callback': 'ReloadSession' })
 endfunction
 
 function! s:WatchHeadFileNeoVim(cmd)
-  if s:head_file_job 
+  if s:head_file_job
     call jobstop(s:head_file_job)
   endif
-  let s:head_file_job = jobstart(a:cmd, 
+  let s:head_file_job = jobstart(a:cmd,
         \ { 'on_stdout': 'ReloadSession' })
 endfunction
 
@@ -1772,7 +1828,7 @@ endfunction
 let s:nerdtree_other = 0
 let s:nerdtree_current = 0
 function! s:HandleNerdtreeBefore()
-  let has_nerdtree = exists('g:loaded_nerd_tree') 
+  let has_nerdtree = exists('g:loaded_nerd_tree')
         \&& g:NERDTree.IsOpen()
   if has_nerdtree
     if &filetype != 'nerdtree'
@@ -1785,7 +1841,7 @@ function! s:HandleNerdtreeBefore()
       let s:nerdtree_current_file = expand('%')
       setlocal filetype=
       setlocal syntax=
-      execute 'file '.s:nerdtree_tmp 
+      execute 'file '.s:nerdtree_tmp
     endif
   endif
 endfunction
@@ -1934,7 +1990,7 @@ endfunction
 function! s:GotoLinkedFile(link, open_type)
   let linked_files = a:link.file
   let current_index = index(linked_files, expand('%:e'))
-  
+
   if current_index != -1 " By file extension
     let target =  expand('%:p:r').'.'.linked_files[1 - current_index]
   else " By specific file, default to first one
@@ -2038,11 +2094,11 @@ function! s:GetMatchPos(lnum, input)
       endif
 
       call add(pos, [a:lnum, start + first_length])
-      let second_index += 1 
+      let second_index += 1
     endfor
   endif
 
-  " Try first col after second col 
+  " Try first col after second col
   if start == 0 && second_index > 0
     for char in search[second_index:]
       let start = index(first_col, char, start, 1) + 1
