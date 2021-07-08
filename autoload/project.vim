@@ -209,6 +209,12 @@ function! s:ReplaceHomeWithTide(path)
   return substitute(a:path, '^'.expand('~'), '~', '')
 endfunction
 
+function! s:RemoveProjectPath(path)
+  let result = substitute(a:path, $vim_project, '', '')
+  let result = substitute(result, '^/', '', '')
+  return result
+endfunction
+
 " Ignore path for auto adding
 function! s:IgnoreProject(path)
   let fullpath = s:GetFullPath(a:path)
@@ -577,7 +583,7 @@ function! project#ListProjects()
   let Update = function('s:ProjectListBufferUpdate')
   let Open = function('s:ProjectListBufferOpen')
   let s:prefix = s:project_list_prefix
-  call s:HandleInput(Init, Update, Open)
+  call s:RenderList(Init, Update, Open)
 endfunction
 
 function! project#SearchFiles()
@@ -586,7 +592,7 @@ function! project#SearchFiles()
   let Update = function('s:SearchFilesBufferUpdate')
   let Open = function('s:SearchFilesBufferOpen')
   let s:prefix = s:search_files_prefix
-  call s:HandleInput(Init, Update, Open)
+  call s:RenderList(Init, Update, Open)
 endfunction
 
 function! project#FindInFiles()
@@ -595,7 +601,7 @@ function! project#FindInFiles()
   let Update = function('s:FindInFilesBufferUpdateTimer')
   let Open = function('s:FindInFilesBufferOpen')
   let s:prefix = s:find_in_files_prefix
-  call s:HandleInput(Init, Update, Open)
+  call s:RenderList(Init, Update, Open)
 endfunction
 
 function! s:PrepareListBuffer()
@@ -639,7 +645,8 @@ function! s:SetupListBuffer()
   setlocal nocursorline
   setlocal nowrap
   set laststatus=0
-  nnoremap<buffer> <esc> :call <SID>CloseListBuffer()<cr>
+  nnoremap<buffer> <esc>
+        \ :call <SID>RemoveListVariables()<cr>:call <SID>CloseListBuffer()<cr>
   syntax match FirstColumn /^\S*/
 
   " highlight ItemSelected gui=reverse term=reverse cterm=reverse
@@ -1216,8 +1223,8 @@ endfunction
 
 function! s:GetGrepResult(input)
   let list = s:GetVimGrepResult(a:input)
-
-  return s:GetMergedList(list)
+  let result = s:GetJoinedList(list)
+  return result
 endfunction
 
 function! s:HasFile(list, file)
@@ -1229,28 +1236,31 @@ function! s:HasFile(list, file)
   return 0
 endfunction
 
-function! s:GetMergedList(list)
-  let merged_list = []
+function! s:GetJoinedList(list)
+  let joined_list = []
   for item in a:list
-    if !s:HasFile(merged_list, item.file)
-      call add(merged_list, { 'file': item.file })
+    if !s:HasFile(joined_list, item.file)
+      call add(joined_list, { 'file': item.file })
     endif
-    call add(merged_list, { 'lnum': item.lnum, 'line': item.line })
+    call add(joined_list, item)
   endfor
-  return merged_list
+  return joined_list
 endfunction
 
 function! s:GetVimGrepResult(input)
   let input = escape(a:input, '/')
-  let cmd = 'silent! vimgrep /'.input.'/j **/*'
+
+  let cmd = 'silent! vimgrep /'.input.'/j '.$vim_project.'/**/*'
   execute cmd
 
   let qflist = getqflist()
-  return map(qflist, {_, val -> { 
-        \'file': bufname(val.bufnr), 
+  let result = map(qflist, {_, val -> { 
+        \'file': s:RemoveProjectPath(getbufinfo(val.bufnr)[0].name), 
         \'lnum': val.lnum,
         \'line': val.text, 
         \}})
+
+  return result
 endfunction
 
 function! s:GetFindInFilesResult(input)
@@ -1264,8 +1274,8 @@ function! s:GetFindInFilesResult(input)
 endfunction
 
 function! s:GetFindInFilesDisplay(list)
-  return map(a:list, {_, val ->
-        \  has_key(val, 'file') ? val.file : '  '.val.line
+  return map(copy(a:list), {_, val ->
+        \  has_key(val, 'line') ? '  '.val.line : val.file
         \})
 endfunction
 
@@ -1303,8 +1313,8 @@ endfunction
 function! s:FindInFilesBufferOpen(target, open_cmd)
   let cmd = substitute(a:open_cmd, 'open_\?', '', '')
   let cmd = cmd == '' ? 'edit' : cmd
-  let file = $vim_project.'/'.a:target.path.'/'.a:target.file
-  execute cmd.' '.file
+  let file = $vim_project.'/'.a:target.file
+  execute cmd.' +'.a:target.lnum.' '.file
 endfunction
 
 function! s:ShowInputLine(input)
@@ -1312,18 +1322,32 @@ function! s:ShowInputLine(input)
   echo s:prefix.' '.a:input
 endfunction
 
-function! s:HandleInput(Init, Update, Open)
+function! s:RenderList(Init, Update, Open)
   " Init
   " Make sure prev input != input on start
   let s:input = -1
   let s:list = []
-  let open_cmds = ['open', 'open_split', 'open_vsplit', 'open_tabedit']
 
   let input = ''
   let offset = { 'value': 0 }
   call a:Init(input, offset)
 
-  call s:ShowInputLine('')
+  call s:ShowInputLine(input)
+
+  let cmd = s:HandleInput(input, offset, a:Update)
+
+  call s:CloseListBuffer()
+
+  if s:IsOpenCmd(cmd)
+    call s:OpenTarget(cmd, offset, a:Open)
+  endif
+
+  call s:RemoveListVariables()
+endfunction
+
+function! s:HandleInput(input, offset, Update)
+  let input = a:input
+  let offset = a:offset
 
   try
     while 1
@@ -1354,7 +1378,7 @@ function! s:HandleInput(Init, Update, Open)
         call s:NextView()
       elseif cmd == 'prev_view'
         call s:PreviousView()
-      elseif count(open_cmds, cmd) > 0
+      elseif s:IsOpenCmd(cmd)
         break
       else
         let input = input.char
@@ -1368,13 +1392,12 @@ function! s:HandleInput(Init, Update, Open)
   finally
   endtry
 
-  call s:CloseListBuffer()
+  return cmd
+endfunction
 
-  if count(open_cmds, cmd) > 0
-    call s:OpenListTarget(cmd, offset, a:Open)
-  endif
-
-  call s:RemoveListVariables()
+function! s:IsOpenCmd(cmd)
+  let open_cmds = ['open', 'open_split', 'open_vsplit', 'open_tabedit']
+  return count(open_cmds, a:cmd) > 0
 endfunction
 
 function! s:RemoveListVariables()
@@ -1383,7 +1406,7 @@ function! s:RemoveListVariables()
   unlet! s:list_initial_result
 endfunction
 
-function! s:OpenListTarget(cmd, offset, Open)
+function! s:OpenTarget(cmd, offset, Open)
   let index = len(s:list) - 1 + a:offset.value
   let target = s:list[index]
   call a:Open(target, a:cmd)
