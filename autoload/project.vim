@@ -620,9 +620,6 @@ function! s:CloseListBuffer()
     return
   endif
 
-  unlet! s:list_result
-  unlet! s:list
-  unlet! s:input
   let s:initial_height = 0
   let &g:laststatus = s:laststatus_save
 
@@ -1095,10 +1092,10 @@ function! s:GetFilesByGlob(dir)
 endfunction
 
 function! s:GetSearchFilesResultList(dir, input)
-  if !exists('s:list_result')
+  if !exists('s:list_initial_result')
     let list = s:GetSearchFilesAll(a:dir)
   else
-    let list = s:GetSearchFilesByFilterAll(a:input)
+    let list = s:GetSearchFilesByFilter(a:input)
   endif
   return list
 endfunction
@@ -1115,42 +1112,42 @@ function! s:GetSearchFilesAll(dir)
   let result = s:GetFilesByGlob(a:dir)
 
   call s:MapSearchFiles(result)
-  let s:list_result = result
-  let list = copy(s:list_result)
+  let s:list_initial_result = result
+  let list = copy(s:list_initial_result)
   return list
 endfunction
 
-function! s:GetSearchFilesByFilterAll(input)
+function! s:GetSearchFilesByFilter(input)
   " file
-  let filter1 = a:input
+  let filter0 = a:input
   let list = []
 
   if len(a:input) < 3
-    let filter0 = '^'.filter1
-    let list = filter(copy(s:list_result), {_, val -> val.file =~ filter0})
+    let filter1 = '^'.filter0
+    let list = filter(copy(s:list_initial_result), {_, val -> val.file =~ filter1})
   endif
 
   if len(list) < s:max_height
-    let list = filter(copy(s:list_result), {_, val -> val.file =~ filter1})
+    let list = filter(copy(s:list_initial_result), {_, val -> val.file =~ filter0})
     " Avoid sort long list for performance
     call s:SortSearchFiles(list, a:input)
   endif
 
   if len(list) < s:max_height
     let filter2 = join(split(a:input, '\zs'), '.*')
-    let list2 = filter(copy(s:list_result), {_, val -> val.file =~ filter2})
+    let list2 = filter(copy(s:list_initial_result), {_, val -> val.file =~ filter2})
     call s:SortSearchFiles(list2, a:input)
     let list += list2
   endif
 
   " path.file
   if len(list) < s:max_height
-    let list2 = filter(copy(s:list_result), {_, val -> val.path.val.file =~ filter1})
+    let list2 = filter(copy(s:list_initial_result), {_, val -> val.path.val.file =~ filter0})
     let list += list2
   endif
 
   if len(list) < s:max_height
-    let list2 = filter(copy(s:list_result), {_, val -> val.path.val.file =~ filter2})
+    let list2 = filter(copy(s:list_initial_result), {_, val -> val.path.val.file =~ filter2})
     let list += list2
   endif
   return list
@@ -1298,7 +1295,7 @@ function! s:FindInFilesBufferUpdate(input, offset, id)
   endif
 
   call s:HighlightCurrentLine(len(s:list), a:offset)
-  let pattern = '^\s\+.*\zs'.a:input
+  let pattern = '\c^\s\+.*\zs'.a:input
   call s:HighlightInputCharsAsPattern(pattern)
   call s:ShowInputLine(a:input)
 endfunction
@@ -1374,10 +1371,22 @@ function! s:HandleInput(Init, Update, Open)
   call s:CloseListBuffer()
 
   if count(open_cmds, cmd) > 0
-    let index = len(s:list) - 1 + offset.value
-    let target = s:list[index]
-    call a:Open(target, cmd)
+    call s:OpenListTarget(cmd, offset, a:Open)
   endif
+
+  call s:RemoveListVariables()
+endfunction
+
+function! s:RemoveListVariables()
+  unlet! s:list
+  unlet! s:input
+  unlet! s:list_initial_result
+endfunction
+
+function! s:OpenListTarget(cmd, offset, Open)
+  let index = len(s:list) - 1 + a:offset.value
+  let target = s:list[index]
+  call a:Open(target, a:cmd)
 endfunction
 
 function! s:IsValidProject(project)
