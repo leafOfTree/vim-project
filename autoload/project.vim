@@ -26,7 +26,7 @@ function! s:Prepare()
         \'session': 0,
         \'branch': 0,
         \'open_entry': 0,
-        \'auto_detect': 'always',
+        \'auto_detect': 'no',
         \'auto_detect_file': ['.git', '.svn'],
         \'auto_load_on_start': 0,
         \'project_base': '~',
