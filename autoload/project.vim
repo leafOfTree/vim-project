@@ -1241,7 +1241,8 @@ function! s:SearchFilesBufferOpen(target, open_cmd)
 endfunction
 
 function! s:GetGrepResult(input)
-  let list = s:GetVimGrepResult(a:input)
+  " let list = s:GetVimgrepResult(a:input)
+  let list = s:GetRipgrepResult(a:input)
   let result = s:GetJoinedList(list)
   return result
 endfunction
@@ -1266,7 +1267,7 @@ function! s:GetJoinedList(list)
   return joined_list
 endfunction
 
-function! s:GetVimGrepResult(input)
+function! s:GetVimgrepResult(input)
   let input = escape(a:input, '/')
 
   let original_wildignore = &wildignore
@@ -1286,6 +1287,17 @@ function! s:GetVimGrepResult(input)
         \'line': val.text,
         \}})
 
+  return result
+endfunction
+
+function! s:GetRipgrepResult(input)
+  let cmd = 'cd '.$vim_project.' && rg -n '.a:input.' '
+  let result = systemlist(cmd)
+  call map(map(result, {_, val -> split(val, ':')}), {_, val -> {
+        \'file': val[0],
+        \'lnum': val[1],
+        \'line': join(val[2:]),
+        \}})
   return result
 endfunction
 
