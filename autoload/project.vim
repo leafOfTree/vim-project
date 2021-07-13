@@ -6,7 +6,7 @@ function! s:Prepare()
   let s:project_list_prefix = 'Open a project:'
   let s:search_files_prefix = 'Search files by name:'
   let s:find_in_files_prefix = 'Find in files:'
-  let s:find_in_files_max = 100
+  let s:find_in_files_max = 200
   let s:list_history = {}
   let s:laststatus_save = &laststatus
   let s:initial_height = 0
@@ -53,6 +53,8 @@ function! s:Prepare()
         \'next_item':    ["\<c-j>", "\<down>"],
         \'first_item':   ["\<c-h>", "\<left>"],
         \'last_item':    ["\<c-l>", "\<right>"],
+        \'scroll_up':      "\<c-p>",
+        \'scroll_down':    "\<c-n>",
         \'prev_view':    "\<s-tab>",
         \'next_view':    "\<tab>",
         \}
@@ -681,25 +683,22 @@ function! s:IsCurrentListBuffer()
   return expand('%') == s:list_buffer
 endfunction
 
-function! s:HighlightCurrentLine(length, offset)
-  let length = a:length
+function! s:HighlightCurrentLine(list_length, offset)
+  let length = a:list_length
   let offset = a:offset
   sign unplace 9
   if length > 0
-    let current = length
-    if offset.value > 0
-      let offset.value = 0
-    elseif current + offset.value < 1
-      let offset.value = 1 - current
-    endif
-    let current += offset.value
+    let current = length + offset.value
+
     if length < s:initial_height
+      " Add extra empty liens to keep initial height
       let current += s:initial_height - length
     endif
     execute 'sign place 9 line='.current.' name=selected'
   endif
 
   if length > s:max_height
+    normal! G
     execute 'normal! '.string(current).'G'
   endif
 endfunction
@@ -1512,23 +1511,24 @@ function! s:RenderList(Init, Update, Open)
     call s:OpenTarget(cmd, offset, a:Open)
   endif
 
-  call s:ResetListVariables()
+  call s:ResetListVariables(offset)
 endfunction
 
 function! s:InitListVariables(Init)
   if has_key(s:list_history, s:list_type)
     let prev = s:list_history[s:list_type]
     let input = prev.input
+    let offset = prev.offset
     let s:initial_height = prev.initial_height
   else
     let input = ''
+    let offset = { 'value': 0 }
   endif
 
   " Make sure s:input is differrent from input to trigger query
   let s:input = -1
 
   let s:list = []
-  let offset = { 'value': 0 }
 
   call a:Init(input, offset)
   return [input, offset]
@@ -1567,10 +1567,21 @@ function! s:HandleInput(input, offset, Update)
         call s:NextView()
       elseif cmd == 'prev_view'
         call s:PreviousView()
+      elseif cmd == 'scroll_up'
+        let offset.value = offset.value - winheight(0)/2
+      elseif cmd == 'scroll_down'
+        let offset.value = offset.value + winheight(0)/2
       elseif s:IsOpenCmd(cmd)
         break
       else
         let input = input.char
+      endif
+
+      if offset.value > 0
+        let offset.value = 0
+      endif
+      if offset.value < 1 - len(s:list)
+        let offset.value = 1 - len(s:list)
       endif
 
       call a:Update(input, offset)
@@ -1589,11 +1600,12 @@ function! s:IsOpenCmd(cmd)
   return count(open_cmds, a:cmd) > 0
 endfunction
 
-function! s:ResetListVariables()
+function! s:ResetListVariables(offset)
   if s:list_type == 'FIND_IN_FILES'
     let s:list_history[s:list_type] = {
           \'input': s:input,
-          \'initial_height': s:initial_height
+          \'offset': a:offset,
+          \'initial_height': s:initial_height,
           \}
   endif
 
