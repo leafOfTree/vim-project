@@ -958,7 +958,7 @@ function! s:TabulateList(list, keys, max_col_width, no_limit_keys)
   endfor
 endfunction
 
-function! s:GetProjectListCommand(char)
+function! s:GetListCommand(char)
   let command = ''
   for [key, value] in items(s:list_mapping)
     if type(value) == v:t_string
@@ -1512,7 +1512,7 @@ function! s:HandleInput(input, offset, Update)
     while 1
       let c = getchar()
       let char = type(c) == v:t_string ? c : nr2char(c)
-      let cmd = s:GetProjectListCommand(char)
+      let cmd = s:GetListCommand(char)
       if cmd == 'close_list'
         break
       elseif cmd == 'clear_char'
