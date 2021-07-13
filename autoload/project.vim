@@ -672,7 +672,8 @@ function! s:SetupListBuffer()
   highlight link InputChar Constant
   highlight! link SignColumn Noise
 
-  syntax match Comment /file results\|recently opened\|\[+\]/
+  syntax match Comment /file results\|recently opened/
+  syntax match Todo /\[+\]/
   sign define selected text=> texthl=ItemSelected linehl=ItemSelected
 endfunction
 
@@ -1250,6 +1251,7 @@ function! s:GetGrepResult(input)
   else
     let list = s:RunVimGrep(a:input)
   endif
+  let list = s:RunGrep(a:input)
 
   let result = s:GetJoinedList(list)
   return result
@@ -1272,8 +1274,8 @@ function! s:GetAgCmd(input)
         \map(exclude,{_, val -> '--ignore-dir '.val}), ' ')
 
   let pattern = '"'.escape(a:input, '"\').'"'
-  let ag_cmd = 'ag '.pattern.' '.include_arg.' '.exclude_arg
-  return ag_cmd
+  let cmd = 'ag '.pattern.' '.include_arg.' '.exclude_arg
+  return cmd
 endfunction
 
 function! s:RunGrep(input)
@@ -1284,15 +1286,32 @@ function! s:RunGrep(input)
   return result
 endfunction
 
+function! s:GetGrepCmd(input)
+  let include = copy(s:find_in_files_include)
+  let include_arg = join(include, ' ')
+  if empty(include_arg)
+    let include_arg = '.'
+  endif
+
+  let exclude = copy(s:find_in_files_exclude)
+  let exclude_arg = join(
+        \map(exclude,{_, val -> '--exclude-dir '.val}), ' ')
+
+  let pattern = '"'.escape(a:input, '"\').'"'
+  let cmd = 'grep -inR '.pattern.' '.include_arg.' '.exclude_arg
+  return cmd
+endfunction
+
 function! s:GetResultFromGrepOutput(output)
-  let max_length = s:find_in_files_max
+  let output = a:output
   let more = 0
-  if len(output) > max_length
-    let output = a:output[0:max_length]
+  let max_length = s:find_in_files_max
+  if len(a:output) > max_length
+    let output = output[0:max_length]
     let more = 1
   endif
 
-  let result = map(map(a:output, {_, val -> split(val, ':')}), {_, val -> {
+  let result = map(map(output, {_, val -> split(val, ':')}), {_, val -> {
         \'file': val[0],
         \'lnum': val[1],
         \'line': join(val[2:], ':'),
@@ -1387,8 +1406,8 @@ function! s:GetRgCmd(input)
   let exclude_arg = "-g '!{".join(exclude, ',')."}'"
 
   let pattern = escape(a:input, '"\')
-  let rg_cmd = 'rg -ni '.include_arg.' '.exclude_arg.' "'.pattern.'"'
-  return rg_cmd
+  let cmd = 'rg -ni '.include_arg.' '.exclude_arg.' "'.pattern.'"'
+  return cmd
 endfunction
 
 function! s:RunShellCmd(cmd)
