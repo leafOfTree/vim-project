@@ -6,6 +6,7 @@ function! s:Prepare()
   let s:project_list_prefix = 'Open a project:'
   let s:search_files_prefix = 'Search files by name:'
   let s:find_in_files_prefix = 'Find in files:'
+  let s:find_in_files_max = 100
   let s:list_history = {}
   let s:laststatus_save = &laststatus
   let s:initial_height = 0
@@ -114,12 +115,12 @@ function! s:InitConfig()
   let s:enable_branch = s:config.branch
   let s:enable_session = s:config.session
   let s:base = s:config.project_base
-  let s:search_include = s:AdjustPathList(s:config.search_include)
-  let s:search_exclude = s:AdjustPathList(s:config.search_exclude)
+  let s:search_include = s:AdjustPathList(s:config.search_include, ['.'])
+  let s:search_exclude = s:AdjustPathList(s:config.search_exclude, [])
   let s:find_in_files_include =
-        \s:AdjustPathList(s:config.find_in_files_include)
+        \s:AdjustPathList(s:config.find_in_files_include, [])
   let s:find_in_files_exclude =
-        \s:AdjustPathList(s:config.find_in_files_exclude)
+        \s:AdjustPathList(s:config.find_in_files_exclude, [])
 
   " options: 'always'(default), 'ask', 'no'
   let s:auto_detect = s:config.auto_detect
@@ -136,10 +137,10 @@ function! project#SetBase(base)
   let s:base = a:base
 endfunction
 
-function! s:AdjustPathList(paths)
+function! s:AdjustPathList(paths, default)
   let paths = a:paths
   if empty(paths)
-    let paths = ['.']
+    let paths = a:default
   endif
   call map(paths, {_, val -> substitute(val, '\/$', '', '')})
 
@@ -671,7 +672,7 @@ function! s:SetupListBuffer()
   highlight link InfoColumn Comment
   highlight link InputChar Constant
 
-  syntax match Comment /file results\|recently opened\|more\.\.\./
+  syntax match Comment /file results\|recently opened\|\[+\]/
   sign define selected text=> texthl=ItemSelected linehl=ItemSelected
 endfunction
 
@@ -1026,8 +1027,8 @@ function! s:GetSearchFilesDisplay(list, oldfiles_len)
       let display[display_len - oldfiles_len - 1] .= '  file results'
     endif
   endif
-  if len(a:list) > 0 && has_key(a:list[0], 'more') && a:list[0].more
-    let display[0] .= '  more...'
+  if s:IsListMore(a:list)
+    let display[0] .= '  [+]'
   endif
   return display
 endfunction
@@ -1076,7 +1077,7 @@ function! s:GetFilesByFind(dir)
 
   let filter = '-ipath "*"'
   let cmd = 'cd '.a:dir.' && find '.include.' -mindepth 1 '.exclude.filter
-  let result = systemlist(cmd)
+  let result = s:RunShellCmd(cmd)
   return result
 endfunction
 
@@ -1088,7 +1089,7 @@ function! s:GetFilesByFd(dir)
   let exclude = join(map(search_exclude, {_, val -> '-E '.val}), ' ')
 
   let cmd = 'cd '.a:dir.' && fd -HI '.exclude.' . '.include
-  let result = systemlist(cmd)
+  let result = s:RunShellCmd(cmd)
   return result
 endfunction
 
@@ -1125,7 +1126,7 @@ function! s:GetSearchFilesResultList(dir, input)
 endfunction
 
 function! s:GetSearchFilesAll(dir)
-  " Try faster methods first
+  " Try fd, find, glob in order
   if executable('fd')
     let result = s:GetFilesByFd(a:dir)
   elseif executable('find')
@@ -1133,9 +1134,6 @@ function! s:GetSearchFilesAll(dir)
   else
     let result = s:GetFilesByGlob(a:dir)
   endif
-
-  let result = s:GetFilesByGlob(a:dir)
-  echom result
 
   call s:MapSearchFiles(result)
   let s:list_initial_result = result
@@ -1185,10 +1183,13 @@ function! s:GetSearchFiles(dir, input)
 
   let list = oldfiles + search_list
 
-  let show_length = s:max_height - 1
-  let list = list[0:show_length*3]
+  let max_length = s:max_height - 1
+  let list = list[0:max_length*3]
   call s:UniqueList(list)
-  let list = list[0:show_length]
+  if len(list) > max_length
+    let list = list[0:max_length]
+    let list[-1].more = 1
+  endif
 
   call reverse(list)
   return [list, oldfiles]
@@ -1241,9 +1242,48 @@ function! s:SearchFilesBufferOpen(target, open_cmd)
 endfunction
 
 function! s:GetGrepResult(input)
-  " let list = s:GetVimgrepResult(a:input)
-  let list = s:GetRipgrepResult(a:input)
+  " Try rg, ag, vimgrep in order
+  if executable('rg')
+    let list = s:GetRgResult(a:input)
+  elseif executable('ag')
+    let list = s:GetAgResult(a:input)
+  else
+    let list = s:GetVimgrepResult(a:input)
+  endif
+
   let result = s:GetJoinedList(list)
+  return result
+endfunction
+
+function! s:GetAgResult(input)
+  let include = copy(s:find_in_files_include)
+  let include_arg = join(include, ' ')
+
+  let exclude = copy(s:find_in_files_exclude)
+  let exclude_arg = join(
+        \map(exclude,{_, val -> '--ignore-dir '.val}), ' ')
+
+  let pattern = '"'.escape(a:input, '"\').'"'
+  let ag_cmd = 'ag '.pattern.' '.include_arg.' '.exclude_arg
+  let cmd = 'cd '.$vim_project.' && '.ag_cmd
+  let output = s:RunShellCmd(cmd)
+
+  let max_length = s:find_in_files_max
+  let more = 0
+  if len(output) > max_length
+    let output = output[0:max_length]
+    let more = 1
+  endif
+
+  let result = map(map(output, {_, val -> split(val, ':')}), {_, val -> {
+        \'file': val[0],
+        \'lnum': val[1],
+        \'line': join(val[2:], ':'),
+        \}})
+
+  if more
+    let result[0].more = more
+  endif
   return result
 endfunction
 
@@ -1264,6 +1304,10 @@ function! s:GetJoinedList(list)
     endif
     call add(joined_list, item)
   endfor
+
+  if len(a:list) && has_key(a:list[0], 'more')
+    let joined_list[0].more = a:list[0].more
+  endif
   return joined_list
 endfunction
 
@@ -1280,25 +1324,79 @@ function! s:GetVimgrepResult(input)
 
   let &wildignore = original_wildignore
 
-  let qflist = getqflist()
-  let result = map(qflist, {_, val -> {
+  let output = getqflist()
+
+  let max_length = s:find_in_files_max
+  let more = 0
+  if len(output) > max_length
+    let output = output[0:max_length]
+    let more = 1
+  endif
+
+  let result = map(output, {_, val -> {
         \'file': s:RemoveProjectPath(getbufinfo(val.bufnr)[0].name),
         \'lnum': val.lnum,
         \'line': val.text,
         \}})
 
+  if more
+    let result[0].more = more
+  endif
   return result
 endfunction
 
-function! s:GetRipgrepResult(input)
-  let cmd = 'cd '.$vim_project.' && rg -n '.a:input.' '
-  let result = systemlist(cmd)
-  call map(map(result, {_, val -> split(val, ':')}), {_, val -> {
+function! s:GetRgResult(input)
+  let include = copy(s:find_in_files_include)
+  " rg does not support '{./**}'
+  call filter(include, {_, val -> val != '.'})
+
+  if len(include)
+    let include_pattern = map(include, 
+          \{_, val -> val.'/**' })
+    let include_arg = "-g '{".join(include_pattern, ',')."}'"
+  else
+    let include_arg = "-g '{**}'"
+  endif
+
+  let exclude = copy(s:find_in_files_exclude)
+  let exclude_arg = "-g '!{".join(exclude, ',')."}'"
+
+  let pattern = escape(a:input, '"\')
+  let rg_cmd = 'rg -ni '.include_arg.' '.exclude_arg.' "'.pattern.'"'
+  let cmd = 'cd '.$vim_project.' && '.rg_cmd
+  let output = s:RunShellCmd(cmd)
+
+  let max_length = s:find_in_files_max
+  let more = 0
+  if len(output) > max_length
+    let output = output[0:max_length]
+    let more = 1
+  endif
+
+  let result = map(map(output, {_, val -> split(val, ':')}), {_, val -> {
         \'file': val[0],
         \'lnum': val[1],
-        \'line': join(val[2:]),
+        \'line': join(val[2:], ':'),
         \}})
+
+  if more
+    let result[0].more = more
+  endif
   return result
+endfunction
+
+function! s:RunShellCmd(cmd)
+  try
+    let output = systemlist(a:cmd)
+  catch
+    return []
+  endtry
+
+  if v:shell_error
+    return []
+  endif
+
+  return output
 endfunction
 
 function! s:GetFindInFilesResult(input)
@@ -1312,9 +1410,19 @@ function! s:GetFindInFilesResult(input)
 endfunction
 
 function! s:GetFindInFilesDisplay(list)
-  return map(copy(a:list), {_, val ->
+  let display = map(copy(a:list), {_, val ->
         \  has_key(val, 'line') ? '  '.val.line : val.file
         \})
+
+  if s:IsListMore(a:list)
+    let display[0] .= '  [+]'
+  endif
+
+  return display
+endfunction
+
+function! s:IsListMore(list)
+  return len(a:list) && has_key(a:list[0], 'more') && a:list[0].more
 endfunction
 
 function! s:FindInFilesBufferInit(input, offset)
