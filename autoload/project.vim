@@ -703,10 +703,7 @@ function! s:HighlightCurrentLine(length, offset)
   endif
 endfunction
 
-" Default
-" @input: ''
-" @offset: { 'value': 0 }, range -N,...-2,-1,0
-function! s:ShowInListBuffer(display, input, offset)
+function! s:ShowInListBuffer(display, input)
   " Avoid clearing other files by mistake
   if !s:IsCurrentListBuffer()
     return
@@ -985,7 +982,7 @@ function! s:ProjectListBufferUpdate(input, offset)
   let s:list = list
 
   let display = s:GetProjectsDisplay(list)
-  call s:ShowInListBuffer(display, a:input, a:offset)
+  call s:ShowInListBuffer(display, a:input)
 
   call s:HighlightCurrentLine(len(display), a:offset)
   call s:HighlightInputChars(a:input)
@@ -1225,7 +1222,7 @@ endfunction
 function! s:SearchFilesBufferUpdate(input, offset)
   if a:input != s:input
     let [list, display] = s:GetSearchFilesResult(a:input)
-    call s:ShowInListBuffer(display, a:input, a:offset)
+    call s:ShowInListBuffer(display, a:input)
     let s:input = a:input
     let s:list = list
   endif
@@ -1444,7 +1441,7 @@ endfunction
 function! s:FindInFilesBufferUpdate(input, offset, id)
   if a:input != s:input
     let [list, display] = s:GetFindInFilesResult(a:input)
-    call s:ShowInListBuffer(display, a:input, a:offset)
+    call s:ShowInListBuffer(display, a:input)
 
     let s:input = a:input
     let s:list = list
