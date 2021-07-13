@@ -673,7 +673,7 @@ function! s:SetupListBuffer()
   highlight! link SignColumn Noise
 
   syntax match Comment /file results\|recently opened/
-  syntax match Todo /\[+\]/
+  syntax match Special /\[+\]/
   sign define selected text=> texthl=ItemSelected linehl=ItemSelected
 endfunction
 
@@ -1241,31 +1241,31 @@ function! s:SearchFilesBufferOpen(target, open_cmd)
 endfunction
 
 function! s:GetGrepResult(input)
+  let pattern = '"'.escape(a:input, '"\()').'"'
   " Try rg, ag, vimgrep in order
   if executable('rg')
-    let list = s:RunRg(a:input)
+    let list = s:RunRg(pattern)
   elseif executable('ag')
-    let list = s:RunAg(a:input)
+    let list = s:RunAg(pattern)
   elseif executable('grep')
-    let list = s:RunGrep(a:input)
+    let list = s:RunGrep(pattern)
   else
     let list = s:RunVimGrep(a:input)
   endif
-  let list = s:RunGrep(a:input)
 
   let result = s:GetJoinedList(list)
   return result
 endfunction
 
-function! s:RunAg(input)
-  let cmd = s:GetAgCmd(a:input)
+function! s:RunAg(pattern)
+  let cmd = s:GetAgCmd(a:pattern)
   let output = s:RunShellCmd(cmd)
   let result = s:GetResultFromGrepOutput(output)
 
   return result
 endfunction
 
-function! s:GetAgCmd(input)
+function! s:GetAgCmd(pattern)
   let include = copy(s:find_in_files_include)
   let include_arg = join(include, ' ')
 
@@ -1273,20 +1273,19 @@ function! s:GetAgCmd(input)
   let exclude_arg = join(
         \map(exclude,{_, val -> '--ignore-dir '.val}), ' ')
 
-  let pattern = '"'.escape(a:input, '"\').'"'
-  let cmd = 'ag '.pattern.' '.include_arg.' '.exclude_arg
+  let cmd = 'ag '.a:pattern.' '.include_arg.' '.exclude_arg
   return cmd
 endfunction
 
-function! s:RunGrep(input)
-  let cmd = s:GetGrepCmd(a:input)
+function! s:RunGrep(pattern)
+  let cmd = s:GetGrepCmd(a:pattern)
   let output = s:RunShellCmd(cmd)
   let result = s:GetResultFromGrepOutput(output)
 
   return result
 endfunction
 
-function! s:GetGrepCmd(input)
+function! s:GetGrepCmd(pattern)
   let include = copy(s:find_in_files_include)
   let include_arg = join(include, ' ')
   if empty(include_arg)
@@ -1297,8 +1296,7 @@ function! s:GetGrepCmd(input)
   let exclude_arg = join(
         \map(exclude,{_, val -> '--exclude-dir '.val}), ' ')
 
-  let pattern = '"'.escape(a:input, '"\').'"'
-  let cmd = 'grep -inR '.pattern.' '.include_arg.' '.exclude_arg
+  let cmd = 'grep -inR '.a:pattern.' '.include_arg.' '.exclude_arg
   return cmd
 endfunction
 
@@ -1381,15 +1379,15 @@ function! s:RunVimGrep(input)
   return result
 endfunction
 
-function! s:RunRg(input)
-  let rg_cmd = s:GetRgCmd(a:input)
+function! s:RunRg(pattern)
+  let rg_cmd = s:GetRgCmd(a:pattern)
   let output = s:RunShellCmd(rg_cmd)
   let result = s:GetResultFromGrepOutput(output)
 
   return result
 endfunction
 
-function! s:GetRgCmd(input)
+function! s:GetRgCmd(pattern)
   let include = copy(s:find_in_files_include)
   " rg does not support '{./**}'
   call filter(include, {_, val -> val != '.'})
@@ -1405,8 +1403,7 @@ function! s:GetRgCmd(input)
   let exclude = copy(s:find_in_files_exclude)
   let exclude_arg = "-g '!{".join(exclude, ',')."}'"
 
-  let pattern = escape(a:input, '"\')
-  let cmd = 'rg -ni '.include_arg.' '.exclude_arg.' "'.pattern.'"'
+  let cmd = 'rg -ni '.include_arg.' '.exclude_arg.' '.a:pattern
   return cmd
 endfunction
 
