@@ -666,11 +666,11 @@ function! s:SetupListBuffer()
   set laststatus=0
   syntax match FirstColumn /^\S*/
 
-  highlight! link ItemSelected CursorLine
-  highlight! link SignColumn Noise
+  highlight link ItemSelected CursorLine
   highlight link FirstColumn Keyword
   highlight link InfoColumn Comment
   highlight link InputChar Constant
+  highlight! link SignColumn Noise
 
   syntax match Comment /file results\|recently opened\|\[+\]/
   sign define selected text=> texthl=ItemSelected linehl=ItemSelected
@@ -1035,7 +1035,7 @@ function! s:GetSearchFilesDisplayRow(idx, value)
   return value.__file.'  '.value.__path
 endfunction
 
-function! s:GetSearchFilesByOldFiles(dir, input)
+function! s:GetSearchFilesByOldFiles(input)
   let oldfiles = copy(v:oldfiles)
 
   for buf in getbufinfo({'buflisted': 1})
@@ -1045,12 +1045,14 @@ function! s:GetSearchFilesByOldFiles(dir, input)
   endfor
 
   call map(oldfiles, {_, val -> fnamemodify(val, ':p')})
+
+  let dir = fnamemodify($vim_project, ':p')
   call filter(oldfiles, {_, val ->
-        \count(val, a:dir) > 0
+        \count(val, dir) > 0
         \ && count(['ControlP', ''], fnamemodify(val, ':t')) == 0
         \ && (filereadable(val) || isdirectory(val))
         \})
-  call map(oldfiles, {_, val -> substitute(val, a:dir, './', '')})
+  call map(oldfiles, {_, val -> substitute(val, dir, './', '')})
 
   call s:MapSearchFiles(oldfiles)
   let filter = join(split(a:input, '\zs'), '.*')
@@ -1061,7 +1063,7 @@ function! s:GetSearchFilesByOldFiles(dir, input)
   return oldfiles
 endfunction
 
-function! s:GetFilesByFind(dir)
+function! s:GetFilesByFind()
   let search_include = copy(s:search_include)
   if empty(search_include)
     let search_include = ['.']
@@ -1073,24 +1075,24 @@ function! s:GetFilesByFind(dir)
   let exclude = '\( '.exclude_string.' \) -prune -false -o '
 
   let filter = '-ipath "*"'
-  let cmd = 'cd '.a:dir.' && find '.include.' -mindepth 1 '.exclude.filter
+  let cmd = 'find '.include.' -mindepth 1 '.exclude.filter
   let result = s:RunShellCmd(cmd)
   return result
 endfunction
 
-function! s:GetFilesByFd(dir)
+function! s:GetFilesByFd()
   let search_include = copy(s:search_include)
   let include = join(search_include, ' ')
 
   let search_exclude = copy(s:search_exclude)
   let exclude = join(map(search_exclude, {_, val -> '-E '.val}), ' ')
 
-  let cmd = 'cd '.a:dir.' && fd -HI '.exclude.' . '.include
+  let cmd = 'fd -HI '.exclude.' . '.include
   let result = s:RunShellCmd(cmd)
   return result
 endfunction
 
-function! s:GetFilesByGlob(dir)
+function! s:GetFilesByGlob()
   let search_include = s:search_include
   if empty(search_include)
     let search_include = ['.']
@@ -1098,7 +1100,7 @@ function! s:GetFilesByGlob(dir)
 
   let original_wildignore = &wildignore
   let cwd = getcwd()
-  execute 'cd '.a:dir
+  execute 'cd '.$vim_project
   for exclue in s:search_exclude
     execute 'set wildignore+=*/'.exclue.'*'
   endfor
@@ -1113,23 +1115,23 @@ function! s:GetFilesByGlob(dir)
   return result
 endfunction
 
-function! s:GetSearchFilesResultList(dir, input)
+function! s:GetSearchFilesResultList(input)
   if !exists('s:list_initial_result')
-    let list = s:GetSearchFilesAll(a:dir)
+    let list = s:GetSearchFilesAll()
   else
     let list = s:GetSearchFilesByFilter(a:input)
   endif
   return list
 endfunction
 
-function! s:GetSearchFilesAll(dir)
+function! s:GetSearchFilesAll()
   " Try fd, find, glob in order
   if executable('fd')
-    let result = s:GetFilesByFd(a:dir)
+    let result = s:GetFilesByFd()
   elseif executable('find')
-    let result = s:GetFilesByFind(a:dir)
+    let result = s:GetFilesByFind()
   else
-    let result = s:GetFilesByGlob(a:dir)
+    let result = s:GetFilesByGlob()
   endif
 
   call s:MapSearchFiles(result)
@@ -1174,9 +1176,9 @@ function! s:GetSearchFilesByFilter(input)
   return list
 endfunction
 
-function! s:GetSearchFiles(dir, input)
-  let oldfiles = s:GetSearchFilesByOldFiles(a:dir, a:input)
-  let search_list = s:GetSearchFilesResultList(a:dir, a:input)
+function! s:GetSearchFiles(input)
+  let oldfiles = s:GetSearchFilesByOldFiles(a:input)
+  let search_list = s:GetSearchFilesResultList(a:input)
 
   let list = oldfiles + search_list
 
@@ -1207,8 +1209,7 @@ function! s:SortSearchFiles(list, input)
 endfunction
 
 function! s:GetSearchFilesResult(input)
-  let dir = fnamemodify($vim_project, ':p')
-  let [list, oldfiles] = s:GetSearchFiles(dir, a:input)
+  let [list, oldfiles] = s:GetSearchFiles(a:input)
   let max_col_width = s:max_width / 8 * 5
   call s:TabulateList(list, ['file', 'path'], max_col_width, ['path'])
   let display = s:GetSearchFilesDisplay(list, len(oldfiles))
@@ -1241,18 +1242,28 @@ endfunction
 function! s:GetGrepResult(input)
   " Try rg, ag, vimgrep in order
   if executable('rg')
-    let list = s:GetRgResult(a:input)
+    let list = s:RunRg(a:input)
   elseif executable('ag')
-    let list = s:GetAgResult(a:input)
+    let list = s:RunAg(a:input)
+  elseif executable('grep')
+    let list = s:RunGrep(a:input)
   else
-    let list = s:GetVimgrepResult(a:input)
+    let list = s:RunVimGrep(a:input)
   endif
 
   let result = s:GetJoinedList(list)
   return result
 endfunction
 
-function! s:GetAgResult(input)
+function! s:RunAg(input)
+  let cmd = s:GetAgCmd(a:input)
+  let output = s:RunShellCmd(cmd)
+  let result = s:GetResultFromGrepOutput(output)
+
+  return result
+endfunction
+
+function! s:GetAgCmd(input)
   let include = copy(s:find_in_files_include)
   let include_arg = join(include, ' ')
 
@@ -1262,17 +1273,26 @@ function! s:GetAgResult(input)
 
   let pattern = '"'.escape(a:input, '"\').'"'
   let ag_cmd = 'ag '.pattern.' '.include_arg.' '.exclude_arg
-  let cmd = 'cd '.$vim_project.' && '.ag_cmd
-  let output = s:RunShellCmd(cmd)
+  return ag_cmd
+endfunction
 
+function! s:RunGrep(input)
+  let cmd = s:GetGrepCmd(a:input)
+  let output = s:RunShellCmd(cmd)
+  let result = s:GetResultFromGrepOutput(output)
+
+  return result
+endfunction
+
+function! s:GetResultFromGrepOutput(output)
   let max_length = s:find_in_files_max
   let more = 0
   if len(output) > max_length
-    let output = output[0:max_length]
+    let output = a:output[0:max_length]
     let more = 1
   endif
 
-  let result = map(map(output, {_, val -> split(val, ':')}), {_, val -> {
+  let result = map(map(a:output, {_, val -> split(val, ':')}), {_, val -> {
         \'file': val[0],
         \'lnum': val[1],
         \'line': join(val[2:], ':'),
@@ -1308,7 +1328,7 @@ function! s:GetJoinedList(list)
   return joined_list
 endfunction
 
-function! s:GetVimgrepResult(input)
+function! s:RunVimGrep(input)
   let input = escape(a:input, '/')
 
   let original_wildignore = &wildignore
@@ -1342,7 +1362,15 @@ function! s:GetVimgrepResult(input)
   return result
 endfunction
 
-function! s:GetRgResult(input)
+function! s:RunRg(input)
+  let rg_cmd = s:GetRgCmd(a:input)
+  let output = s:RunShellCmd(rg_cmd)
+  let result = s:GetResultFromGrepOutput(output)
+
+  return result
+endfunction
+
+function! s:GetRgCmd(input)
   let include = copy(s:find_in_files_include)
   " rg does not support '{./**}'
   call filter(include, {_, val -> val != '.'})
@@ -1360,31 +1388,13 @@ function! s:GetRgResult(input)
 
   let pattern = escape(a:input, '"\')
   let rg_cmd = 'rg -ni '.include_arg.' '.exclude_arg.' "'.pattern.'"'
-  let cmd = 'cd '.$vim_project.' && '.rg_cmd
-  let output = s:RunShellCmd(cmd)
-
-  let max_length = s:find_in_files_max
-  let more = 0
-  if len(output) > max_length
-    let output = output[0:max_length]
-    let more = 1
-  endif
-
-  let result = map(map(output, {_, val -> split(val, ':')}), {_, val -> {
-        \'file': val[0],
-        \'lnum': val[1],
-        \'line': join(val[2:], ':'),
-        \}})
-
-  if more
-    let result[0].more = more
-  endif
-  return result
+  return rg_cmd
 endfunction
 
 function! s:RunShellCmd(cmd)
+  let cmd = 'cd '.$vim_project.' && '.a:cmd
   try
-    let output = systemlist(a:cmd)
+    let output = systemlist(cmd)
   catch
     return []
   endtry
