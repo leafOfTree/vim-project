@@ -1433,15 +1433,22 @@ function! s:GetFindInFilesResult(input)
 endfunction
 
 function! s:GetFindInFilesDisplay(list)
-  let display = map(copy(a:list), {_, val ->
-        \  has_key(val, 'line') ? '  '.val.line : val.file
-        \})
+  let display = map(copy(a:list), function('s:GetFindInFilesDisplayRow'))
 
   if s:IsListMore(a:list)
     let display[0] .= '  [+]'
   endif
 
   return display
+endfunction
+
+function! s:GetFindInFilesDisplayRow(idx, val)
+  let isFile = !has_key(a:val, 'line')
+  if isFile
+    return a:val.file
+  else
+    return '  '.a:val.line
+  endif
 endfunction
 
 function! s:IsListMore(list)
