@@ -1249,7 +1249,8 @@ function! s:GetGrepResult(input)
   elseif executable('grep')
     let list = s:RunGrep(pattern)
   else
-    let list = s:RunVimGrep(a:input)
+    let pattern = escape(a:input, '/')
+    let list = s:RunVimGrep(a:pattern)
   endif
 
   let result = s:GetJoinedList(list)
@@ -1344,15 +1345,14 @@ function! s:GetJoinedList(list)
   return joined_list
 endfunction
 
-function! s:RunVimGrep(input)
-  let input = escape(a:input, '/')
+function! s:RunVimGrep(pattern)
 
   let original_wildignore = &wildignore
   for exclue in s:find_in_files_exclude
     execute 'set wildignore+=*/'.exclue.'*'
   endfor
 
-  let cmd = 'silent! vimgrep /'.input.'/j '.$vim_project.'/**/*'
+  let cmd = 'silent! vimgrep /'.a:pattern.'/j '.$vim_project.'/**/*'
   execute cmd
 
   let &wildignore = original_wildignore
@@ -2180,7 +2180,7 @@ endfunction
 function! s:HighlightInputCharsAsPattern(input)
   call clearmatches()
 
-  execute 'silent! match InputChar /'.a:input.'/'
+  execute 'silent! match InputChar /'.escape(a:input, '|/').'/'
 endfunction
 
 function! s:HighlightInputChars(input)
