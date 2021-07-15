@@ -1496,7 +1496,7 @@ function! s:FindInFilesBufferUpdateTimer(input)
   if !s:ShouldGetFindInFiles(a:input)
     call s:FindInFilesBufferUpdate(a:input, 0)
   else
-    let s:update_timer = timer_start(300,
+    let s:update_timer = timer_start(350,
           \function('s:FindInFilesBufferUpdate', [a:input]))
   endif
 endfunction
