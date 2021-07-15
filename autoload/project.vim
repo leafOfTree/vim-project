@@ -1284,8 +1284,6 @@ function! s:GetGrepResult(input)
     let list = s:RunVimGrep(pattern)
   endif
 
-  let list = s:RunAg(pattern)
-
   let result = s:GetJoinedList(list)
   return result
 endfunction
