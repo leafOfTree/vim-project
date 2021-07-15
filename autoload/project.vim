@@ -693,12 +693,18 @@ function! s:IsCurrentListBuffer()
   return expand('%') == s:list_buffer
 endfunction
 
-function! s:HighlightCurrentLine(list_length, offset)
+function! s:HighlightCurrentLine(list_length)
   let length = a:list_length
-  let offset = a:offset
   sign unplace 9
   if length > 0
-    let current = length + offset
+    if s:offset > 0
+      let s:offset = 0
+    endif
+    if s:offset < 1 - length
+      let s:offset = 1 - length
+    endif
+
+    let current = length + s:offset
 
     if length < s:initial_height
       " Add extra empty liens to keep initial height
@@ -981,20 +987,20 @@ function! s:GetListCommand(char)
   return command
 endfunction
 
-function! s:ProjectListBufferInit(input, offset)
+function! s:ProjectListBufferInit(input)
   let max_col_width = s:max_width / 2 - 10
   call s:TabulateList(s:projects, ['name', 'path', 'note'], max_col_width, ['note'])
-  return s:ProjectListBufferUpdate(a:input, a:offset)
+  return s:ProjectListBufferUpdate(a:input)
 endfunction
 
-function! s:ProjectListBufferUpdate(input, offset)
+function! s:ProjectListBufferUpdate(input)
   let list = s:FilterProjects(copy(s:projects), a:input)
   let s:list = list
 
   let display = s:GetProjectsDisplay(list)
   call s:ShowInListBuffer(display, a:input)
 
-  call s:HighlightCurrentLine(len(display), a:offset)
+  call s:HighlightCurrentLine(len(display))
   call s:HighlightInputChars(a:input)
 endfunction
 
@@ -1226,11 +1232,11 @@ function! s:GetSearchFilesResult(input)
   return [list, display]
 endfunction
 
-function! s:SearchFilesBufferInit(input, offset)
-  return s:SearchFilesBufferUpdate(a:input, a:offset)
+function! s:SearchFilesBufferInit(input)
+  return s:SearchFilesBufferUpdate(a:input)
 endfunction
 
-function! s:SearchFilesBufferUpdate(input, offset)
+function! s:SearchFilesBufferUpdate(input)
   if a:input != s:input
     let [list, display] = s:GetSearchFilesResult(a:input)
     call s:ShowInListBuffer(display, a:input)
@@ -1238,7 +1244,7 @@ function! s:SearchFilesBufferUpdate(input, offset)
     let s:list = list
   endif
 
-  call s:HighlightCurrentLine(len(s:list), a:offset)
+  call s:HighlightCurrentLine(len(s:list))
   call s:HighlightInputChars(a:input)
 endfunction
 
@@ -1478,23 +1484,23 @@ function! s:IsListMore(list)
   return len(a:list) && has_key(a:list[0], 'more') && a:list[0].more
 endfunction
 
-function! s:FindInFilesBufferInit(input, offset)
-  return s:FindInFilesBufferUpdate(a:input, a:offset, 0)
+function! s:FindInFilesBufferInit(input)
+  return s:FindInFilesBufferUpdate(a:input, 0)
 endfunction
 
 let s:update_timer = 0
 
-function! s:FindInFilesBufferUpdateTimer(input, offset)
+function! s:FindInFilesBufferUpdateTimer(input)
   call timer_stop(s:update_timer)
   if a:input == s:input
-    call s:FindInFilesBufferUpdate(a:input, a:offset, 0)
+    call s:FindInFilesBufferUpdate(a:input, 0)
   else
     let s:update_timer = timer_start(300,
-          \function('s:FindInFilesBufferUpdate', [a:input, a:offset]))
+          \function('s:FindInFilesBufferUpdate', [a:input]))
   endif
 endfunction
 
-function! s:FindInFilesBufferUpdate(input, offset, id)
+function! s:FindInFilesBufferUpdate(input, id)
   if a:input != s:input
     let [list, display] = s:GetFindInFilesResult(a:input)
     call s:ShowInListBuffer(display, a:input)
@@ -1503,7 +1509,7 @@ function! s:FindInFilesBufferUpdate(input, offset, id)
     let s:list = list
   endif
 
-  call s:HighlightCurrentLine(len(s:list), a:offset)
+  call s:HighlightCurrentLine(len(s:list))
   if a:input != ''
     let pattern = '\c^\s\+.*\zs'.a:input
     call s:HighlightInputCharsAsPattern(pattern)
@@ -1525,19 +1531,19 @@ function! s:ShowInputLine(input)
 endfunction
 
 function! s:RenderList(Init, Update, Open)
-  let [input, offset] = s:InitListVariables(a:Init)
+  let input = s:InitListVariables(a:Init)
 
   call s:ShowInputLine(input)
 
-  let [cmd, input, offset] = s:HandleInput(input, offset, a:Update)
+  let [cmd, input] = s:HandleInput(input, a:Update)
 
   call s:CloseListBuffer()
 
   if s:IsOpenCmd(cmd)
-    call s:OpenTarget(cmd, offset, a:Open)
+    call s:OpenTarget(cmd, a:Open)
   endif
 
-  call s:SaveListVariables(input, offset)
+  call s:SaveListVariables(input)
   call s:ResetListVariables()
 endfunction
 
@@ -1546,17 +1552,17 @@ function! s:InitListVariables(Init)
   if has_history
     let prev = s:list_history[s:list_type]
     let input = prev.input
-    let offset = prev.offset
+    let s:offset = prev.offset
     let s:initial_height = prev.initial_height
   else
     let input = ''
-    let offset = 0
+    let s:offset = 0
   endif
 
   " Make sure s:input (saved input) is differrent from input to trigger query
   let s:input = -1
   let s:list = []
-  call a:Init(input, offset)
+  call a:Init(input)
 
   " Empty input if it's set from history
   if has_history
@@ -1564,12 +1570,11 @@ function! s:InitListVariables(Init)
     let input = ''
   endif
 
-  return [input, offset]
+  return input
 endfunction
 
-function! s:HandleInput(input, offset, Update)
+function! s:HandleInput(input, Update)
   let input = a:input
-  let offset = a:offset
 
   try
     while 1
@@ -1589,35 +1594,28 @@ function! s:HandleInput(input, offset, Update)
       elseif cmd == 'clear_all'
         let input = ''
       elseif cmd == 'prev_item'
-        let offset -= 1
+        let s:offset -= 1
       elseif cmd == 'next_item'
-        let offset += 1
+        let s:offset += 1
       elseif cmd == 'first_item'
-        let offset = 1 - len(s:list)
+        let s:offset = 1 - len(s:list)
       elseif cmd == 'last_item'
-        let offset = 0
+        let s:offset = 0
       elseif cmd == 'next_view'
         call s:NextView()
       elseif cmd == 'prev_view'
         call s:PreviousView()
       elseif cmd == 'scroll_up'
-        let offset = offset - winheight(0)/2
+        let s:offset = s:offset - winheight(0)/2
       elseif cmd == 'scroll_down'
-        let offset = offset + winheight(0)/2
+        let s:offset = s:offset + winheight(0)/2
       elseif s:IsOpenCmd(cmd)
         break
       else
         let input = input.char
       endif
 
-      if offset > 0
-        let offset = 0
-      endif
-      if offset < 1 - len(s:list)
-        let offset = 1 - len(s:list)
-      endif
-
-      call a:Update(input, offset)
+      call a:Update(input)
       call s:ShowInputLine(input)
     endwhile
   catch /^Vim:Interrupt$/
@@ -1625,7 +1623,7 @@ function! s:HandleInput(input, offset, Update)
   finally
   endtry
 
-  return [cmd, input, offset]
+  return [cmd, input]
 endfunction
 
 function! s:IsOpenCmd(cmd)
@@ -1633,7 +1631,7 @@ function! s:IsOpenCmd(cmd)
   return count(open_cmds, a:cmd) > 0
 endfunction
 
-function! s:SaveListVariables(input, offset)
+function! s:SaveListVariables(input)
   if s:list_type != 'FIND_IN_FILES'
     return
   endif
@@ -1647,7 +1645,7 @@ function! s:SaveListVariables(input, offset)
 
   let s:list_history[s:list_type] = {
         \'input': input,
-        \'offset': a:offset,
+        \'offset': s:offset,
         \'initial_height': s:initial_height,
         \}
 endfunction
@@ -1662,8 +1660,8 @@ function! s:ResetListVariables()
   unlet! s:list_type
 endfunction
 
-function! s:OpenTarget(cmd, offset, Open)
-  let index = len(s:list) - 1 + a:offset
+function! s:OpenTarget(cmd, Open)
+  let index = len(s:list) - 1 + s:offset
   let target = s:list[index]
   call a:Open(target, a:cmd)
 endfunction
