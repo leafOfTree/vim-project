@@ -1249,18 +1249,33 @@ function! s:SearchFilesBufferOpen(target, open_cmd)
   execute cmd.' '.file
 endfunction
 
-function! s:GetGrepResult(input)
-  let pattern = '"'.escape(a:input, '"\()').'"'
+function! s:CheckGrepProgram()
   " Try rg, ag, vimgrep in order
-  if executable('rg')
-    let list = s:RunRg(pattern)
-  elseif executable('ag')
-    let list = s:RunAg(pattern)
-  elseif executable('grep')
-    let list = s:RunGrep(pattern)
+  let programs = ['rg', 'ag', 'grep']
+  for program in programs
+    if executable(program)
+      return program
+    endif
+  endfor
+  return ''
+endfunction
+
+function! s:GetGrepResult(input)
+  let program = s:CheckGrepProgram()
+
+  if program != ''
+    let pattern = '"'.escape(a:input, '"').'"'
+
+    if program == 'rg'
+      let list = s:RunRg(pattern)
+    elseif program == 'ag'
+      let list = s:RunAg(pattern)
+    elseif program == 'grep'
+      let list = s:RunGrep(pattern)
+    endif
   else
-    let pattern = escape(a:input, '/')
-    let list = s:RunVimGrep(a:pattern)
+    let pattern = '/'.escape(a:input, '/').'/j'
+    let list = s:RunVimGrep(pattern)
   endif
 
   let result = s:GetJoinedList(list)
@@ -1356,13 +1371,12 @@ function! s:GetJoinedList(list)
 endfunction
 
 function! s:RunVimGrep(pattern)
-
   let original_wildignore = &wildignore
   for exclue in s:find_in_files_exclude
     execute 'set wildignore+=*/'.exclue.'*'
   endfor
 
-  let cmd = 'silent! vimgrep /'.a:pattern.'/j '.$vim_project.'/**/*'
+  let cmd = 'silent! vimgrep '.a:pattern.' '.$vim_project.'/**/*'
   execute cmd
 
   let &wildignore = original_wildignore
@@ -1389,8 +1403,8 @@ function! s:RunVimGrep(pattern)
 endfunction
 
 function! s:RunRg(pattern)
-  let rg_cmd = s:GetRgCmd(a:pattern)
-  let output = s:RunShellCmd(rg_cmd)
+  let cmd = s:GetRgCmd(a:pattern)
+  let output = s:RunShellCmd(cmd)
   let result = s:GetResultFromGrepOutput(output)
 
   return result
@@ -2207,14 +2221,36 @@ function! s:OpenFile(open_type, target)
 endfunction
 
 function! s:HighlightInputCharsAsPattern(input)
-  call clearmatches()
+  let pattern = a:input
 
-  execute 'silent! match InputChar /'.escape(a:input, '|/').'/'
+  let pattern = escape(pattern, '/')
+  let program = s:CheckGrepProgram()
+  if program == 'rg' || program == 'ag'
+    let pattern = s:TransformRgAgPatternToVim(pattern)
+  endif
+
+  call clearmatches()
+  execute 'silent! match InputChar /'.pattern.'/'
+endfunction
+
+function! s:TransformRgAgPatternToVim(pattern)
+  let pattern = a:pattern
+  let group_pattern = '\\(\(.\+\)\\)'
+  let parentheses = '(\(.\+\))'
+  let begin_parenthese = '\\('
+  if pattern =~ group_pattern
+    let pattern = substitute(pattern, group_pattern, '(\1)', 'g')
+  elseif pattern =~ parentheses
+    let pattern = substitute(pattern, parentheses, '\\(\1\\)', 'g')
+  elseif pattern =~ begin_parenthese
+    let pattern = substitute(pattern, begin_parenthese, '(', '')
+  endif
+  let pattern = escape(pattern, '|')
+  return pattern
 endfunction
 
 function! s:HighlightInputChars(input)
   call clearmatches()
-
   for lnum in range(1, line('$'))
     let pos = s:GetMatchPos(lnum, a:input)
     if len(pos) > 0
