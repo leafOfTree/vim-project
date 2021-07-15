@@ -607,6 +607,11 @@ function! project#ListProjects()
 endfunction
 
 function! project#SearchFiles()
+  if !s:IsProjectExist()
+    call s:Warn('No project opened')
+    return
+  endif
+
   call s:PrepareListBuffer()
   let Init = function('s:SearchFilesBufferInit')
   let Update = function('s:SearchFilesBufferUpdate')
@@ -617,6 +622,11 @@ function! project#SearchFiles()
 endfunction
 
 function! project#FindInFiles()
+  if !s:IsProjectExist()
+    call s:Warn('No project opened')
+    return
+  endif
+
   call s:PrepareListBuffer()
   let Init = function('s:FindInFilesBufferInit')
   let Update = function('s:FindInFilesBufferUpdateTimer')
@@ -1739,7 +1749,6 @@ endfunction
 
 function! s:IsProjectExist()
   if empty(s:project)
-    call s:Debug('No project opened')
     return 0
   else
     return 1
