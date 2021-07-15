@@ -688,7 +688,7 @@ function! s:HighlightCurrentLine(list_length, offset)
   let offset = a:offset
   sign unplace 9
   if length > 0
-    let current = length + offset.value
+    let current = length + offset
 
     if length < s:initial_height
       " Add extra empty liens to keep initial height
@@ -1523,7 +1523,7 @@ function! s:InitListVariables(Init)
     let s:initial_height = prev.initial_height
   else
     let input = ''
-    let offset = { 'value': 0 }
+    let offset = 0
   endif
 
   " Make sure s:input (saved input) is differrent from input to trigger query
@@ -1561,32 +1561,32 @@ function! s:HandleInput(input, offset, Update)
       elseif cmd == 'clear_all'
         let input = ''
       elseif cmd == 'prev_item'
-        let offset.value -= 1
+        let offset -= 1
       elseif cmd == 'next_item'
-        let offset.value += 1
+        let offset += 1
       elseif cmd == 'first_item'
-        let offset.value = 1 - len(s:list)
+        let offset = 1 - len(s:list)
       elseif cmd == 'last_item'
-        let offset.value = 0
+        let offset = 0
       elseif cmd == 'next_view'
         call s:NextView()
       elseif cmd == 'prev_view'
         call s:PreviousView()
       elseif cmd == 'scroll_up'
-        let offset.value = offset.value - winheight(0)/2
+        let offset = offset - winheight(0)/2
       elseif cmd == 'scroll_down'
-        let offset.value = offset.value + winheight(0)/2
+        let offset = offset + winheight(0)/2
       elseif s:IsOpenCmd(cmd)
         break
       else
         let input = input.char
       endif
 
-      if offset.value > 0
-        let offset.value = 0
+      if offset > 0
+        let offset = 0
       endif
-      if offset.value < 1 - len(s:list)
-        let offset.value = 1 - len(s:list)
+      if offset < 1 - len(s:list)
+        let offset = 1 - len(s:list)
       endif
 
       call a:Update(input, offset)
@@ -1624,7 +1624,7 @@ function! s:ResetListVariables(offset)
 endfunction
 
 function! s:OpenTarget(cmd, offset, Open)
-  let index = len(s:list) - 1 + a:offset.value
+  let index = len(s:list) - 1 + a:offset
   let target = s:list[index]
   call a:Open(target, a:cmd)
 endfunction
