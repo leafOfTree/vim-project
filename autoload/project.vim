@@ -1515,7 +1515,8 @@ function! s:RenderList(Init, Update, Open)
 endfunction
 
 function! s:InitListVariables(Init)
-  if has_key(s:list_history, s:list_type)
+  let has_history = has_key(s:list_history, s:list_type)
+  if has_history
     let prev = s:list_history[s:list_type]
     let input = prev.input
     let offset = prev.offset
@@ -1525,12 +1526,16 @@ function! s:InitListVariables(Init)
     let offset = { 'value': 0 }
   endif
 
-  " Make sure s:input is differrent from input to trigger query
+  " Make sure s:input (saved input) is differrent from input to trigger query
   let s:input = -1
-
   let s:list = []
-
   call a:Init(input, offset)
+
+  " Empty input if it's set from history
+  if has_history
+    let input = ''
+  endif
+
   return [input, offset]
 endfunction
 
