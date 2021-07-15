@@ -1492,7 +1492,7 @@ let s:update_timer = 0
 
 function! s:FindInFilesBufferUpdateTimer(input)
   call timer_stop(s:update_timer)
-  if a:input == s:input
+  if !s:ShouldGetFindInFiles(a:input)
     call s:FindInFilesBufferUpdate(a:input, 0)
   else
     let s:update_timer = timer_start(300,
@@ -1500,8 +1500,16 @@ function! s:FindInFilesBufferUpdateTimer(input)
   endif
 endfunction
 
+function! s:ShouldGetFindInFiles(input)
+  return a:input != s:input && !s:IsShowHistoryList(a:input)
+endfunction
+
+function! s:IsShowHistoryList(input)
+  return a:input == '' && s:input == -1 && !empty(s:list)
+endfunction
+
 function! s:FindInFilesBufferUpdate(input, id)
-  if a:input != s:input
+  if s:ShouldGetFindInFiles(a:input)
     let [list, display] = s:GetFindInFilesResult(a:input)
     call s:ShowInListBuffer(display, a:input)
 
@@ -1564,7 +1572,7 @@ function! s:InitListVariables(Init)
   let s:list = []
   call a:Init(input)
 
-  " Empty input if it's set from history
+  " Empty input if it was set from history
   if has_history
     let s:input = -1
     let input = ''
@@ -1635,10 +1643,11 @@ function! s:SaveListVariables(input)
   if s:list_type != 'FIND_IN_FILES'
     return
   endif
+
   let input = a:input
   if has_key(s:list_history, 'FIND_IN_FILES') 
     let last_input = s:list_history[s:list_type].input
-    if last_input != '' && a:input == '' && s:input == -1
+    if last_input != '' && s:IsShowHistoryList(a:input)
       let input = last_input
     endif
   endif
