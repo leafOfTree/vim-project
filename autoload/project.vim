@@ -1480,8 +1480,10 @@ function! s:FindInFilesBufferUpdate(input, offset, id)
   endif
 
   call s:HighlightCurrentLine(len(s:list), a:offset)
-  let pattern = '\c^\s\+.*\zs'.a:input
-  call s:HighlightInputCharsAsPattern(pattern)
+  if a:input != ''
+    let pattern = '\c^\s\+.*\zs'.a:input
+    call s:HighlightInputCharsAsPattern(pattern)
+  endif
   call s:ShowInputLine(a:input)
 endfunction
 
@@ -1503,7 +1505,7 @@ function! s:RenderList(Init, Update, Open)
 
   call s:ShowInputLine(input)
 
-  let cmd = s:HandleInput(input, offset, a:Update)
+  let [cmd, input, offset] = s:HandleInput(input, offset, a:Update)
 
   call s:CloseListBuffer()
 
@@ -1511,7 +1513,8 @@ function! s:RenderList(Init, Update, Open)
     call s:OpenTarget(cmd, offset, a:Open)
   endif
 
-  call s:ResetListVariables(offset)
+  call s:SaveListVariables(input, offset)
+  call s:ResetListVariables()
 endfunction
 
 function! s:InitListVariables(Init)
@@ -1533,6 +1536,7 @@ function! s:InitListVariables(Init)
 
   " Empty input if it's set from history
   if has_history
+    let s:input = -1
     let input = ''
   endif
 
@@ -1597,7 +1601,7 @@ function! s:HandleInput(input, offset, Update)
   finally
   endtry
 
-  return cmd
+  return [cmd, input, offset]
 endfunction
 
 function! s:IsOpenCmd(cmd)
@@ -1605,15 +1609,26 @@ function! s:IsOpenCmd(cmd)
   return count(open_cmds, a:cmd) > 0
 endfunction
 
-function! s:ResetListVariables(offset)
-  if s:list_type == 'FIND_IN_FILES'
-    let s:list_history[s:list_type] = {
-          \'input': s:input,
-          \'offset': a:offset,
-          \'initial_height': s:initial_height,
-          \}
+function! s:SaveListVariables(input, offset)
+  if s:list_type != 'FIND_IN_FILES'
+    return
+  endif
+  let input = a:input
+  if has_key(s:list_history, 'FIND_IN_FILES') 
+    let last_input = s:list_history[s:list_type].input
+    if last_input != '' && a:input == '' && s:input == -1
+      let input = last_input
+    endif
   endif
 
+  let s:list_history[s:list_type] = {
+        \'input': input,
+        \'offset': a:offset,
+        \'initial_height': s:initial_height,
+        \}
+endfunction
+
+function! s:ResetListVariables()
   unlet! s:input
   let s:initial_height = 0
 
