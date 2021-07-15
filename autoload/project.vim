@@ -1284,6 +1284,8 @@ function! s:GetGrepResult(input)
     let list = s:RunVimGrep(pattern)
   endif
 
+  let list = s:RunAg(pattern)
+
   let result = s:GetJoinedList(list)
   return result
 endfunction
@@ -1304,7 +1306,8 @@ function! s:GetAgCmd(pattern)
   let exclude_arg = join(
         \map(exclude,{_, val -> '--ignore-dir '.val}), ' ')
 
-  let cmd = 'ag '.a:pattern.' '.include_arg.' '.exclude_arg
+  let search_arg = '--hidden --skip-vcs-ignores'
+  let cmd = 'ag '.search_arg.' '.a:pattern.' '.include_arg.' '.exclude_arg
   return cmd
 endfunction
 
