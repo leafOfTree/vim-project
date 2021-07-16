@@ -25,7 +25,7 @@ function! s:Prepare()
   let s:default = {
         \'home': '~/.vim/vim-project-config',
         \'use_session': 0,
-        \'branch': 0,
+        \'use_branch': 0,
         \'open_entry_when_use_session': 0,
         \'auto_detect': 'no',
         \'auto_detect_file': ['.git', '.svn'],
@@ -114,7 +114,7 @@ function! s:InitConfig()
   let s:config = s:GetConfig('config', {})
   let s:config_home = expand(s:config.home)
   let s:open_entry_when_use_session = s:config.open_entry_when_use_session
-  let s:enable_branch = s:config.branch
+  let s:use_branch = s:config.use_branch
   let s:use_session = s:config.use_session
   let s:base = s:config.project_base
   let s:search_include = s:AdjustPathList(s:config.search_include, ['.'])
@@ -1919,7 +1919,7 @@ function! s:SourceFile(file)
 endfunction
 
 function! s:FindBranch(...)
-  if !s:enable_branch
+  if !s:use_branch
     let s:branch = s:branch_default
     return
   endif
@@ -1977,7 +1977,7 @@ function! s:LoadSession()
 endfunction
 
 function! s:StartWatchJob()
-  let should_watch = s:enable_branch && executable('tail') == 1
+  let should_watch = s:use_branch && executable('tail') == 1
   if should_watch
     let cmd = s:GetWatchCmd()
     if !empty(cmd)
