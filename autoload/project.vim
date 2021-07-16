@@ -23,7 +23,7 @@ function! s:Prepare()
   let s:quit_file = 'quit.vim'
 
   let s:default = {
-        \'home': '~/.vim/vim-project-config',
+        \'config_home': '~/.vim/vim-project-config',
         \'use_session': 0,
         \'use_branch': 0,
         \'open_entry_when_use_session': 0,
@@ -112,7 +112,7 @@ endfunction
 
 function! s:InitConfig()
   let s:config = s:GetConfig('config', {})
-  let s:config_home = expand(s:config.home)
+  let s:config_home = expand(s:config.config_home)
   let s:open_entry_when_use_session = s:config.open_entry_when_use_session
   let s:use_branch = s:config.use_branch
   let s:use_session = s:config.use_session
