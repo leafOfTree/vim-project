@@ -2262,27 +2262,51 @@ function! s:HighlightInputCharsAsPattern(input)
   let pattern = escape(pattern, '/')
   let program = s:CheckGrepProgram()
   if program == 'rg' || program == 'ag'
-    let pattern = s:TransformRgAgPatternToVim(pattern)
+    let pattern = s:TransformExternalPatternToVim(pattern)
   endif
+  echom pattern
 
   call clearmatches()
   execute 'silent! match InputChar /'.pattern.'/'
 endfunction
 
-function! s:TransformRgAgPatternToVim(pattern)
-  let pattern = a:pattern
-  let group_pattern = '\\(\(.\+\)\\)'
-  let parentheses = '(\(.\+\))'
-  let begin_parenthese = '\\('
-  if pattern =~ group_pattern
-    let pattern = substitute(pattern, group_pattern, '(\1)', 'g')
-  elseif pattern =~ parentheses
-    let pattern = substitute(pattern, parentheses, '\\(\1\\)', 'g')
-  elseif pattern =~ begin_parenthese
-    let pattern = substitute(pattern, begin_parenthese, '(', '')
+function! s:TransformExternalPatternToVim(pattern)
+  return s:ReplacePatternOneByOne(a:pattern)
+endfunction
+
+function! s:ReplacePatternOneByOne(pattern)
+  let chars = split(a:pattern, '\zs')
+  let idx = 0
+  for char in chars
+    call s:ReverseBackslash(chars, idx, char, ['(', ')', '|'])
+    call s:ReplaceEscapedChar(chars, idx, char, ['b'], ['W'])
+    let idx += 1
+  endfor
+
+  return join(chars, '')
+endfunction
+
+function! s:ReverseBackslash(chars, idx, char, target)
+  let idx = a:idx
+
+  if count(a:target, a:char) > 0 && idx > 0
+    if a:chars[idx-1] == '\'
+      let a:chars[idx-1] = ''
+    else
+      let a:chars[idx] = '\'.a:chars[idx]
+    endif
   endif
-  let pattern = escape(pattern, '|')
-  return pattern
+endfunction
+
+function! s:ReplaceEscapedChar(chars, idx, char, from, to)
+  let idx = a:idx
+
+  let char_idx = index(a:from, a:char)
+  if char_idx != -1 && idx > 0
+    if a:chars[idx-1] == '\'
+      let a:chars[idx] = a:to[char_idx]
+    endif
+  endif
 endfunction
 
 function! s:HighlightInputChars(input)
