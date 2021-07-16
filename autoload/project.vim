@@ -35,8 +35,6 @@ function! s:Prepare()
         \'search_exclude': ['.git', 'node_modules'],
         \'find_in_files_include': ['./'],
         \'find_in_files_exclude': ['.git', 'node_modules'],
-        \'grep_include': [''],
-        \'grep_exclude': ['.git', 'node_modules'],
         \'views': [],
         \'debug': 0,
         \}
@@ -1052,6 +1050,20 @@ function! s:GetSearchFilesDisplayRow(idx, value)
 endfunction
 
 function! s:GetSearchFilesByOldFiles(input)
+  let oldfiles = s:GetOldFiles()
+
+  call s:FilterOldFilesByPath(oldfiles)
+
+  call s:MapSearchFiles(oldfiles)
+
+  call s:FilterOldFilesByInput(oldfiles, a:input)
+
+  call s:SortSearchFiles(oldfiles, a:input)
+
+  return oldfiles
+endfunction
+
+function! s:GetOldFiles()
   let oldfiles = copy(v:oldfiles)
 
   for buf in getbufinfo({'buflisted': 1})
@@ -1059,24 +1071,40 @@ function! s:GetSearchFilesByOldFiles(input)
       call insert(oldfiles, buf.name)
     endif
   endfor
+  return oldfiles
+endfunction
 
-  call map(oldfiles, {_, val -> fnamemodify(val, ':p')})
+function! s:FilterOldFilesByPath(oldfiles)
+  call map(a:oldfiles, {_, val -> fnamemodify(val, ':p')})
 
-  let dir = fnamemodify($vim_project, ':p')
-  call filter(oldfiles, {_, val ->
-        \count(val, dir) > 0
+  let project_dir = fnamemodify($vim_project, ':p')
+  call filter(a:oldfiles, {_, val ->
+        \ count(val, project_dir) > 0
         \ && count(['ControlP', ''], fnamemodify(val, ':t')) == 0
         \ && (filereadable(val) || isdirectory(val))
         \})
-  call map(oldfiles, {_, val -> substitute(val, dir, './', '')})
 
-  call s:MapSearchFiles(oldfiles)
-  let filter = join(split(a:input, '\zs'), '.*')
-  call filter(oldfiles,
-        \{_, val -> val.file =~ filter})
-  call s:SortSearchFiles(oldfiles, a:input)
+  let search_exclude = copy(s:search_exclude)
+  call map(search_exclude, {_, val -> fnamemodify($vim_project.'/'.val, ':p')})
+  call filter(a:oldfiles, {_, val -> !s:IsPathStartWithAny(val, search_exclude)})
 
-  return oldfiles
+  call map(a:oldfiles, {_, val -> substitute(val, project_dir, './', '')})
+endfunction
+
+function! s:IsPathStartWithAny(fullpath, starts)
+  for start in a:starts
+    if match(a:fullpath, start) == 0
+      return 1
+    endif
+  endfor
+
+  return 0
+endfunction
+
+function! s:FilterOldFilesByInput(oldfiles, input)
+  let pattern = join(split(a:input, '\zs'), '.*')
+  call filter(a:oldfiles,
+        \{_, val -> val.file =~ pattern})
 endfunction
 
 function! s:GetFilesByFind()

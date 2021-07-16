@@ -133,9 +133,9 @@ There is only one config `g:vim_project_config`. Its default value is below. You
 
 ```vim
 let g:vim_project_config = {
-      \'home': '~/.vim/vim-project-config',
-      \'session': 0,
-      \'branch': 0,
+      \'config_home': '~/.vim/vim-project-config',
+      \'use_session': 0,
+      \'use_branch': 0,
       \'open_entry_when_use_session': 0,
       \'auto_detect': 'always',
       \'auto_detect_file': '.git, .svn, package.json, pom.xml, Gemfile',
@@ -169,10 +169,10 @@ let g:vim_project_config.project_list_mapping = {
 
 | Option               | Description                                                                   | Type    |
 |----------------------|-------------------------------------------------------------------------------|---------|
-| home                 | The directory where all config files stay                                     | string  |
-| session              | Enable session                                                                | boolean |
-| branch               | When session enabled, keep one for each branch                                | boolean |
-| open_entry_when_use_session           | When session enabled, always open project entry                               | boolean |
+| config_home                 | The directory where all config files stay                                     | string  |
+| use_session              | Use session                                                                | boolean |
+| use_branch               | When session used, keep one for each branch                                | boolean |
+| open_entry_when_use_session           | When session used, always open project entry                               | boolean |
 | auto_detect          | Auto detect projects when opening a file. <br>Choose 'always', 'ask', or 'no' | string  |
 | auto_detect_file     | File used to detect potential projects                                        | string  |
 | auto_load_on_start   | Auto load a project if Vim starts from its directory                          | boolean |
