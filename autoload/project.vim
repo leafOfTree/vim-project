@@ -26,7 +26,7 @@ function! s:Prepare()
         \'home': '~/.vim/vim-project-config',
         \'session': 0,
         \'branch': 0,
-        \'open_entry': 0,
+        \'open_entry_when_use_session': 0,
         \'auto_detect': 'no',
         \'auto_detect_file': ['.git', '.svn'],
         \'auto_load_on_start': 0,
@@ -58,7 +58,7 @@ function! s:Prepare()
         \'prev_view':    "\<s-tab>",
         \'next_view':    "\<tab>",
         \}
-  let s:default.mapfile_open_types = {
+  let s:default.file_open_types = {
         \'':  'edit',
         \'s': 'split',
         \'v': 'vsplit',
@@ -89,10 +89,10 @@ function! s:MergeUserConfigIntoDefault(user, default)
   let user = a:user
   let default = a:default
 
-  if has_key(user, 'mapfile_open_types')
-    let user.mapfile_open_types = s:MergeUserConfigIntoDefault(
-          \user.mapfile_open_types,
-          \default.mapfile_open_types)
+  if has_key(user, 'file_open_types')
+    let user.file_open_types = s:MergeUserConfigIntoDefault(
+          \user.file_open_types,
+          \default.file_open_types)
   endif
 
   if has_key(user, 'list_mapping')
@@ -113,7 +113,7 @@ endfunction
 function! s:InitConfig()
   let s:config = s:GetConfig('config', {})
   let s:config_home = expand(s:config.home)
-  let s:open_entry = s:config.open_entry
+  let s:open_entry_when_use_session = s:config.open_entry_when_use_session
   let s:enable_branch = s:config.branch
   let s:enable_session = s:config.session
   let s:base = s:config.project_base
@@ -131,7 +131,7 @@ function! s:InitConfig()
   let s:views = s:config.views
   let s:view_index = -1
   let s:list_mapping = s:config.list_mapping
-  let s:open_types = s:config.mapfile_open_types
+  let s:open_types = s:config.file_open_types
   let s:debug = s:config.debug
 endfunction
 
@@ -1846,7 +1846,7 @@ function! s:SetStartBuffer()
   let bufname = expand('%')
 
   let is_nerdtree_tmp = count(bufname, s:nerdtree_tmp) == 1
-  let open_entry = s:open_entry
+  let open_entry = s:open_entry_when_use_session
         \ || &buftype == 'nofile'
         \ || bufname == ''
         \ || is_nerdtree_tmp

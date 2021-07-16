@@ -136,7 +136,7 @@ let g:vim_project_config = {
       \'home': '~/.vim/vim-project-config',
       \'session': 0,
       \'branch': 0,
-      \'open_entry': 0,
+      \'open_entry_when_use_session': 0,
       \'auto_detect': 'always',
       \'auto_detect_file': '.git, .svn, package.json, pom.xml, Gemfile',
       \'auto_load_on_start': 0,
@@ -172,7 +172,7 @@ let g:vim_project_config.project_list_mapping = {
 | home                 | The directory where all config files stay                                     | string  |
 | session              | Enable session                                                                | boolean |
 | branch               | When session enabled, keep one for each branch                                | boolean |
-| open_entry           | When session enabled, always open project entry                               | boolean |
+| open_entry_when_use_session           | When session enabled, always open project entry                               | boolean |
 | auto_detect          | Auto detect projects when opening a file. <br>Choose 'always', 'ask', or 'no' | string  |
 | auto_detect_file     | File used to detect potential projects                                        | string  |
 | auto_load_on_start   | Auto load a project if Vim starts from its directory                          | boolean |
