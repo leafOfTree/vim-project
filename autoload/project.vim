@@ -24,7 +24,7 @@ function! s:Prepare()
 
   let s:default = {
         \'home': '~/.vim/vim-project-config',
-        \'session': 0,
+        \'use_session': 0,
         \'branch': 0,
         \'open_entry_when_use_session': 0,
         \'auto_detect': 'no',
@@ -115,7 +115,7 @@ function! s:InitConfig()
   let s:config_home = expand(s:config.home)
   let s:open_entry_when_use_session = s:config.open_entry_when_use_session
   let s:enable_branch = s:config.branch
-  let s:enable_session = s:config.session
+  let s:use_session = s:config.use_session
   let s:base = s:config.project_base
   let s:search_include = s:AdjustPathList(s:config.search_include, ['.'])
   let s:search_exclude = s:AdjustPathList(s:config.search_exclude, [])
@@ -1963,7 +1963,7 @@ function! s:GetSessionFile()
 endfunction
 
 function! s:LoadSession()
-  if !s:enable_session
+  if !s:use_session
     return
   endif
 
@@ -2018,7 +2018,7 @@ function! s:WatchHeadFileNeoVim(cmd)
 endfunction
 
 function! s:SaveSession()
-  if !s:enable_session
+  if !s:use_session
     return
   endif
 
