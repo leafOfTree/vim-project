@@ -127,12 +127,10 @@ function! s:InitConfig()
         \s:config.check_branch_when_use_session
   let s:use_session = s:config.use_session
   let s:base = s:config.project_base
-  let s:search_include = s:AdjustIncludeExcludePath(s:config.search_include, ['.'])
-  let s:search_exclude = s:AdjustIncludeExcludePath(s:config.search_exclude, [])
-  let s:find_in_files_include =
-        \s:AdjustIncludeExcludePath(s:config.find_in_files_include, [])
-  let s:find_in_files_exclude =
-        \s:AdjustIncludeExcludePath(s:config.find_in_files_exclude, [])
+  let s:search_include = s:config.search_include
+  let s:search_exclude = s:config.search_exclude
+  let s:find_in_files_include = s:config.find_in_files_include
+  let s:find_in_files_exclude = s:config.find_in_files_exclude
 
   " options: 'always', 'ask', 'no'
   let s:auto_detect = s:config.auto_detect
@@ -143,6 +141,15 @@ function! s:InitConfig()
   let s:list_mapping = s:config.list_mapping
   let s:open_types = s:config.file_open_types
   let s:debug = s:config.debug
+endfunction
+
+function! s:AdjustConfig()
+  let s:search_include = s:AdjustIncludeExcludePath(s:search_include, ['.'])
+  let s:search_exclude = s:AdjustIncludeExcludePath(s:search_exclude, [])
+  let s:find_in_files_include =
+        \s:AdjustIncludeExcludePath(s:find_in_files_include, [])
+  let s:find_in_files_exclude =
+        \s:AdjustIncludeExcludePath(s:find_in_files_exclude, [])
 endfunction
 
 function! project#SetBase(base)
@@ -1771,19 +1778,35 @@ function! s:OpenProject(project)
 
   if current != new
     call s:ClearCurrentProject(current)
-
     let s:project = new
+
+    call s:PreLoadProject()
     call s:LoadProject()
-    call s:SetEnvVariables()
-    call s:SyncGlobalVariables()
-    call s:SourceInitFile()
-    call s:SetStartBuffer()
+    call s:PostLoadProject()
 
     redraw
     call s:Info('Open: '.new.name)
   else
     call s:Info('Already opened')
   endif
+endfunction
+
+function! s:PreLoadProject()
+  call s:InitStartBuffer()
+  call s:SetEnvVariables()
+endfunction
+
+function! s:LoadProject()
+  call s:SourceInitFile()
+  call s:FindBranch()
+  call s:LoadSession()
+endfunction
+
+function! s:PostLoadProject()
+  call s:SetStartBuffer()
+  call s:SyncGlobalVariables()
+  call s:StartWatchJob()
+  call s:OnVimLeave()
 endfunction
 
 function! s:ClearCurrentProject(current)
@@ -1887,14 +1910,6 @@ function! project#ShowProjectInfo()
   endif
 endfunction
 
-function! s:LoadProject()
-  call s:InitStartBuffer()
-  call s:FindBranch()
-  call s:LoadSession()
-  call s:StartWatchJob()
-  call s:OnVimLeave()
-endfunction
-
 function! s:InitStartBuffer()
   if !s:reloading_project
     enew
@@ -1902,8 +1917,11 @@ function! s:InitStartBuffer()
 endfunction
 
 function! s:SetStartBuffer()
-  let path = s:GetProjectEntryPath()
+  if s:reloading_project
+    return 0
+  endif
 
+  let path = s:GetProjectEntryPath()
   if s:ShouldOpenEntry()
     call s:OpenEntry(path)
   else
@@ -1938,10 +1956,6 @@ function! s:OpenEntry(path)
 endfunction
 
 function! s:ShouldOpenEntry()
-  if s:reloading_project
-    return 0
-  endif
-
   let bufname = expand('%')
   let is_nerdtree_tmp = count(bufname, s:nerdtree_tmp) == 1
 
@@ -1979,6 +1993,7 @@ function! s:SourceInitFile()
   call s:InitConfig()
   call s:SourceFile(s:init_file)
   call s:IntegrateLocalConfig()
+  call s:AdjustConfig()
 endfunction
 
 function! s:ResetConfig()
@@ -2484,4 +2499,5 @@ endfunction
 function! s:Main()
   call s:Prepare()
   call s:InitConfig()
+  call s:AdjustConfig()
 endfunction
