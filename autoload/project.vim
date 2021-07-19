@@ -703,7 +703,7 @@ function! s:SetupListBuffer()
   highlight! link SignColumn Noise
 
   syntax match Comment /file results\|recently opened/
-  syntax match Special /\[+\]/
+  syntax match Special /...more/
   sign define selected text=> texthl=ItemSelected linehl=ItemSelected
 endfunction
 
@@ -1059,7 +1059,7 @@ function! s:GetSearchFilesDisplay(list, oldfiles_len)
     endif
   endif
   if s:IsListMore(a:list)
-    let display[0] .= '  [+]'
+    let display[0] .= '  ...more'
   endif
   return display
 endfunction
@@ -1504,7 +1504,7 @@ function! s:GetFindInFilesDisplay(list)
   let display = map(copy(a:list), function('s:GetFindInFilesDisplayRow'))
 
   if s:IsListMore(a:list)
-    let display[0] .= '  [+]'
+    let display[0] .= '  ...more'
   endif
 
   return display
