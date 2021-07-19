@@ -217,20 +217,20 @@ function! UpperStyle()
   return upper_dir.'/'.name.'.css'
 endfunction
 
-call project#MapFile({
-  \'direct': {
-    \'file': ['autoload/project.vim', 'plugin/project.vim', $vim_project_config.'/init.vim', 'README.md'],
-    \'key': ['a', 'p', 'i', 'r'],
-  \},
-  \'link': {
-    \'file': ['autoload/project.vim', 'plugin/project.vim'],
-    \'key': 'l',
-  \},
-  \'custom': {
-    \'file': function('UpperStyle'),
-    \'key': 'c',
-  \},
-\})
+let g:vim_project_local_config.file_map = {
+      \'direct': {
+      \   'file': ['autoload/project.vim', 'plugin/project.vim', $vim_project_config.'/init.vim', 'README.md'],
+      \   'key': ['a', 'p', 'i', 'r'],
+      \},
+      \'link': {
+      \   'file': ['autoload/project.vim', 'plugin/project.vim'],
+      \   'key': 'l',
+      \},
+      \'custom': {
+      \   'file': function('UpperStyle'),
+      \   'key': 'c',
+      \},
+      \}
 ```
 
 Another example where you can
@@ -239,16 +239,16 @@ Another example where you can
 - Switch to file returned by `:h lambda` expression
 
 ```vim
-call project#MapFile({
-  \'link': {
-    \'file': ['html', 'css'],
-    \'key': 'l',
-  \},
-  \'custom': {
-    \'file': {->expand('%:p:h:h').'/'.expand('%:r').'.css'},
-    \'key': 'c',
-  \},
-\})
+let g:vim_project_local_config.file_map = {
+      \'link': {
+      \   'file': ['html', 'css'],
+      \   'key': 'l',
+      \},
+      \'custom': {
+      \   'file': {->expand('%:p:h:h').'/'.expand('%:r').'.css'},
+      \   'key': 'c',
+      \},
+      \}
 ```
 
 With `file_open_types`, you can use `'a`, `'va`, `'sa`, `'ta'` to edit file in different ways
