@@ -14,6 +14,7 @@ function! s:Prepare()
   let s:project = {}
   let s:branch = ''
   let s:branch_default = '_'
+  let s:reloading_project = 0
   let s:list_buffer = '__vim_project_list__'
   let s:nerdtree_tmp = '__vim_project_nerdtree_tmp__'
 
@@ -126,12 +127,12 @@ function! s:InitConfig()
         \s:config.check_branch_when_use_session
   let s:use_session = s:config.use_session
   let s:base = s:config.project_base
-  let s:search_include = s:AdjustPathList(s:config.search_include, ['.'])
-  let s:search_exclude = s:AdjustPathList(s:config.search_exclude, [])
+  let s:search_include = s:AdjustIncludeExcludePath(s:config.search_include, ['.'])
+  let s:search_exclude = s:AdjustIncludeExcludePath(s:config.search_exclude, [])
   let s:find_in_files_include =
-        \s:AdjustPathList(s:config.find_in_files_include, [])
+        \s:AdjustIncludeExcludePath(s:config.find_in_files_include, [])
   let s:find_in_files_exclude =
-        \s:AdjustPathList(s:config.find_in_files_exclude, [])
+        \s:AdjustIncludeExcludePath(s:config.find_in_files_exclude, [])
 
   " options: 'always', 'ask', 'no'
   let s:auto_detect = s:config.auto_detect
@@ -148,12 +149,13 @@ function! project#SetBase(base)
   let s:base = a:base
 endfunction
 
-function! s:AdjustPathList(paths, default)
+function! s:AdjustIncludeExcludePath(paths, default)
   let paths = a:paths
   if empty(paths)
     let paths = a:default
   endif
   call map(paths, {_, val -> substitute(val, '\/$', '', '')})
+  call map(paths, {_, val -> substitute(val, '^\.[\/]', '', '')})
 
   return paths
 endfunction
@@ -1748,11 +1750,19 @@ endfunction
 
 function! s:ReloadProject()
   if s:ProjectExists()
-    wa
+    call s:SaveAllBuffers()
+    let s:reloading_project = 1
+
     let project = s:project
     call s:QuitProject()
     call s:OpenProject(project)
+
+    let s:reloading_project = 0
   endif
+endfunction
+
+function! s:SaveAllBuffers()
+  wa
 endfunction
 
 function! s:OpenProject(project)
@@ -1767,6 +1777,7 @@ function! s:OpenProject(project)
     call s:SetEnvVariables()
     call s:SyncGlobalVariables()
     call s:SourceInitFile()
+    call s:SetStartBuffer()
 
     redraw
     call s:Info('Open: '.new.name)
@@ -1877,12 +1888,17 @@ function! project#ShowProjectInfo()
 endfunction
 
 function! s:LoadProject()
-  enew
+  call s:InitStartBuffer()
   call s:FindBranch()
   call s:LoadSession()
   call s:StartWatchJob()
-  call s:SetStartBuffer()
   call s:OnVimLeave()
+endfunction
+
+function! s:InitStartBuffer()
+  if !s:reloading_project
+    enew
+  endif
 endfunction
 
 function! s:SetStartBuffer()
@@ -1922,6 +1938,10 @@ function! s:OpenEntry(path)
 endfunction
 
 function! s:ShouldOpenEntry()
+  if s:reloading_project
+    return 0
+  endif
+
   let bufname = expand('%')
   let is_nerdtree_tmp = count(bufname, s:nerdtree_tmp) == 1
 
