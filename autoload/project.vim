@@ -188,7 +188,6 @@ endfunction
 function! s:AddProject(path, ...)
   let fullpath = s:GetFullPath(a:path)
   let option = a:0 > 0 ? a:1 : {}
-  let index = a:0 >1 ? a:2 : len(s:projects)
 
   let hasProject = s:ProjectExistsWithSameFullPath(
         \fullpath,
@@ -218,7 +217,7 @@ function! s:AddProject(path, ...)
     return -1
   else
     call s:InitProjectConfig(project)
-    call insert(s:projects, project, index)
+    call add(s:projects, project)
   endif
 endfunction
 
@@ -2289,11 +2288,15 @@ endfunction
 
 function! s:MapLinkedFile(link)
   if len(a:link.file) == 2
-    let s:GotoLinked =
-          \function('s:GotoLinkedFile', [a:link])
+    let s:GotoLinkFuncRef = function('s:GotoLinkedFile', [a:link])
+  " It seems that only function... can be called by <SID> in map
+    function! s:GotoLinkedFunc(open_type)
+      call s:GotoLinkFuncRef(a:open_type)
+    endfunction
+
     for [open_key, open_type] in items(s:open_types)
       execute "nnoremap '".open_key.a:link.key
-            \.' :update<cr>:call <SID>GotoLinked("'.open_type.'")<cr>'
+            \.' :update<cr>:call <SID>GotoLinkedFunc("'.open_type.'")<cr>'
     endfor
   endif
 endfunction
