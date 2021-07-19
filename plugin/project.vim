@@ -7,6 +7,7 @@ endfunction
 
 command ProjectList call project#ListProjects()
 command ProjectQuit call project#QuitProject()
+command ProjectReload call project#ReloadProject()
 command ProjectInfo call project#ShowProjectInfo()
 command ProjectEntry call project#OpenProjectEntry()
 command ProjectConfig call project#OpenProjectConfig()
@@ -19,6 +20,7 @@ command -complete=customlist,project#ListAllProjectNames -nargs=1
 
 command -complete=customlist,project#ListDirs -nargs=+
       \ Project call project#AddProject(s:TrimQuote(<q-args>))
+
 command -complete=customlist,project#ListDirs -nargs=+
       \ ProjectAdd call project#AddProject(s:TrimQuote(<q-args>))
 

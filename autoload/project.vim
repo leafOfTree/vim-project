@@ -38,6 +38,15 @@ function! s:Prepare()
         \'views': [],
         \'debug': 0,
         \}
+  let s:local_config_keys = [
+        \'search_include',
+        \'search_exclude',
+        \'find_in_files_include',
+        \'find_in_files_exclude',
+        \'use_session',
+        \'open_entry_when_use_session',
+        \'check_branch_when_use_session',
+        \]
   let s:default.list_mapping = {
         \'open':         "\<cr>",
         \'open_split':   "\<c-s>",
@@ -72,7 +81,7 @@ function! s:Prepare()
 endfunction
 
 
-function! s:GetGlobalConfig(name, default)
+function! s:GetConfig(name, default)
   let name = 'g:vim_project_'.a:name
   let value = exists(name) ? eval(name) : a:default
 
@@ -109,10 +118,12 @@ function! s:MergeUserConfigIntoDefault(user, default)
 endfunction
 
 function! s:InitConfig()
-  let s:config = s:GetGlobalConfig('config', {})
+  let s:config = s:GetConfig('config', {})
   let s:config_home = expand(s:config.config_home)
-  let s:open_entry_when_use_session = s:config.open_entry_when_use_session
-  let s:check_branch_when_use_session = s:config.check_branch_when_use_session
+  let s:open_entry_when_use_session =
+        \s:config.open_entry_when_use_session
+  let s:check_branch_when_use_session =
+        \s:config.check_branch_when_use_session
   let s:use_session = s:config.use_session
   let s:base = s:config.project_base
   let s:search_include = s:AdjustPathList(s:config.search_include, ['.'])
@@ -295,10 +306,10 @@ function! s:InitProjectConfig(project)
     let init_file = config.'/'.s:init_file
     let init_content = [
           \'""""""""""""""""""""""""""""""""""""""""""""""',
-          \'" When: sourced after session is loaded',
-          \'" Project: '.name,
-          \'" Variable: $vim_project, $vim_project_config',
-          \'" Example: open `./src` on start',
+          \'" Project:      '.name,
+          \'" When:         after session is loaded',
+          \'" Variables:    $vim_project, $vim_project_config',
+          \'" Example:      to open `./src` on start',
           \'" - edit $vim_project/src',
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \]
@@ -308,9 +319,9 @@ function! s:InitProjectConfig(project)
     let quit_file = config.'/'.s:quit_file
     let quit_content = [
           \'""""""""""""""""""""""""""""""""""""""""""""""',
-          \'" When: sourced after session is saved',
-          \'" Project: '.name,
-          \'" Variable: $vim_project, $vim_project_config',
+          \'" Project name: '.name,
+          \'" When:         after session is saved',
+          \'" Variables:    $vim_project, $vim_project_config',
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \]
     call writefile(quit_content, quit_file)
@@ -1741,6 +1752,18 @@ function! project#RemoveProjectByName(name)
   endif
 endfunction
 
+function! project#ReloadProject()
+  call s:ReloadProject()
+endfunction
+
+function! s:ReloadProject()
+  if s:ProjectExists()
+    let project = s:project
+    call s:QuitProject()
+    call s:OpenProject(project)
+  endif
+endfunction
+
 function! s:OpenProject(project)
   let current = s:project
   let new = a:project
@@ -1929,7 +1952,25 @@ function! s:OnVimLeave()
 endfunction
 
 function! s:SourceInitFile()
+  call s:ResetConfig()
+  call s:InitConfig()
   call s:SourceFile(s:init_file)
+  call s:IntegrateLocalConfig()
+endfunction
+
+function! s:ResetConfig()
+  let g:vim_project_local_config = {}
+endfunction
+
+function! s:IntegrateLocalConfig()
+  let local_config = s:GetConfig('local_config', {})
+  if !empty(local_config)
+    for key in s:local_config_keys
+      if has_key(local_config, key)
+        let s:[key] = local_config[key]
+      endif
+    endfor
+  endif
 endfunction
 
 function! s:SourceQuitFile()
