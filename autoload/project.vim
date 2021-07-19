@@ -2264,7 +2264,6 @@ function! s:HighlightInputCharsAsPattern(input)
   if program == 'rg' || program == 'ag'
     let pattern = s:TransformExternalPatternToVim(pattern)
   endif
-  echom pattern
 
   call clearmatches()
   execute 'silent! match InputChar /'.pattern.'/'
