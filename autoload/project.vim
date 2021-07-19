@@ -72,7 +72,7 @@ function! s:Prepare()
 endfunction
 
 
-function! s:GetConfig(name, default)
+function! s:GetGlobalConfig(name, default)
   let name = 'g:vim_project_'.a:name
   let value = exists(name) ? eval(name) : a:default
 
@@ -109,7 +109,7 @@ function! s:MergeUserConfigIntoDefault(user, default)
 endfunction
 
 function! s:InitConfig()
-  let s:config = s:GetConfig('config', {})
+  let s:config = s:GetGlobalConfig('config', {})
   let s:config_home = expand(s:config.config_home)
   let s:open_entry_when_use_session = s:config.open_entry_when_use_session
   let s:check_branch_when_use_session = s:config.check_branch_when_use_session
@@ -122,7 +122,7 @@ function! s:InitConfig()
   let s:find_in_files_exclude =
         \s:AdjustPathList(s:config.find_in_files_exclude, [])
 
-  " options: 'always'(default), 'ask', 'no'
+  " options: 'always', 'ask', 'no'
   let s:auto_detect = s:config.auto_detect
   let s:auto_detect_file = s:config.auto_detect_file
   let s:auto_load_on_start = s:config.auto_load_on_start
@@ -170,7 +170,7 @@ function! s:AddProject(path, ...)
   let option = a:0 > 0 ? a:1 : {}
   let index = a:0 >1 ? a:2 : len(s:projects)
 
-  let hasProject = s:HasProjectWithSameFullPath(
+  let hasProject = s:ProjectExistsWithSameFullPath(
         \fullpath,
         \s:projects
         \)
@@ -202,7 +202,7 @@ function! s:AddProject(path, ...)
   endif
 endfunction
 
-function! s:HasProjectWithSameFullPath(fullpath, projects)
+function! s:ProjectExistsWithSameFullPath(fullpath, projects)
   let result = 0
   for project in a:projects
     if project.fullpath == a:fullpath
@@ -235,7 +235,7 @@ endfunction
 " Ignore path for auto adding
 function! s:IgnoreProject(path)
   let fullpath = s:GetFullPath(a:path)
-  let hasProject = s:HasProjectWithSameFullPath(
+  let hasProject = s:ProjectExistsWithSameFullPath(
         \fullpath,
         \s:projects
         \)
@@ -605,7 +605,7 @@ function! project#ListProjects()
 endfunction
 
 function! project#SearchFiles()
-  if !s:IsProjectExist()
+  if !s:ProjectExists()
     call s:Warn('No project opened')
     return
   endif
@@ -620,7 +620,7 @@ function! project#SearchFiles()
 endfunction
 
 function! project#FindInFiles()
-  if !s:IsProjectExist()
+  if !s:ProjectExists()
     call s:Warn('No project opened')
     return
   endif
@@ -1742,32 +1742,29 @@ function! project#RemoveProjectByName(name)
 endfunction
 
 function! s:OpenProject(project)
-  let prev = s:project
-  let current = a:project
+  let current = s:project
+  let new = a:project
 
-  if prev != current
-    call s:ClearPrevProject(prev)
-    let s:project = current
+  if current != new
+    call s:ClearCurrentProject(current)
 
+    let s:project = new
     call s:LoadProject()
     call s:SetEnvVariables()
     call s:SyncGlobalVariables()
     call s:SourceInitFile()
 
     redraw
-    call s:Info('Open: '.s:project.name)
+    call s:Info('Open: '.new.name)
   else
     call s:Info('Already opened')
   endif
 endfunction
 
-function! s:ClearPrevProject(prev)
-  if !empty(a:prev)
-    call s:Debug('Save previous project: '.a:prev.name)
-    call s:SaveSession()
+function! s:ClearCurrentProject(current)
+  if s:ProjectExists()
+    call s:QuitProject()
     silent! %bdelete
-
-    let s:list_history = {}
   endif
 endfunction
 
@@ -1776,7 +1773,7 @@ function! s:RemoveProject(project)
   let projects = s:projects
 
   if target == s:project
-    ProjectQuit
+    call s:QuitProject()
   endif
 
   let idx = index(projects, target)
@@ -1797,7 +1794,7 @@ function! s:UnsetEnvVariables()
   unlet $vim_project_config
 endfunction
 
-function! s:IsProjectExist()
+function! s:ProjectExists()
   if empty(s:project)
     return 0
   else
@@ -1806,7 +1803,7 @@ function! s:IsProjectExist()
 endfunction
 
 function! project#OpenProjectEntry()
-  if s:IsProjectExist()
+  if s:ProjectExists()
     let path = s:GetProjectEntryPath()
     if !empty(path)
       execute 'edit '.path
@@ -1815,7 +1812,7 @@ function! project#OpenProjectEntry()
 endfunction
 
 function! project#OpenProjectConfig()
-  if s:IsProjectExist()
+  if s:ProjectExists()
     let config = s:GetProjectConfigPath(s:config_home, s:project)
     execute 'edit '.config
   endif
@@ -1826,11 +1823,16 @@ function! project#OpenAllConfig()
 endfunction
 
 function! project#QuitProject()
-  if s:IsProjectExist()
+  call s:QuitProject()
+endfunction
+
+function! s:QuitProject()
+  if s:ProjectExists()
     call s:Info('Quit: '.s:project.name)
     call s:SaveSession()
     call s:SourceQuitFile()
 
+    let s:list_history = {}
     let s:project = {}
     call s:UnsetEnvVariables()
     call s:SyncGlobalVariables()
@@ -1972,7 +1974,7 @@ function! s:FindBranch(...)
 endfunction
 
 function! s:GetSessionFolder()
-  if s:IsProjectExist()
+  if s:ProjectExists()
     let config = s:GetProjectConfigPath(s:config_home, s:project)
     return config.'/sessions'
   else
@@ -1982,7 +1984,7 @@ endfunction
 
 
 function! s:GetSessionFile()
-  if s:IsProjectExist()
+  if s:ProjectExists()
     let config = s:GetProjectConfigPath(s:config_home, s:project)
     return config.'/sessions/'.s:branch.'.vim'
   else
@@ -2050,7 +2052,7 @@ function! s:SaveSession()
     return
   endif
 
-  if s:IsProjectExist()
+  if s:ProjectExists()
     call s:BeforeSaveSession()
 
     let folder = s:GetSessionFolder()
