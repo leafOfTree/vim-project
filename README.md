@@ -135,7 +135,7 @@ There is only one config `g:vim_project_config`. Its default value is below. You
 let g:vim_project_config = {
       \'config_home': '~/.vim/vim-project-config',
       \'use_session': 0,
-      \'use_branch': 0,
+      \'check_branch_when_use_session': 0,
       \'open_entry_when_use_session': 0,
       \'auto_detect': 'always',
       \'auto_detect_file': '.git, .svn, package.json, pom.xml, Gemfile',
@@ -171,7 +171,7 @@ let g:vim_project_config.project_list_mapping = {
 |----------------------|-------------------------------------------------------------------------------|---------|
 | config_home                 | The directory where all config files stay                                     | string  |
 | use_session              | Use session                                                                | boolean |
-| use_branch               | When session used, keep one for each branch                                | boolean |
+| check_branch_when_use_session               | When session used, keep one for each branch                                | boolean |
 | open_entry_when_use_session           | When session used, always open project entry                               | boolean |
 | auto_detect          | Auto detect projects when opening a file. <br>Choose 'always', 'ask', or 'no' | string  |
 | auto_detect_file     | File used to detect potential projects                                        | string  |

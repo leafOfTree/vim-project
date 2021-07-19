@@ -24,17 +24,17 @@ function! s:Prepare()
 
   let s:default = {
         \'config_home': '~/.vim/vim-project-config',
-        \'use_session': 0,
-        \'use_branch': 0,
-        \'open_entry_when_use_session': 0,
+        \'project_base': '~',
         \'auto_detect': 'no',
         \'auto_detect_file': ['.git', '.svn'],
         \'auto_load_on_start': 0,
-        \'project_base': '~',
         \'search_include': ['./'],
         \'search_exclude': ['.git', 'node_modules'],
         \'find_in_files_include': ['./'],
         \'find_in_files_exclude': ['.git', 'node_modules'],
+        \'use_session': 0,
+        \'open_entry_when_use_session': 0,
+        \'check_branch_when_use_session': 0,
         \'views': [],
         \'debug': 0,
         \}
@@ -112,7 +112,7 @@ function! s:InitConfig()
   let s:config = s:GetConfig('config', {})
   let s:config_home = expand(s:config.config_home)
   let s:open_entry_when_use_session = s:config.open_entry_when_use_session
-  let s:use_branch = s:config.use_branch
+  let s:check_branch_when_use_session = s:config.check_branch_when_use_session
   let s:use_session = s:config.use_session
   let s:base = s:config.project_base
   let s:search_include = s:AdjustPathList(s:config.search_include, ['.'])
@@ -1170,9 +1170,9 @@ endfunction
 
 function! s:GetSearchFilesAll()
   " Try fd, find, glob in order
-  if executable('fd')
+  if executable('fd') == 1
     let result = s:GetFilesByFd()
-  elseif executable('find')
+  elseif executable('find') == 1
     let result = s:GetFilesByFind()
   else
     let result = s:GetFilesByGlob()
@@ -1947,7 +1947,7 @@ function! s:SourceFile(file)
 endfunction
 
 function! s:FindBranch(...)
-  if !s:use_branch
+  if !s:check_branch_when_use_session
     let s:branch = s:branch_default
     return
   endif
@@ -2005,7 +2005,7 @@ function! s:LoadSession()
 endfunction
 
 function! s:StartWatchJob()
-  let should_watch = s:use_branch && executable('tail') == 1
+  let should_watch = s:check_branch_when_use_session && executable('tail') == 1
   if should_watch
     let cmd = s:GetWatchCmd()
     if !empty(cmd)
