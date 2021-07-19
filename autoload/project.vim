@@ -1119,11 +1119,7 @@ function! s:FilterOldFilesByInput(oldfiles, input)
 endfunction
 
 function! s:GetFilesByFind()
-  let search_include = copy(s:search_include)
-  if empty(search_include)
-    let search_include = ['.']
-  endif
-  let include = join(search_include, ' ')
+  let include = join(s:search_include, ' ')
 
   let search_exclude = copy(s:search_exclude)
   let exclude_string = join(map(search_exclude, {_, val -> '-name '.val}), ' -o ')
@@ -1136,8 +1132,7 @@ function! s:GetFilesByFind()
 endfunction
 
 function! s:GetFilesByFd()
-  let search_include = copy(s:search_include)
-  let include = join(search_include, ' ')
+  let include = join(s:search_include, ' ')
 
   let search_exclude = copy(s:search_exclude)
   let exclude = join(map(search_exclude, {_, val -> '-E '.val}), ' ')
@@ -1148,11 +1143,6 @@ function! s:GetFilesByFd()
 endfunction
 
 function! s:GetFilesByGlob()
-  let search_include = s:search_include
-  if empty(search_include)
-    let search_include = ['.']
-  endif
-
   let original_wildignore = &wildignore
   let cwd = getcwd()
   execute 'cd '.$vim_project
@@ -1161,7 +1151,7 @@ function! s:GetFilesByGlob()
   endfor
 
   let result = []
-  for path in search_include
+  for path in s:search_include
     let result = result + glob(path.'/**/*', 0, 1)
   endfor
 
@@ -1758,6 +1748,7 @@ endfunction
 
 function! s:ReloadProject()
   if s:ProjectExists()
+    wa
     let project = s:project
     call s:QuitProject()
     call s:OpenProject(project)
@@ -1895,37 +1886,49 @@ function! s:LoadProject()
 endfunction
 
 function! s:SetStartBuffer()
-  let buftype = &buftype
-  let bufname = expand('%')
-
-  let is_nerdtree_tmp = count(bufname, s:nerdtree_tmp) == 1
-  let open_entry = s:open_entry_when_use_session
-        \ || &buftype == 'nofile'
-        \ || bufname == ''
-        \ || is_nerdtree_tmp
   let path = s:GetProjectEntryPath()
-  if open_entry
-    if is_nerdtree_tmp
-      silent bdelete
-    endif
-    call s:Debug('Open entry'.(bufname ? ' from buf '.bufname : ''))
-    if !empty(path)
-      if isdirectory(path)
-        if exists('g:loaded_nerd_tree')
-          let edit_cmd = 'NERDTree'
-        else
-          let edit_cmd = 'edit'
-        endif
-        execute edit_cmd.' '.path.' | silent only |  cd '.path
-      else
-        execute 'edit '.path
-      endif
-    else
-      execute 'silent only | enew'
-    endif
+
+  if s:ShouldOpenEntry()
+    call s:OpenEntry(path)
   else
     execute 'cd '.path
   endif
+endfunction
+
+function! s:OpenEntry(path)
+  let bufname = expand('%')
+  let is_nerdtree_tmp = count(bufname, s:nerdtree_tmp) == 1
+  if is_nerdtree_tmp
+    silent bdelete
+  endif
+
+  call s:Debug('Open entry from buffer '.bufname)
+
+  let path = a:path
+  if empty(path)
+    execute 'silent only | enew'
+  else
+    if isdirectory(path)
+      if exists('g:loaded_nerd_tree')
+        let edit_cmd = 'NERDTree'
+      else
+        let edit_cmd = 'edit'
+      endif
+      execute edit_cmd.' '.path.' | silent only |  cd '.path
+    else
+      execute 'edit '.path
+    endif
+  endif
+endfunction
+
+function! s:ShouldOpenEntry()
+  let bufname = expand('%')
+  let is_nerdtree_tmp = count(bufname, s:nerdtree_tmp) == 1
+
+  return s:open_entry_when_use_session
+        \|| &buftype == 'nofile'
+        \|| bufname == ''
+        \|| is_nerdtree_tmp
 endfunction
 
 function! s:GetProjectEntryPath()
