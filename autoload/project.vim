@@ -1992,7 +1992,7 @@ function! s:SourceInitFile()
   call s:ResetConfig()
   call s:InitConfig()
   call s:SourceFile(s:init_file)
-  call s:IntegrateLocalConfig()
+  call s:EnableLocalConfig()
   call s:AdjustConfig()
 endfunction
 
@@ -2000,7 +2000,7 @@ function! s:ResetConfig()
   let g:vim_project_local_config = {}
 endfunction
 
-function! s:IntegrateLocalConfig()
+function! s:EnableLocalConfig()
   let local_config = s:GetConfig('local_config', {})
   if !empty(local_config)
     for key in s:local_config_keys
@@ -2008,6 +2008,10 @@ function! s:IntegrateLocalConfig()
         let s:[key] = local_config[key]
       endif
     endfor
+  endif
+
+  if has_key(local_config, 'file_map')
+    call s:MapFile(local_config.file_map)
   endif
 endfunction
 
@@ -2256,7 +2260,7 @@ function! s:GetProjectsDisplayRow(key, value)
         \.s:ReplaceHomeWithTide(value.__path)
 endfunction
 
-function! project#MapFile(config)
+function! s:MapFile(config)
   let config = a:config
   if has_key(config, 'direct')
     call s:MapDirectFile(config.direct)

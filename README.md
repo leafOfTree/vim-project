@@ -145,7 +145,7 @@ let g:vim_project_config = {
       \'debug': 0,
       \}
 
-let g:vim_project_config.open_file = {
+let g:vim_project_config.file_open_types = {
       \'': 'edit',
       \'v': 'vsplit',
       \'s': 'split',
@@ -251,9 +251,9 @@ call project#MapFile({
 \})
 ```
 
-With `open_file`, you can use `'a`, `'va`, `'sa`, `'ta'` to edit file in different ways
+With `file_open_types`, you can use `'a`, `'va`, `'sa`, `'ta'` to edit file in different ways
 ```vim
-let g:vim_project_config.open_file = {
+let g:vim_project_config.file_open_types = {
       \'': 'edit',
       \'v': 'vsplit',
       \'s': 'split',
