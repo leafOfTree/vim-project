@@ -15,6 +15,8 @@ function! s:Prepare()
   let s:branch = ''
   let s:branch_default = '_'
   let s:reloading_project = 0
+  let s:start_project = {}
+  let s:start_buf = ''
   let s:list_buffer = '__vim_project_list__'
   let s:nerdtree_tmp = '__vim_project_nerdtree_tmp__'
 
@@ -467,22 +469,14 @@ function! s:WatchOnBufEnter()
   augroup END
 endfunction
 
-let s:startup_project = {}
-let s:startup_buf = ''
 function! s:TryAutoloadOnBufEnter()
   if !v:vim_did_enter
     let buf = expand('<amatch>')
-    let s:startup_buf = buf
-    let project = s:GetProjectByFullpath(s:projects, buf)
-    if empty(project)
-      let path = s:GetPathContain(buf, s:auto_detect_file)
-      if !empty(path)
-        let project = s:GetProjectByFullpath(s:projects, path)
-      endif
-    endif
+    let project = s:GetProjectByPath(s:projects, buf)
 
     if !empty(project)
-      let s:startup_project = project
+      let s:start_buf = buf
+      let s:start_project = project
     endif
   endif
 endfunction
@@ -502,20 +496,20 @@ function! VimProject_DoBufRead(timer)
 endfunction
 
 function! s:AutoloadOnVimEnter()
-  let project = s:startup_project
+  let project = s:start_project
   if !empty(project)
     let buf = expand('<amatch>')
     " Avoid conflict with opened buffer like nerdtree
     enew
     execute 'ProjectOpen '.project.name
 
-    if project.fullpath is s:startup_buf
+    if project.fullpath is s:start_buf
       " Follow session files if open the entry path
       " Use timer to avoid conflict with Fern.vim
       call timer_start(1, 'VimProject_HandleFileManagerPlugin')
     else
       " Otherwise edit the current file
-      execute 'edit '.s:startup_buf
+      execute 'edit '.s:start_buf
     endif
     call timer_start(1, 'VimProject_DoBufRead')
   endif
@@ -606,6 +600,20 @@ function! s:GetProjectByFullpath(projects, fullpath)
   return {}
 endfunction
 
+function! s:GetProjectByPath(projects, path)
+  let projects = copy(a:projects)
+  call filter(projects, {_, project -> match(a:path, project.fullpath) != -1})
+  if len(projects) == 1
+    return projects[0]
+  endif
+  if len(projects) > 1
+    call sort(projects, {i1, i2 -> len(i2.fullpath) - len(i1.fullpath)})
+    return projects[0]
+  endif
+
+  return {}
+endfunction
+
 function! s:Warn(msg)
   echohl WarningMsg
   echom '['.s:name.'] '.a:msg
@@ -663,7 +671,7 @@ function! s:OpenListBuffer()
   let win = s:list_buffer
   let num = bufwinnr(win)
   if num == -1
-    execute 'silent noautocmd botright split '.win
+    execute 'silent botright split '.win
   else
     execute num.'wincmd w'
   endif
