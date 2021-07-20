@@ -6,6 +6,7 @@ function! s:Prepare()
   let s:project_list_prefix = 'Open a project:'
   let s:search_files_prefix = 'Search files by name:'
   let s:find_in_files_prefix = 'Find in files:'
+  let s:find_replace_separator = '| >>>>>> |'
   let s:find_in_files_max = 200
   let s:list_history = {}
   let s:laststatus_save = &laststatus
@@ -67,6 +68,7 @@ function! s:Prepare()
         \'scroll_down':    "\<c-n>",
         \'prev_view':    "\<s-tab>",
         \'next_view':    "\<tab>",
+        \'find_replace': "\<c-r>",
         \}
   let s:default.file_open_types = {
         \'':  'edit',
@@ -615,6 +617,7 @@ function! s:GetProjectByPath(projects, path)
 endfunction
 
 function! s:Warn(msg)
+  redraw
   echohl WarningMsg
   echom '['.s:name.'] '.a:msg
   echohl None
@@ -1501,16 +1504,20 @@ endfunction
 
 function! s:GetFindInFilesResult(input)
   if a:input == '' || len(a:input) == 1
-    return [[], []]
+    return []
   endif
 
   let list = s:GetGrepResult(a:input)
-  let display = s:GetFindInFilesDisplay(list)
-  return [list, display]
+  return list
 endfunction
 
-function! s:GetFindInFilesDisplay(list)
-  let display = map(copy(a:list), function('s:GetFindInFilesDisplayRow'))
+function! s:GetFindInFilesDisplay(list, input, replace)
+  if len(a:list) == 0
+    return []
+  endif
+
+  let display = map(copy(a:list),
+        \function('s:GetFindInFilesDisplayRow', [a:input, a:replace]))
 
   if s:IsListMore(a:list)
     let display[0] .= '  ...more'
@@ -1519,12 +1526,17 @@ function! s:GetFindInFilesDisplay(list)
   return display
 endfunction
 
-function! s:GetFindInFilesDisplayRow(idx, val)
+function! s:GetFindInFilesDisplayRow(input, replace, idx, val)
   let isFile = !has_key(a:val, 'line')
   if isFile
     return a:val.file
   else
-    return '  '.a:val.line
+    let line = a:val.line
+    if !empty(a:replace)
+      let pattern = s:GetFindInFilesInputPattern(a:input)
+      let line = substitute(line, '\('.pattern.'\)', '\1'.a:replace, '')
+    endif
+    return '  '.line
   endif
 endfunction
 
@@ -1540,7 +1552,8 @@ let s:update_timer = 0
 
 function! s:FindInFilesBufferUpdateTimer(input)
   call timer_stop(s:update_timer)
-  if !s:ShouldGetFindInFiles(a:input)
+  let input = s:GetInputAndReplce(a:input)[0]
+  if !s:ShouldGetFindInFiles(input)
     call s:FindInFilesBufferUpdate(a:input, 0)
   else
     let s:update_timer = timer_start(350,
@@ -1556,27 +1569,60 @@ function! s:IsShowHistoryList(input)
   return a:input == '' && s:input == -1 && !empty(s:list)
 endfunction
 
-function! s:FindInFilesBufferUpdate(input, id)
-  if s:ShouldGetFindInFiles(a:input)
-    let [list, display] = s:GetFindInFilesResult(a:input)
-    call s:ShowInListBuffer(display, a:input)
+function! s:GetInputAndReplce(input)
+  let inputs = split(a:input, s:find_replace_separator)
+  let replace = ''
 
-    let s:input = a:input
+  if len(inputs) == 2
+    let input = inputs[0]
+    let replace = inputs[1]
+  elseif len(inputs) == 1
+    let input = inputs[0]
+  else
+    let input = a:input
+  endif
+
+  return [input, replace]
+endfunction
+
+function! s:FindInFilesBufferUpdate(input, id)
+  let [input, replace] = s:GetInputAndReplce(a:input)
+
+  if s:ShouldGetFindInFiles(input)
+    let list = s:GetFindInFilesResult(input)
+    let display = s:GetFindInFilesDisplay(list, input, replace)
+    call s:ShowInListBuffer(display, input)
+
+    let s:input = input
     let s:list = list
   endif
 
-  call s:HighlightCurrentLine(len(s:list))
-  if a:input != ''
-    let pattern = '\c^\s\+.*\zs'.a:input
-    call s:HighlightInputCharsAsPattern(pattern)
+  if replace != s:replace
+    let display = s:GetFindInFilesDisplay(s:list, input, replace)
+    call s:ShowInListBuffer(display, input)
+    let s:replace = replace
   endif
+
+  call s:HighlightCurrentLine(len(s:list))
+  call s:HighlightInputCharsAsPattern(input)
+  call s:HighlightReplaceChars(input, replace)
+
   call s:ShowInputLine(a:input)
+endfunction
+
+function! s:HighlightReplaceChars(input, replace)
+  if a:replace == ''
+    return
+  endif
+
+  let pattern = s:GetFindInFilesInputPattern(a:input)
+  execute 'silent! 2match Function /'.'\c^\s\+.\{-}'.pattern.'\zs'.a:replace.'/'
 endfunction
 
 function! s:FindInFilesBufferOpen(target, open_cmd)
   let open_type = substitute(a:open_cmd, 'open_\?', '', '')
   if open_type == ''
-    let open_type = eidt
+    let open_type = 'edit'
   endif
 
   let file = $vim_project.'/'.a:target.file
@@ -1620,6 +1666,7 @@ function! s:InitListVariables(Init)
 
   " Make sure s:input (saved input) is differrent from input to trigger query
   let s:input = -1
+  let s:replace = ''
   let s:list = []
   call a:Init(input)
 
@@ -1668,6 +1715,8 @@ function! s:HandleInput(input, Update)
         let s:offset = s:offset - winheight(0)/2
       elseif cmd == 'scroll_down'
         let s:offset = s:offset + winheight(0)/2
+      elseif cmd == 'find_replace'
+        let input = input.s:find_replace_separator
       elseif s:IsOpenCmd(cmd)
         break
       else
@@ -2366,7 +2415,7 @@ function! s:OpenFile(open_type, target)
   execute a:open_type.' '.expand(target)
 endfunction
 
-function! s:HighlightInputCharsAsPattern(input)
+function! s:GetFindInFilesInputPattern(input)
   let pattern = a:input
 
   let pattern = escape(pattern, '/')
@@ -2374,9 +2423,18 @@ function! s:HighlightInputCharsAsPattern(input)
   if program == 'rg' || program == 'ag'
     let pattern = s:TransformExternalPatternToVim(pattern)
   endif
+  return pattern
+endfunction
+
+function! s:HighlightInputCharsAsPattern(input)
+  if a:input == ''
+    return
+  endif
 
   call clearmatches()
-  execute 'silent! match InputChar /'.pattern.'/'
+  let pattern = s:GetFindInFilesInputPattern(a:input)
+
+  execute 'silent! match InputChar /'.'\c^\s\+.\{-}\zs'.pattern.'/'
 endfunction
 
 function! s:TransformExternalPatternToVim(pattern)
