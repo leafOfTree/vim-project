@@ -458,7 +458,7 @@ function! s:WatchOnBufEnter()
     autocmd! vim-project-enter
     if s:auto_load_on_start
       " The event order is BufEnter then VimEnter
-      autocmd BufEnter * ++once call s:PreCheckOnBufEnter()
+      autocmd BufEnter * ++once call s:TryAutoloadOnBufEnter()
       autocmd VimEnter * ++once call s:AutoloadOnVimEnter()
     endif
     if s:auto_detect != 'no'
@@ -469,7 +469,7 @@ endfunction
 
 let s:startup_project = {}
 let s:startup_buf = ''
-function! s:PreCheckOnBufEnter()
+function! s:TryAutoloadOnBufEnter()
   if !v:vim_did_enter
     let buf = expand('<amatch>')
     let s:startup_buf = buf
@@ -527,8 +527,7 @@ function! s:AutoDetectProject()
     let path = s:GetPathContain(buf, s:auto_detect_file)
     if !empty(path)
       let project = s:GetProjectByFullpath(s:projects, path)
-      let ignore = s:GetProjectByFullpath(
-            \s:projects_ignore, path)
+      let ignore = s:GetProjectByFullpath(s:projects_ignore, path)
 
       if empty(project) && empty(ignore)
         let path = s:ReplaceHomeWithTide(path)
@@ -1564,11 +1563,14 @@ function! s:FindInFilesBufferUpdate(input, id)
 endfunction
 
 function! s:FindInFilesBufferOpen(target, open_cmd)
-  let cmd = substitute(a:open_cmd, 'open_\?', '', '')
-  let cmd = cmd == '' ? 'edit' : cmd
+  let open_type = substitute(a:open_cmd, 'open_\?', '', '')
+  if open_type == ''
+    let open_type = eidt
+  endif
+
   let file = $vim_project.'/'.a:target.file
   let lnum = has_key(a:target, 'lnum') ? a:target.lnum : 1
-  execute cmd.' +'.lnum.' '.file
+  execute open_type.' +'.lnum.' '.file
 endfunction
 
 function! s:ShowInputLine(input)
@@ -1903,10 +1905,19 @@ endfunction
 
 function! project#ShowProjectInfo()
   if !empty(s:project)
-    call s:Info('Name: '.s:project.name.', path: '.s:project.path)
+    call s:Info('Name: '.s:project.name)
+    call s:Info('Path: '.s:ReplaceHomeWithTide(s:project.path))
+    call s:Info('Config: ')
+    call s:ShowProjectConfig()
   else
     call s:Info('No project opened')
   endif
+endfunction
+
+function! s:ShowProjectConfig()
+  for key in sort(keys(s:config))
+    call s:Info(key.': '.string(s:config[key]))
+  endfor
 endfunction
 
 function! s:InitStartBuffer()
