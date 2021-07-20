@@ -712,7 +712,7 @@ function! s:SetupListBuffer()
   highlight! link SignColumn Noise
 
   syntax match Comment /file results\|recently opened/
-  syntax match Special /...more/
+  syntax match Special /...more$/
   sign define selected text=> texthl=ItemSelected linehl=ItemSelected
 endfunction
 
@@ -1616,6 +1616,7 @@ function! s:HighlightReplaceChars(input, replace)
   endif
 
   let pattern = s:GetFindInFilesInputPattern(a:input)
+  execute 'silent! 1match Comment /'.'\c^\s\+.\{-}\zs'.pattern.'/'
   execute 'silent! 2match Function /'.'\c^\s\+.\{-}'.pattern.'\zs'.a:replace.'/'
 endfunction
 
