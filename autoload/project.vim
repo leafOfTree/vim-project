@@ -687,7 +687,7 @@ function! s:CloseListBuffer()
   quit
   let num = bufnr(s:list_buffer)
   if num != -1
-    execute 'bwipeout! '.num
+    execute 'silent bwipeout! '.num
   endif
   redraw!
   wincmd p
@@ -1490,6 +1490,9 @@ function! s:RunShellCmd(cmd)
   endtry
 
   if v:shell_error
+    if !empty(output)
+      call s:Warn(a:cmd.': '.string(output))
+    endif
     return []
   endif
 
