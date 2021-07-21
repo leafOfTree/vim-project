@@ -71,7 +71,7 @@ function! s:Prepare()
         \'next_view':    "\<tab>",
         \'find_replace': "\<c-r>",
         \'find_replace_dismiss': "\<c-d>",
-        \'find_replace_confirm': "\<c-cr>",
+        \'find_replace_confirm': "\<c-y>",
         \}
   let s:default.file_open_types = {
         \'':  'edit',
@@ -1543,11 +1543,17 @@ function! s:GetFindInFilesDisplayRow(input, replace, idx, val)
   else
     let line = a:val.line
     if !empty(a:input) && !empty(a:replace)
-      let pattern = s:GetFindInFilesInputPattern(a:input)
-      let line = substitute(line, '\('.pattern.'\)', '\1'.a:replace, 'g')
+      let line = s:GetReplacedLine(line, a:input, a:replace, 1)
     endif
     return '  '.line
   endif
+endfunction
+
+function! s:GetReplacedLine(line, input, replace, add)
+  let pattern = s:GetFindInFilesInputPattern(a:input)
+  let prefix = a:add ? '\1' : ''
+  let line = substitute(a:line, '\('.pattern.'\)', prefix.a:replace, 'g')
+  return line
 endfunction
 
 function! s:IsListMore(list)
@@ -1625,8 +1631,6 @@ endfunction
 
 function! s:GetInputAndReplaceFromHistory(input, replace)
   if s:IsShowHistoryList(a:input) && s:HasFindInFilesHistory()
-    echom 'get history'
-    echom s:list_history
     let input = s:list_history.FIND_IN_FILES.input
     return s:GetInputAndReplce(input)
   else
@@ -1814,12 +1818,21 @@ function! s:HandleInput(input, Update)
 endfunction
 
 function! s:ConfirmFindReplace(input)
-  let [input, replace] = s:GetInputAndReplaceFromHistory(a:input, s:replace)
-  " for item in s:list
-    " if !s:IsFileItem(item)
-      " echom item.file
-    " endif
-  " endfor
+  let [input, replace] =
+        \s:GetInputAndReplaceFromHistory(a:input, s:replace)
+  for item in s:list
+    if !s:IsFileItem(item)
+      call s:ReplaceLineOfFile(item, input, replace)
+    endif
+  endfor
+endfunction
+
+function! s:ReplaceLineOfFile(item, input, replace)
+  let file = $vim_project.'/'.a:item.file
+  let index = a:item.lnum - 1
+  let lines = readfile(file)
+  let lines[index] = s:GetReplacedLine(lines[index], a:input, a:replace, 0)
+  call writefile(lines, file)
 endfunction
 
 function! s:DismissFindReplaceItem()
