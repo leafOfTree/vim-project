@@ -705,16 +705,19 @@ function! s:SetupListBuffer()
   setlocal nocursorline
   setlocal nowrap
   set laststatus=0
+  syntax clear
   syntax match FirstColumn /^\S*/
+  syntax match Comment /file results\|recently opened/
+  syntax match Special / \.\.\.more$/
 
   highlight link ItemSelected CursorLine
   highlight link FirstColumn Keyword
   highlight link InfoColumn Comment
   highlight link InputChar Constant
+  highlight link BeforeReplace Comment
+  highlight link AfterReplace Function
   highlight! link SignColumn Noise
 
-  syntax match Comment /file results\|recently opened/
-  syntax match Special /...more$/
   sign define selected text=> texthl=ItemSelected linehl=ItemSelected
 endfunction
 
@@ -1540,7 +1543,7 @@ function! s:GetFindInFilesDisplayRow(input, replace, idx, val)
     let line = a:val.line
     if !empty(a:replace)
       let pattern = s:GetFindInFilesInputPattern(a:input)
-      let line = substitute(line, '\('.pattern.'\)', '\1'.a:replace, '')
+      let line = substitute(line, '\('.pattern.'\)', '\1'.a:replace, 'g')
     endif
     return '  '.line
   endif
@@ -1631,8 +1634,10 @@ function! s:HighlightReplaceChars(input, replace)
   endif
 
   let pattern = s:GetFindInFilesInputPattern(a:input)
-  execute 'silent! 1match Comment /'.'\c^\s\+.\{-}\zs'.pattern.'/'
-  execute 'silent! 2match Function /'.'\c^\s\+.\{-}'.pattern.'\zs'.a:replace.'/'
+  syntax clear BeforeReplace
+  execute 'silent! syntax match BeforeReplace /\c'.pattern.'/'
+
+  execute 'silent! match AfterReplace /\c'.pattern.'\zs'.a:replace.'/'
 endfunction
 
 function! s:FindInFilesBufferOpen(target, open_cmd)
@@ -1802,7 +1807,8 @@ function! s:SaveListVariables(input)
     return
   endif
 
-  let input = a:input
+  let input = s:GetInputAndReplce(a:input)[0]
+
   if has_key(s:list_history, 'FIND_IN_FILES') 
     let last_input = s:list_history[s:list_type].input
     if last_input != '' && s:IsShowHistoryList(a:input)
@@ -1844,7 +1850,6 @@ endfunction
 
 function! s:GetNextFileIndex(index)
   for i in range(a:index+1, len(s:list)-1)
-    " echom s:list[i]
     if s:IsFileItem(s:list[i])
       return i
     endif
@@ -2562,7 +2567,9 @@ function! s:HighlightInputCharsAsPattern(input)
   call clearmatches()
   let pattern = s:GetFindInFilesInputPattern(a:input)
 
-  execute 'silent! match InputChar /'.'\c^\s\+.\{-}\zs'.pattern.'/'
+  syntax clear InputChar
+  execute 'silent! syntax match InputChar /\c'.pattern.'/'
+  " execute 'silent! match InputChar /\c^\s\+.\{-}\zs'.pattern.'/'
 endfunction
 
 function! s:TransformExternalPatternToVim(pattern)
