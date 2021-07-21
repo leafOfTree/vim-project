@@ -1529,7 +1529,7 @@ function! s:GetFindInFilesDisplay(list, input, replace)
 endfunction
 
 function! s:IsFileItem(item)
-  return !has_key(a:item, 'line')
+  return has_key(a:item, 'file') && !has_key(a:item, 'line')
 endfunction
 
 function! s:GetFindInFilesDisplayRow(input, replace, idx, val)
@@ -1787,7 +1787,7 @@ function! s:DismissFindReplaceItem()
   if !s:IsFileItem(target)
     call s:RemoveTarget()
   else
-    call s:RemoveFileItems()
+    call s:RemoveFile()
   endif
   let s:dismissed_find_replace = 1
 endfunction
@@ -1854,9 +1854,16 @@ function! s:GetNextFileIndex(index)
 endfunction
 
 function! s:RemoveTarget()
-  let index = len(s:list) - 1 + s:offset
+  let index = s:GetCurrentIndex()
   call remove(s:list, index)
   call s:RemoveFileWithoutItem()
+  call s:UpdateOffsetAfterRemoveTarget()
+endfunction
+
+function! s:UpdateOffsetAfterRemoveTarget()
+  if s:offset < len(s:list) - 2
+    let s:offset += 1
+  endif
 endfunction
 
 function! s:RemoveFileWithoutItem()
@@ -1870,10 +1877,19 @@ function! s:RemoveFileWithoutItem()
   endif
 endfunction
 
-function! s:RemoveFileItems()
+function! s:RemoveFile()
   let index = s:GetCurrentIndex()
   let next_file_index = s:GetNextFileIndex(index)
-  call s:RemoveRange(index, next_file_index-1)
+  call s:RemoveRange(index, next_file_index - 1)
+  call s:UpdateOffsetAfterRemoveFile(next_file_index)
+endfunction
+
+function! s:UpdateOffsetAfterRemoveFile(next_file_index)
+  if a:next_file_index < len(s:list) - 2
+    let s:offset = a:next_file_index
+  else
+    let s:offset = 0
+  endif
 endfunction
 
 function! s:RemoveRange(start, end)
