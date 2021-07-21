@@ -71,6 +71,7 @@ function! s:Prepare()
         \'next_view':    "\<tab>",
         \'find_replace': "\<c-r>",
         \'find_replace_dismiss': "\<c-d>",
+        \'find_replace_confirm': "\<c-cr>",
         \}
   let s:default.file_open_types = {
         \'':  'edit',
@@ -1541,7 +1542,7 @@ function! s:GetFindInFilesDisplayRow(input, replace, idx, val)
     return a:val.file
   else
     let line = a:val.line
-    if !empty(a:replace)
+    if !empty(a:input) && !empty(a:replace)
       let pattern = s:GetFindInFilesInputPattern(a:input)
       let line = substitute(line, '\('.pattern.'\)', '\1'.a:replace, 'g')
     endif
@@ -1604,10 +1605,13 @@ function! s:FindInFilesBufferUpdate(input, id)
 
     let s:input = input
     let s:list = list
+    let s:replace = replace
   endif
 
-  if s:ShouldRefreshWithReplace(replace)
-    let display = s:GetFindInFilesDisplay(s:list, input, replace)
+  if s:ShouldRedrawWithReplace(input, replace)
+    let [redraw_input, redraw_replace] =
+          \s:GetInputAndReplaceFromHistory(input, replace)
+    let display = s:GetFindInFilesDisplay(s:list, redraw_input, redraw_replace)
     call s:ShowInListBuffer(display, input)
     let s:replace = replace
   endif
@@ -1619,13 +1623,36 @@ function! s:FindInFilesBufferUpdate(input, id)
   call s:ShowInputLine(a:input)
 endfunction
 
-function! s:ShouldRefreshWithReplace(replace)
+function! s:GetInputAndReplaceFromHistory(input, replace)
+  if s:IsShowHistoryList(a:input) && s:HasFindInFilesHistory()
+    echom 'get history'
+    echom s:list_history
+    let input = s:list_history.FIND_IN_FILES.input
+    return s:GetInputAndReplce(input)
+  else
+    return [a:input, a:replace]
+  endif
+endfunction
+
+function! s:HasFindInFilesHistory()
+  return has_key(s:list_history, 'FIND_IN_FILES')
+endfunction
+
+function! s:IsDismissed()
+  return s:dismissed_find_replace
+endfunction
+
+function! s:ResetDismissedVar()
   if s:dismissed_find_replace
     let s:dismissed_find_replace = 0
+  endif
+endfunction
+
+function! s:ShouldRedrawWithReplace(input, replace)
+  if s:IsDismissed()
     return 1
   endif
-
-  return a:replace != s:replace
+  return a:replace != s:replace && !s:IsShowHistoryList(a:input)
 endfunction
 
 function! s:HighlightReplaceChars(input, replace)
@@ -1766,6 +1793,9 @@ function! s:HandleInput(input, Update)
         let input = s:AddFindReplaceSeparator(input)
       elseif cmd == 'find_replace_dismiss'
         call s:DismissFindReplaceItem()
+      elseif cmd == 'find_replace_confirm'
+        call s:ConfirmFindReplace(input)
+        break
       elseif s:IsOpenCmd(cmd)
         break
       else
@@ -1781,6 +1811,15 @@ function! s:HandleInput(input, Update)
   endtry
 
   return [cmd, input]
+endfunction
+
+function! s:ConfirmFindReplace(input)
+  let [input, replace] = s:GetInputAndReplaceFromHistory(a:input, s:replace)
+  " for item in s:list
+    " if !s:IsFileItem(item)
+      " echom item.file
+    " endif
+  " endfor
 endfunction
 
 function! s:DismissFindReplaceItem()
@@ -1807,11 +1846,12 @@ function! s:SaveListVariables(input)
     return
   endif
 
-  let input = s:GetInputAndReplce(a:input)[0]
+  " let input = s:GetInputAndReplce(a:input)[0]
+  let input = a:input
 
-  if has_key(s:list_history, 'FIND_IN_FILES') 
+  if s:HasFindInFilesHistory() 
     let last_input = s:list_history[s:list_type].input
-    if last_input != '' && s:IsShowHistoryList(a:input)
+    if !empty(last_input) && s:IsShowHistoryList(a:input)
       let input = last_input
     endif
   endif
@@ -1844,8 +1884,11 @@ function! s:GetTarget()
 endfunction
 
 function! s:GetCurrentIndex()
-  let index = len(s:list) - 1 + s:offset
-  return index
+  return len(s:list) - 1 + s:offset
+endfunction
+
+function! s:GetCurrentOffset(index)
+  return a:index - len(s:list) + 1
 endfunction
 
 function! s:GetNextFileIndex(index)
@@ -1886,12 +1929,12 @@ function! s:RemoveFile()
   let index = s:GetCurrentIndex()
   let next_file_index = s:GetNextFileIndex(index)
   call s:RemoveRange(index, next_file_index - 1)
-  call s:UpdateOffsetAfterRemoveFile(next_file_index)
+  call s:UpdateOffsetAfterRemoveFile(index)
 endfunction
 
-function! s:UpdateOffsetAfterRemoveFile(next_file_index)
-  if a:next_file_index < len(s:list) - 2
-    let s:offset = a:next_file_index
+function! s:UpdateOffsetAfterRemoveFile(index)
+  if a:index < len(s:list) - 2
+    let s:offset = s:GetCurrentOffset(a:index)
   else
     let s:offset = 0
   endif
