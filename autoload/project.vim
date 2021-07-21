@@ -18,6 +18,7 @@ function! s:Prepare()
   let s:reloading_project = 0
   let s:start_project = {}
   let s:start_buf = ''
+  let s:dismissed_find_replace = 0
   let s:list_buffer = '__vim_project_list__'
   let s:nerdtree_tmp = '__vim_project_nerdtree_tmp__'
 
@@ -69,6 +70,7 @@ function! s:Prepare()
         \'prev_view':    "\<s-tab>",
         \'next_view':    "\<tab>",
         \'find_replace': "\<c-r>",
+        \'find_replace_dismiss': "\<c-d>",
         \}
   let s:default.file_open_types = {
         \'':  'edit',
@@ -1526,8 +1528,12 @@ function! s:GetFindInFilesDisplay(list, input, replace)
   return display
 endfunction
 
+function! s:IsFileItem(item)
+  return !has_key(a:item, 'line')
+endfunction
+
 function! s:GetFindInFilesDisplayRow(input, replace, idx, val)
-  let isFile = !has_key(a:val, 'line')
+  let isFile = s:IsFileItem(a:val)
   if isFile
     return a:val.file
   else
@@ -1597,7 +1603,7 @@ function! s:FindInFilesBufferUpdate(input, id)
     let s:list = list
   endif
 
-  if replace != s:replace
+  if s:ShouldRefreshWithReplace(replace)
     let display = s:GetFindInFilesDisplay(s:list, input, replace)
     call s:ShowInListBuffer(display, input)
     let s:replace = replace
@@ -1608,6 +1614,15 @@ function! s:FindInFilesBufferUpdate(input, id)
   call s:HighlightReplaceChars(input, replace)
 
   call s:ShowInputLine(a:input)
+endfunction
+
+function! s:ShouldRefreshWithReplace(replace)
+  if s:dismissed_find_replace
+    let s:dismissed_find_replace = 0
+    return 1
+  endif
+
+  return a:replace != s:replace
 endfunction
 
 function! s:HighlightReplaceChars(input, replace)
@@ -1680,24 +1695,50 @@ function! s:InitListVariables(Init)
   return input
 endfunction
 
+function! s:GetUserInputChar()
+  let c = getchar()
+  let char = type(c) == v:t_string ? c : nr2char(c)
+  return char
+endfunction
+
+function! s:ClearCharOfInput(input)
+  let length = len(a:input)
+  let input = length == 1 ? '' : a:input[0:length-2]
+  return input
+endfunction
+
+function! s:ClearWordOfInput(input)
+  if a:input =~ '\w\s*$'
+    let input = substitute(a:input, '\w*\s*$', '', '')
+  else
+    let input = substitute(a:input, '\W*\s*$', '', '')
+  endif
+  return input
+endfunction
+
+function! s:AddFindReplaceSeparator(input)
+  if match(a:input, s:find_replace_separator) == -1
+    let input = a:input.s:find_replace_separator
+  else
+    let input = a:input
+  endif
+
+  return input
+endfunction
+
 function! s:HandleInput(input, Update)
   let input = a:input
 
   try
     while 1
-      let c = getchar()
-      let char = type(c) == v:t_string ? c : nr2char(c)
+      let char = s:GetUserInputChar()
       let cmd = s:GetListCommand(char)
       if cmd == 'close_list'
         break
       elseif cmd == 'clear_char'
-        let input = len(input) == 1 ? '' : input[0:len(input)-2]
+        let input = s:ClearCharOfInput(input)
       elseif cmd == 'clear_word'
-        if input =~ '\w\s*$'
-          let input = substitute(input, '\w*\s*$', '', '')
-        else
-          let input = substitute(input, '\W*\s*$', '', '')
-        endif
+        let input = s:ClearWordOfInput(input)
       elseif cmd == 'clear_all'
         let input = ''
       elseif cmd == 'prev_item'
@@ -1717,7 +1758,9 @@ function! s:HandleInput(input, Update)
       elseif cmd == 'scroll_down'
         let s:offset = s:offset + winheight(0)/2
       elseif cmd == 'find_replace'
-        let input = input.s:find_replace_separator
+        let input = s:AddFindReplaceSeparator(input)
+      elseif cmd == 'find_replace_dismiss'
+        call s:DismissFindReplaceItem()
       elseif s:IsOpenCmd(cmd)
         break
       else
@@ -1733,6 +1776,20 @@ function! s:HandleInput(input, Update)
   endtry
 
   return [cmd, input]
+endfunction
+
+function! s:DismissFindReplaceItem()
+  let target = s:GetTarget()
+  if empty(target)
+    return
+  endif
+
+  if !s:IsFileItem(target)
+    call s:RemoveTarget()
+  else
+    call s:RemoveFileItems()
+  endif
+  let s:dismissed_find_replace = 1
 endfunction
 
 function! s:IsOpenCmd(cmd)
@@ -1770,9 +1827,63 @@ function! s:ResetListVariables()
   unlet! s:list_type
 endfunction
 
-function! s:OpenTarget(cmd, Open)
+function! s:GetTarget()
   let index = len(s:list) - 1 + s:offset
-  let target = s:list[index]
+  if index >= 0
+    let target = s:list[index]
+    return target
+  endif
+
+  return {}
+endfunction
+
+function! s:GetCurrentIndex()
+  let index = len(s:list) - 1 + s:offset
+  return index
+endfunction
+
+function! s:GetNextFileIndex(index)
+  for i in range(a:index+1, len(s:list)-1)
+    " echom s:list[i]
+    if s:IsFileItem(s:list[i])
+      return i
+    endif
+  endfor
+
+  return len(s:list)
+endfunction
+
+function! s:RemoveTarget()
+  let index = len(s:list) - 1 + s:offset
+  call remove(s:list, index)
+  call s:RemoveFileWithoutItem()
+endfunction
+
+function! s:RemoveFileWithoutItem()
+  let target = s:GetTarget()
+  if s:IsFileItem(target)
+    let current_index = s:GetCurrentIndex()
+    let next_file_index = s:GetNextFileIndex(current_index)
+    if next_file_index - current_index < 2
+      call s:RemoveTarget()
+    endif
+  endif
+endfunction
+
+function! s:RemoveFileItems()
+  let index = s:GetCurrentIndex()
+  let next_file_index = s:GetNextFileIndex(index)
+  call s:RemoveRange(index, next_file_index-1)
+endfunction
+
+function! s:RemoveRange(start, end)
+  if a:start < a:end
+    call remove(s:list, a:start, a:end)
+  endif
+endfunction
+
+function! s:OpenTarget(cmd, Open)
+  let target = s:GetTarget()
   call a:Open(target, a:cmd)
 endfunction
 
