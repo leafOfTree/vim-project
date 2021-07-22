@@ -1319,33 +1319,33 @@ function! s:CheckGrepProgram()
   return ''
 endfunction
 
-function! s:GetGrepResult(input)
-  let program = s:CheckGrepProgram()
 
-  if program != ''
-    let pattern = '"'.escape(a:input, '"').'"'
-
-    if program == 'rg'
-      let list = s:RunRg(pattern)
-    elseif program == 'ag'
-      let list = s:RunAg(pattern)
-    elseif program == 'grep'
-      let list = s:RunGrep(pattern)
-    endif
-  else
-    let pattern = '/'.escape(a:input, '/').'/j'
-    let list = s:RunVimGrep(pattern)
+function! s:RunExternalGrep(program, input, full_input)
+  let pattern = '"'.escape(a:input, '"').'"'
+  let cmd = ''
+  if a:program == 'rg'
+    let cmd = s:GetRgCmd(pattern)
+  elseif a:program == 'ag'
+    let cmd = s:GetAgCmd(pattern)
+  elseif a:program == 'grep'
+    let cmd = s:GetGrepCmd(pattern)
   endif
 
-  let result = s:GetJoinedList(list)
+  let output = s:RunShellCmd(cmd)
+  let result = s:GetResultFromGrepOutput(a:input, a:full_input, output)
   return result
 endfunction
 
-function! s:RunAg(pattern)
-  let cmd = s:GetAgCmd(a:pattern)
-  let output = s:RunShellCmd(cmd)
-  let result = s:GetResultFromGrepOutput(output)
+function! s:GetGrepResult(input, full_input)
+  let program = s:CheckGrepProgram()
 
+  if program != ''
+    let list = s:RunExternalGrep(program, a:input, a:full_input)
+  else
+    let list = s:RunVimGrep(a:input, a:full_input)
+  endif
+
+  let result = s:GetJoinedList(list)
   return result
 endfunction
 
@@ -1360,14 +1360,6 @@ function! s:GetAgCmd(pattern)
   let search_arg = '--hidden --skip-vcs-ignores'
   let cmd = 'ag '.search_arg.' '.a:pattern.' '.include_arg.' '.exclude_arg
   return cmd
-endfunction
-
-function! s:RunGrep(pattern)
-  let cmd = s:GetGrepCmd(a:pattern)
-  let output = s:RunShellCmd(cmd)
-  let result = s:GetResultFromGrepOutput(output)
-
-  return result
 endfunction
 
 function! s:GetGrepCmd(pattern)
@@ -1385,14 +1377,24 @@ function! s:GetGrepCmd(pattern)
   return cmd
 endfunction
 
-function! s:GetResultFromGrepOutput(output)
+function! s:SetGrepOutputLength(input, full_input, output)
   let output = a:output
   let more = 0
-  let max_length = s:find_in_files_max
-  if len(a:output) > max_length
-    let output = output[0:max_length]
-    let more = 1
+
+  let replace_initially_added = s:IsReplaceInitiallyAdded(a:full_input)
+  if !replace_initially_added
+    let max_length = s:find_in_files_max
+    if len(output) > max_length
+      let output = output[0:max_length]
+      let more = 1
+    endif
   endif
+
+  return [output, more]
+endfunction
+
+function! s:GetResultFromGrepOutput(input, full_input, output)
+  let [output, more] = s:SetGrepOutputLength(a:input, a:full_input, a:output)
 
   let result = map(map(output, {_, val -> split(val, ':')}), {_, val -> {
         \'file': val[0],
@@ -1430,25 +1432,21 @@ function! s:GetJoinedList(list)
   return joined_list
 endfunction
 
-function! s:RunVimGrep(pattern)
+function! s:RunVimGrep(input, full_input)
   let original_wildignore = &wildignore
-  for exclue in s:find_in_files_exclude
-    execute 'set wildignore+=*/'.exclue.'*'
+  for exclude in s:find_in_files_exclude
+    execute 'set wildignore+=*/'.exclude.'*'
   endfor
 
-  let cmd = 'silent! vimgrep '.a:pattern.' '.$vim_project.'/**/*'
+  let pattern = '/'.escape(a:input, '/').'/j'
+  let cmd = 'silent! vimgrep '.pattern.' '.$vim_project.'/**/*'
   execute cmd
 
   let &wildignore = original_wildignore
 
-  let output = getqflist()
+  let output_qf = getqflist()
 
-  let max_length = s:find_in_files_max
-  let more = 0
-  if len(output) > max_length
-    let output = output[0:max_length]
-    let more = 1
-  endif
+  let [output, more] = s:SetGrepOutputLength(a:input, a:full_input, output_qf)
 
   let result = map(output, {_, val -> {
         \'file': s:RemoveProjectPath(getbufinfo(val.bufnr)[0].name),
@@ -1459,14 +1457,6 @@ function! s:RunVimGrep(pattern)
   if more
     let result[0].more = more
   endif
-  return result
-endfunction
-
-function! s:RunRg(pattern)
-  let cmd = s:GetRgCmd(a:pattern)
-  let output = s:RunShellCmd(cmd)
-  let result = s:GetResultFromGrepOutput(output)
-
   return result
 endfunction
 
@@ -1508,12 +1498,12 @@ function! s:RunShellCmd(cmd)
   return output
 endfunction
 
-function! s:GetFindInFilesResult(input)
+function! s:GetFindInFilesResult(input, full_input)
   if a:input == '' || len(a:input) == 1
     return []
   endif
 
-  let list = s:GetGrepResult(a:input)
+  let list = s:GetGrepResult(a:input, a:full_input)
   return list
 endfunction
 
@@ -1568,8 +1558,7 @@ let s:update_timer = 0
 
 function! s:FindInFilesBufferUpdateTimer(input)
   call timer_stop(s:update_timer)
-  let input = s:GetInputAndReplce(a:input)[0]
-  if !s:ShouldGetFindInFiles(input)
+  if !s:ShouldGetFindInFiles(a:input)
     call s:FindInFilesBufferUpdate(a:input, 0)
   else
     let s:update_timer = timer_start(350,
@@ -1577,8 +1566,17 @@ function! s:FindInFilesBufferUpdateTimer(input)
   endif
 endfunction
 
+function! s:IsReplaceInitiallyAdded(input)
+  let [_, replace] = s:GetInputAndReplce(a:input)
+  let has_separator = match(a:input, s:find_replace_separator) != -1
+  return has_separator && empty(replace) && s:replace == -1
+endfunction
+
 function! s:ShouldGetFindInFiles(input)
-  return a:input != s:input && !s:IsShowHistoryList(a:input)
+  let [input, replace] = s:GetInputAndReplce(a:input)
+  let input_changed = input != s:input && !s:IsShowHistoryList(input)
+  let replace_initially_added = s:IsReplaceInitiallyAdded(a:input)
+  return input_changed || replace_initially_added
 endfunction
 
 function! s:IsShowHistoryList(input)
@@ -1604,14 +1602,18 @@ endfunction
 function! s:FindInFilesBufferUpdate(input, id)
   let [input, replace] = s:GetInputAndReplce(a:input)
 
-  if s:ShouldGetFindInFiles(input)
-    let list = s:GetFindInFilesResult(input)
+  if s:ShouldGetFindInFiles(a:input)
+    let list = s:GetFindInFilesResult(input, a:input)
     let display = s:GetFindInFilesDisplay(list, input, replace)
     call s:ShowInListBuffer(display, input)
 
     let s:input = input
     let s:list = list
-    let s:replace = replace
+    if s:IsReplaceInitiallyAdded(a:input)
+      let s:replace = replace
+    else
+      let s:replace = -1
+    endif
   endif
 
   if s:ShouldRedrawWithReplace(input, replace)
@@ -1656,7 +1658,7 @@ function! s:ShouldRedrawWithReplace(input, replace)
   if s:IsDismissed()
     return 1
   endif
-  return a:replace != s:replace && !s:IsShowHistoryList(a:input)
+  return !empty(a:replace) && a:replace != s:replace && !s:IsShowHistoryList(a:input)
 endfunction
 
 function! s:HighlightReplaceChars(input, replace)
@@ -1716,9 +1718,10 @@ function! s:InitListVariables(Init)
     let s:offset = 0
   endif
 
-  " Make sure s:input (saved input) is differrent from input to trigger query
+  " Make sure s:input (saved input), s:replace (saved replace)
+  " is differrent from input to trigger query
   let s:input = -1
-  let s:replace = ''
+  let s:replace = -1
   let s:list = []
   call a:Init(input)
 
