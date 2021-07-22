@@ -1667,9 +1667,7 @@ function! s:HighlightReplaceChars(input, replace)
   endif
 
   let pattern = s:GetFindInFilesInputPattern(a:input)
-  syntax clear BeforeReplace
-  execute 'silent! syntax match BeforeReplace /\c'.pattern.'/'
-
+  execute 'silent! 2match BeforeReplace /\c'.pattern.'/'
   execute 'silent! match AfterReplace /\c'.pattern.'\zs'.a:replace.'/'
 endfunction
 
@@ -2625,10 +2623,7 @@ function! s:HighlightInputCharsAsPattern(input)
 
   call clearmatches()
   let pattern = s:GetFindInFilesInputPattern(a:input)
-
-  syntax clear InputChar
-  execute 'silent! syntax match InputChar /\c'.pattern.'/'
-  " execute 'silent! match InputChar /\c^\s\+.\{-}\zs'.pattern.'/'
+  execute 'silent! match InputChar /\c'.pattern.'/'
 endfunction
 
 function! s:TransformExternalPatternToVim(pattern)
