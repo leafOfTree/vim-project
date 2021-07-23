@@ -73,6 +73,7 @@ function! s:Prepare()
         \'find_replace': "\<c-r>",
         \'find_replace_dismiss': "\<c-d>",
         \'find_replace_confirm': "\<c-y>",
+        \'switch_to_list': "\<c-o>",
         \}
   let s:default.file_open_types = {
         \'':  'edit',
@@ -688,29 +689,35 @@ function! s:OpenListBuffer()
   endif
 endfunction
 
-function! s:CloseListBuffer()
-  if !s:IsCurrentListBuffer()
+function! s:CloseListBuffer(cmd)
+  let &g:laststatus = s:laststatus_save
+
+  if !s:IsCurrentListBuffer() || a:cmd == 'switch_to_list'
     return
   endif
 
-  let &g:laststatus = s:laststatus_save
-
   quit
+  redraw
+  wincmd p
+endfunction
+
+function! s:WipeoutListBuffer()
   let num = bufnr(s:list_buffer)
   if num != -1
     execute 'silent bwipeout! '.num
   endif
-  redraw!
-  wincmd p
 endfunction
 
 function! s:SetupListBuffer()
+  autocmd BufLeave <buffer> call s:WipeoutListBuffer()
+
   setlocal buftype=nofile bufhidden=delete nobuflisted
   setlocal filetype=projectlist
   setlocal nonumber
   setlocal nocursorline
   setlocal nowrap
   set laststatus=0
+
   syntax clear
   syntax match FirstColumn /^\S*/
   syntax match Comment /file results\|recently opened/
@@ -1504,7 +1511,7 @@ function! s:RunShellCmd(cmd)
 
   if v:shell_error
     if !empty(output)
-      call s:Warn(a:cmd.': '.string(output))
+      call s:Log(a:cmd.': '.string(output))
     endif
     return []
   endif
@@ -1723,7 +1730,7 @@ function! s:RenderList(Init, Update, Open)
 
   let [cmd, input] = s:HandleInput(input, a:Update)
 
-  call s:CloseListBuffer()
+  call s:CloseListBuffer(cmd)
 
   if s:IsOpenCmd(cmd)
     call s:OpenTarget(cmd, a:Open)
@@ -1829,6 +1836,8 @@ function! s:HandleInput(input, Update)
         call s:DismissFindReplaceItem()
       elseif cmd == 'find_replace_confirm'
         call s:ConfirmFindReplace(input)
+        break
+      elseif cmd == 'switch_to_list'
         break
       elseif s:IsOpenCmd(cmd)
         break
