@@ -709,7 +709,7 @@ function! s:WipeoutListBuffer()
 endfunction
 
 function! s:SetupListBuffer()
-  autocmd BufLeave <buffer> call s:WipeoutListBuffer()
+  autocmd QuitPre <buffer> call s:WipeoutListBuffer()
 
   setlocal buftype=nofile bufhidden=delete nobuflisted
   setlocal filetype=projectlist
