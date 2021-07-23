@@ -8,7 +8,7 @@ function! s:Prepare()
   let s:find_in_files_prefix = 'Find in files:'
   let s:find_replace_separator = ' >>>>>> '
   let s:find_in_files_max = 200
-  let s:find_in_files_max_to_stop = 60000
+  let s:find_in_files_max_to_stop = 100000
   let s:list_history = {}
   let s:laststatus_save = &laststatus
   let s:initial_height = 0
