@@ -8,6 +8,7 @@ function! s:Prepare()
   let s:find_in_files_prefix = 'Find in files:'
   let s:find_replace_separator = '| >>>>>> |'
   let s:find_in_files_max = 200
+  let s:find_in_files_max_to_stop = 10000
   let s:list_history = {}
   let s:laststatus_save = &laststatus
   let s:initial_height = 0
@@ -1382,12 +1383,17 @@ function! s:SetGrepOutputLength(input, full_input, output)
   let more = 0
 
   let replace_initially_added = s:IsReplaceInitiallyAdded(a:full_input)
+  let exceed_max_to_stop = len(output) > s:find_in_files_max_to_stop
+
   if !replace_initially_added
     let max_length = s:find_in_files_max
     if len(output) > max_length
       let output = output[0:max_length]
       let more = 1
     endif
+  elseif exceed_max_to_stop
+    let error_msg = 'Error: :Stop for too many matches, more than '.s:find_in_files_max_to_stop
+    let output = [error_msg]
   endif
 
   return [output, more]
@@ -1419,8 +1425,12 @@ endfunction
 
 function! s:GetJoinedList(list)
   let joined_list = []
+  let current_file = ''
+
+  " Assume the list has already been ordered by file
   for item in a:list
-    if !s:HasFile(joined_list, item.file)
+    if item.file != current_file
+      let current_file = item.file
       call add(joined_list, { 'file': item.file })
     endif
     call add(joined_list, item)
@@ -1512,8 +1522,11 @@ function! s:GetFindInFilesDisplay(list, input, replace)
     return []
   endif
 
+  let pattern = s:GetFindInFilesInputPattern(a:input)
+  let should_replace = !empty(a:input) && !empty(a:replace)
+
   let display = map(copy(a:list),
-        \function('s:GetFindInFilesDisplayRow', [a:input, a:replace]))
+        \function('s:GetFindInFilesDisplayRow', [a:input, a:replace, pattern, should_replace]))
 
   if s:IsListMore(a:list)
     let display[0] .= '  ...more'
@@ -1526,23 +1539,22 @@ function! s:IsFileItem(item)
   return has_key(a:item, 'file') && !has_key(a:item, 'line')
 endfunction
 
-function! s:GetFindInFilesDisplayRow(input, replace, idx, val)
+function! s:GetFindInFilesDisplayRow(input, replace, pattern, should_replace, idx, val)
   let isFile = s:IsFileItem(a:val)
   if isFile
     return a:val.file
   else
     let line = a:val.line
-    if !empty(a:input) && !empty(a:replace)
-      let line = s:GetReplacedLine(line, a:input, a:replace, 1)
+    if a:should_replace
+      let line = s:GetReplacedLine(line, a:input, a:replace, a:pattern, 1)
     endif
     return '  '.line
   endif
 endfunction
 
-function! s:GetReplacedLine(line, input, replace, add)
-  let pattern = s:GetFindInFilesInputPattern(a:input)
+function! s:GetReplacedLine(line, input, replace, pattern, add)
   let prefix = a:add ? '\1' : ''
-  let line = substitute(a:line, '\('.pattern.'\)', prefix.a:replace, 'g')
+  let line = substitute(a:line, '\('.a:pattern.'\)', prefix.a:replace, 'g')
   return line
 endfunction
 
@@ -1658,7 +1670,10 @@ function! s:ShouldRedrawWithReplace(input, replace)
   if s:IsDismissed()
     return 1
   endif
-  return !empty(a:replace) && a:replace != s:replace && !s:IsShowHistoryList(a:input)
+  if empty(a:replace) && s:replace == -1
+    return 0
+  endif
+  return a:replace != s:replace && !s:IsShowHistoryList(a:input)
 endfunction
 
 function! s:HighlightReplaceChars(input, replace)
@@ -1683,8 +1698,14 @@ function! s:FindInFilesBufferOpen(target, open_cmd)
 endfunction
 
 function! s:ShowInputLine(input)
+  if len(s:list) > s:find_in_files_max * 2
+    let total = '('.len(s:list).')'
+  else
+    let total = ''
+  endif
+
   redraw
-  echo s:prefix.' '.a:input
+  echo s:prefix.total.' '.a:input
 endfunction
 
 function! s:RenderList(Init, Update, Open)
@@ -1821,11 +1842,37 @@ endfunction
 function! s:ConfirmFindReplace(input)
   let [input, replace] =
         \s:GetInputAndReplaceFromHistory(a:input, s:replace)
+  call s:RunReplaceAll(input, replace)
+endfunction
+
+function! s:RunReplaceAll(input, replace)
+  let index_line = 0
+  let index_file = 0
+  let total_lines = s:GetTotalReplaceLines()
+  let total_files = len(s:list) - total_lines
+
   for item in s:list
     if !s:IsFileItem(item)
-      call s:ReplaceLineOfFile(item, input, replace)
+      call s:ReplaceLineOfFile(item, a:input, a:replace)
+      let index_line += 1
+    else
+      let index_file += 1
+    endif
+    let info_line = 'line '.index_line.' of '.total_lines
+    let info_file = 'file '.index_file.' of '.total_files
+    redraw
+    call s:Info('Replaced '.info_file.', '.info_line)
+  endfor
+endfunction
+
+function! s:GetTotalReplaceLines()
+  let total = 0
+  for item in s:list
+    if !s:IsFileItem(item)
+      let total += 1
     endif
   endfor
+  return total
 endfunction
 
 function! s:ReplaceLineOfFile(item, input, replace)
