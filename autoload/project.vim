@@ -8,7 +8,7 @@ function! s:Prepare()
   let s:find_in_files_prefix = 'Find in files:'
   let s:find_replace_separator = ' >>>>>> '
   let s:find_in_files_max = 200
-  let s:find_in_files_max_to_stop = 100000
+  let s:find_in_files_to_stop_max = 100000
   let s:list_history = {}
   let s:laststatus_save = &laststatus
   let s:initial_height = 0
@@ -1387,7 +1387,7 @@ function! s:SetGrepOutputLength(input, full_input, output)
   let more = 0
 
   let replace_initially_added = s:IsReplaceInitiallyAdded(a:full_input)
-  let exceed_max_to_stop = len(output) > s:find_in_files_max_to_stop
+  let exceed_max_to_stop = len(output) > s:find_in_files_to_stop_max
 
   if !replace_initially_added
     let max_length = s:find_in_files_max
@@ -1396,7 +1396,7 @@ function! s:SetGrepOutputLength(input, full_input, output)
       let more = 1
     endif
   elseif exceed_max_to_stop
-    let error_msg = 'Error: :Stop for too many matches, more than '.s:find_in_files_max_to_stop
+    let error_msg = 'Error: :Stopped for too many matches, more than '.s:find_in_files_to_stop_max
     let output = [error_msg]
   endif
 
