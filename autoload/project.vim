@@ -20,6 +20,7 @@ function! s:Prepare()
   let s:start_project = {}
   let s:start_buf = ''
   let s:dismissed_find_replace = 0
+  let s:update_timer = 0
   let s:list_buffer = '__vim_project_list__'
   let s:nerdtree_tmp = '__vim_project_nerdtree_tmp__'
 
@@ -1511,7 +1512,7 @@ function! s:RunShellCmd(cmd)
 
   if v:shell_error
     if !empty(output)
-      call s:Log(a:cmd.': '.string(output))
+      call s:Debug(a:cmd.': '.string(output))
     endif
     return []
   endif
@@ -1581,7 +1582,6 @@ function! s:FindInFilesBufferInit(input)
   return s:FindInFilesBufferUpdate(a:input, 0)
 endfunction
 
-let s:update_timer = 0
 
 function! s:FindInFilesBufferUpdateTimer(input)
   call timer_stop(s:update_timer)
@@ -1626,14 +1626,28 @@ function! s:GetInputAndReplce(input)
   return [input, replace]
 endfunction
 
+function! s:ShowFindInFilesResultTimer(display, input, replace)
+  call timer_start(1,
+        \function('s:ShowFindInFilesResult', [a:display, a:input, a:replace]))
+endfunction
+" 
+function! s:ShowFindInFilesResult(display, input, replace, id)
+  if exists('s:list')
+    call s:ShowInListBuffer(a:display, a:input)
+    call s:HighlightCurrentLine(len(s:list))
+    call s:HighlightInputCharsAsPattern(a:input)
+    call s:HighlightReplaceChars(a:input, a:replace)
+    call s:ShowInputLine(a:input)
+  endif
+endfunction
+
 function! s:FindInFilesBufferUpdate(input, id)
   let [input, replace] = s:GetInputAndReplce(a:input)
-
-  if s:ShouldGetFindInFiles(a:input)
+  let should_get = s:ShouldGetFindInFiles(a:input)
+  let should_redraw = s:ShouldRedrawWithReplace(input, replace)
+  if should_get
     let list = s:GetFindInFilesResult(input, a:input)
     let display = s:GetFindInFilesDisplay(list, input, replace)
-    call s:ShowInListBuffer(display, input)
-
     let s:input = input
     let s:list = list
     if s:IsReplaceInitiallyAdded(a:input)
@@ -1641,21 +1655,16 @@ function! s:FindInFilesBufferUpdate(input, id)
     else
       let s:replace = -1
     endif
-  endif
-
-  if s:ShouldRedrawWithReplace(input, replace)
+  elseif should_redraw
     let [redraw_input, redraw_replace] =
           \s:TryInputAndReplaceFromHistory(input, replace)
     let display = s:GetFindInFilesDisplay(s:list, redraw_input, redraw_replace)
-    call s:ShowInListBuffer(display, input)
     let s:replace = replace
   endif
 
-  call s:HighlightCurrentLine(len(s:list))
-  call s:HighlightInputCharsAsPattern(input)
-  call s:HighlightReplaceChars(input, replace)
-
-  call s:ShowInputLine(a:input)
+  if should_get || should_redraw
+    call s:ShowFindInFilesResultTimer(display, input, replace)
+  endif
 endfunction
 
 function! s:TryInputAndReplaceFromHistory(input, replace)
