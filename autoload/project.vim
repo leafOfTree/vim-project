@@ -1579,17 +1579,17 @@ function! s:IsListMore(list)
 endfunction
 
 function! s:FindInFilesBufferInit(input)
-  return s:FindInFilesBufferUpdate(a:input, 0)
+  return s:FindInFilesBufferUpdate(a:input, 1, 0)
 endfunction
 
 
 function! s:FindInFilesBufferUpdateTimer(input)
   call timer_stop(s:update_timer)
   if !s:ShouldGetFindInFiles(a:input)
-    call s:FindInFilesBufferUpdate(a:input, 0)
+    call s:FindInFilesBufferUpdate(a:input, 0, 0)
   else
     let s:update_timer = timer_start(350,
-          \function('s:FindInFilesBufferUpdate', [a:input]))
+          \function('s:FindInFilesBufferUpdate', [a:input, 0]))
   endif
 endfunction
 
@@ -1626,31 +1626,36 @@ function! s:GetInputAndReplce(input)
   return [input, replace]
 endfunction
 
-function! s:ShowFindInFilesResultTimer(display, input, replace)
+function! s:ShowFindInFilesResultTimer(display, input, replace, full_input, is_init)
   call timer_start(1,
-        \function('s:ShowFindInFilesResult', [a:display, a:input, a:replace]))
+        \function('s:ShowFindInFilesResult', [a:display, a:input, a:replace, a:full_input, a:is_init]))
 endfunction
 " 
-function! s:ShowFindInFilesResult(display, input, replace, id)
+function! s:ShowFindInFilesResult(display, input, replace, full_input, is_init, id)
   if exists('s:list')
     call s:ShowInListBuffer(a:display, a:input)
     call s:HighlightCurrentLine(len(s:list))
     call s:HighlightInputCharsAsPattern(a:input)
     call s:HighlightReplaceChars(a:input, a:replace)
-    call s:ShowInputLine(a:input)
+    if a:is_init
+      call s:ShowInputLine('')
+    else
+      call s:ShowInputLine(a:full_input)
+    endif
   endif
 endfunction
 
-function! s:FindInFilesBufferUpdate(input, id)
-  let [input, replace] = s:GetInputAndReplce(a:input)
-  let should_get = s:ShouldGetFindInFiles(a:input)
+function! s:FindInFilesBufferUpdate(full_input, is_init, id)
+  let [input, replace] = s:GetInputAndReplce(a:full_input)
+  let should_get = s:ShouldGetFindInFiles(a:full_input)
   let should_redraw = s:ShouldRedrawWithReplace(input, replace)
+
   if should_get
-    let list = s:GetFindInFilesResult(input, a:input)
+    let list = s:GetFindInFilesResult(input, a:full_input)
     let display = s:GetFindInFilesDisplay(list, input, replace)
     let s:input = input
     let s:list = list
-    if s:IsReplaceInitiallyAdded(a:input)
+    if s:IsReplaceInitiallyAdded(a:full_input)
       let s:replace = replace
     else
       let s:replace = -1
@@ -1660,10 +1665,15 @@ function! s:FindInFilesBufferUpdate(input, id)
           \s:TryInputAndReplaceFromHistory(input, replace)
     let display = s:GetFindInFilesDisplay(s:list, redraw_input, redraw_replace)
     let s:replace = replace
+  else
+    let display = s:GetFindInFilesDisplay(s:list, input, replace)
   endif
 
-  if should_get || should_redraw
-    call s:ShowFindInFilesResultTimer(display, input, replace)
+  let use_timer = should_redraw && !empty(a:full_input)
+  if use_timer
+    call s:ShowFindInFilesResultTimer(display, input, replace, a:full_input, a:is_init)
+  else
+    call s:ShowFindInFilesResult(display, input, replace, a:full_input, a:is_init, 0)
   endif
 endfunction
 
@@ -1732,19 +1742,25 @@ function! s:ShowInputLine(input)
   echo s:prefix.total.' '.a:input
 endfunction
 
+function! s:ShowInitialInputLineTimer(input)
+  call timer_start(1, function('s:ShowInitialInputLine', [a:input]))
+endfunction
+
+function! s:ShowInitialInputLine(input, ...)
+  call s:ShowInputLine(a:input)
+endfunction
+
 function! s:RenderList(Init, Update, Open)
   let input = s:InitListVariables(a:Init)
-
-  call s:ShowInputLine(input)
+  call s:ShowInitialInputLine(input)
+  " call s:ShowInitialInputLineTimer(input)
 
   let [cmd, input] = s:HandleInput(input, a:Update)
 
   call s:CloseListBuffer(cmd)
-
   if s:IsOpenCmd(cmd)
     call s:OpenTarget(cmd, a:Open)
   endif
-
   call s:SaveListVariables(input)
   call s:ResetListVariables()
 endfunction
