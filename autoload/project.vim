@@ -1321,7 +1321,7 @@ function! s:SearchFilesBufferOpen(target, open_cmd)
   execute cmd.' '.file
 endfunction
 
-function! s:CheckGrepProgram()
+function! s:FindGrepProgram()
   " Try rg, ag, vimgrep in order
   let programs = ['rg', 'ag', 'grep']
   for program in programs
@@ -1350,7 +1350,7 @@ function! s:RunExternalGrep(program, input, full_input)
 endfunction
 
 function! s:GetGrepResult(input, full_input)
-  let program = s:CheckGrepProgram()
+  let program = s:FindGrepProgram()
 
   if program != ''
     let list = s:RunExternalGrep(program, a:input, a:full_input)
@@ -1370,8 +1370,8 @@ function! s:GetAgCmd(pattern)
   let exclude_arg = join(
         \map(exclude,{_, val -> '--ignore-dir '.val}), ' ')
 
-  let search_arg = '--hidden --skip-vcs-ignores'
-  let cmd = 'ag '.search_arg.' '.a:pattern.' '.include_arg.' '.exclude_arg
+  let search_arg = '--hidden --skip-vcs-ignores --fixed-strings'
+  let cmd = 'ag '.search_arg.' '.include_arg.' '.exclude_arg.' '.a:pattern
   return cmd
 endfunction
 
@@ -1386,7 +1386,8 @@ function! s:GetGrepCmd(pattern)
   let exclude_arg = join(
         \map(exclude,{_, val -> '--exclude-dir '.val}), ' ')
 
-  let cmd = 'grep -inR '.a:pattern.' '.include_arg.' '.exclude_arg
+  let search_arg = '--line-number --recursive --ignore-case --fixed-strings'
+  let cmd = 'grep '.search_arg.' '.include_arg.' '.exclude_arg.' '.a:pattern
   return cmd
 endfunction
 
@@ -1404,7 +1405,8 @@ function! s:SetGrepOutputLength(input, full_input, output)
       let more = 1
     endif
   elseif exceed_max_to_stop
-    let error_msg = 'Error: :Stopped for too many matches, more than '.s:find_in_files_to_stop_max
+    let error_msg = 'Error: :Stopped for too many matches, more than '
+          \.s:find_in_files_to_stop_max
     let output = [error_msg]
   endif
 
@@ -1498,7 +1500,8 @@ function! s:GetRgCmd(pattern)
   let exclude = copy(s:find_in_files_exclude)
   let exclude_arg = "-g '!{".join(exclude, ',')."}'"
 
-  let cmd = 'rg -ni '.include_arg.' '.exclude_arg.' '.a:pattern
+  let search_arg = '--line-number --ignore-case --fixed-strings'
+  let cmd = 'rg '.search_arg.' '.include_arg.' '.exclude_arg.' '.a:pattern
   return cmd
 endfunction
 
@@ -1669,7 +1672,7 @@ function! s:FindInFilesBufferUpdate(full_input, is_init, id)
     let display = s:GetFindInFilesDisplay(s:list, input, replace)
   endif
 
-  let use_timer = should_redraw && !empty(a:full_input)
+  let use_timer = (should_get || should_redraw) && !empty(a:full_input)
   if use_timer
     call s:ShowFindInFilesResultTimer(display, input, replace, a:full_input, a:is_init)
   else
@@ -1716,8 +1719,8 @@ function! s:HighlightReplaceChars(input, replace)
   endif
 
   let pattern = s:GetFindInFilesInputPattern(a:input)
-  execute 'silent! 2match BeforeReplace /\c'.pattern.'/'
-  execute 'silent! match AfterReplace /\c'.pattern.'\zs'.a:replace.'/'
+  execute 'silent! 2match BeforeReplace /'.pattern.'/'
+  execute 'silent! match AfterReplace /'.pattern.'\zs\V'.a:replace.'/'
 endfunction
 
 function! s:FindInFilesBufferOpen(target, open_cmd)
@@ -2698,13 +2701,9 @@ endfunction
 
 function! s:GetFindInFilesInputPattern(input)
   let pattern = a:input
-
   let pattern = escape(pattern, '/')
-  let program = s:CheckGrepProgram()
-  if program == 'rg' || program == 'ag'
-    let pattern = s:TransformExternalPatternToVim(pattern)
-  endif
-  return pattern
+  let pattern = s:TransformPatternOneByOne(pattern)
+  return '\c\V'.pattern
 endfunction
 
 function! s:HighlightInputCharsAsPattern(input)
@@ -2714,25 +2713,35 @@ function! s:HighlightInputCharsAsPattern(input)
 
   call clearmatches()
   let pattern = s:GetFindInFilesInputPattern(a:input)
-  execute 'silent! match InputChar /\c'.pattern.'/'
+  execute 'silent! match InputChar /'.pattern.'/'
 endfunction
 
-function! s:TransformExternalPatternToVim(pattern)
-  return s:ReplacePatternOneByOne(a:pattern)
-endfunction
-
-function! s:ReplacePatternOneByOne(pattern)
+function! s:TransformPatternOneByOne(pattern)
   let chars = split(a:pattern, '\zs')
   let idx = 0
   for char in chars
-    call s:ReverseBackslash(chars, idx, char, ['(', ')', '|'])
+    " \b -> \W for rg/ag
     call s:ReplaceEscapedChar(chars, idx, char, ['b'], ['W'])
+    " * -> \*
+    call s:AddBackslashIfNot(chars, idx, char, ['*'])
     let idx += 1
   endfor
 
   return join(chars, '')
 endfunction
 
+function! s:AddBackslashIfNot(chars,idx, char, target)
+  let idx = a:idx
+
+  if count(a:target, a:char) > 0 && idx > 0
+    if a:chars[idx-1] != '\'
+      let a:chars[idx] = '\'.a:chars[idx]
+    endif
+  endif
+endfunction
+
+" For example:
+" target ['(', ')', '|']) means ( -> \(, \( -> (, ...,
 function! s:ReverseBackslash(chars, idx, char, target)
   let idx = a:idx
 
