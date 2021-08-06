@@ -1321,39 +1321,38 @@ function! s:SearchFilesBufferOpen(target, open_cmd)
   execute cmd.' '.file
 endfunction
 
-function! s:FindGrepProgram()
-  " Try rg, ag, vimgrep in order
+function! s:TryExtternalGrepCmd(input, full_input)
+  " Try rg, ag, grep, vimgrep in order
   let programs = ['rg', 'ag', 'grep']
+  let grep_cmd_map = {
+        \'rg': function('s:GetRgCmd'),
+        \'ag': function('s:GetAgCmd'),
+        \'grep': function('s:GetGrepCmd'),
+        \}
+
+  let grep_program = ''
   for program in programs
     if executable(program)
-      return program
+      let grep_program = program
+      break
     endif
   endfor
-  return ''
-endfunction
 
-
-function! s:RunExternalGrep(program, input, full_input)
-  let pattern = '"'.escape(a:input, '"').'"'
-  let cmd = ''
-  if a:program == 'rg'
-    let cmd = s:GetRgCmd(pattern)
-  elseif a:program == 'ag'
-    let cmd = s:GetAgCmd(pattern)
-  elseif a:program == 'grep'
-    let cmd = s:GetGrepCmd(pattern)
+  if grep_program != ''
+    let s:grep_cmd_func = grep_cmd_map[grep_program]
+  else
+    let s:grep_cmd_func = 0
   endif
-
-  let output = s:RunShellCmd(cmd)
-  let result = s:GetResultFromGrepOutput(a:input, a:full_input, output)
-  return result
 endfunction
+
 
 function! s:GetGrepResult(input, full_input)
-  let program = s:FindGrepProgram()
+  if !exists('s:grep_cmd_func')
+    call s:TryExtternalGrepCmd(a:input, a:full_input)
+  endif
 
-  if program != ''
-    let list = s:RunExternalGrep(program, a:input, a:full_input)
+  if s:grep_cmd_func != 0
+    let list = s:RunExternalGrep(a:input, a:full_input)
   else
     let list = s:RunVimGrep(a:input, a:full_input)
   endif
@@ -1387,9 +1386,40 @@ function! s:GetGrepCmd(pattern)
         \map(exclude,{_, val -> '--exclude-dir '.val}), ' ')
 
   let search_arg = '--line-number --recursive --ignore-case --fixed-strings'
-  let cmd = 'grep '.search_arg.' '.include_arg.' '.exclude_arg.' '.a:pattern
+  let cmd = 'fgrep '.search_arg.' '.a:pattern.' '.include_arg.' '.exclude_arg
   return cmd
 endfunction
+
+function! s:GetRgCmd(pattern)
+  let include = copy(s:find_in_files_include)
+  " rg does not support '{./**}'
+  call filter(include, {_, val -> val != '.'})
+
+  if len(include)
+    let include_pattern = map(include, 
+          \{_, val -> val.'/**' })
+    let include_arg = "-g '{".join(include_pattern, ',')."}'"
+  else
+    let include_arg = "-g '{**}'"
+  endif
+
+  let exclude = copy(s:find_in_files_exclude)
+  let exclude_arg = "-g '!{".join(exclude, ',')."}'"
+
+  let search_arg = '--line-number --ignore-case --fixed-strings'
+  let cmd = 'rg '.search_arg.' '.include_arg.' '.exclude_arg.' '.a:pattern
+  return cmd
+endfunction
+
+function! s:RunExternalGrep(input, full_input)
+  let pattern = '"'.escape(a:input, '"').'"'
+  let cmd = s:grep_cmd_func(pattern)
+
+  let output = s:RunShellCmd(cmd)
+  let result = s:GetResultFromGrepOutput(a:input, a:full_input, output)
+  return result
+endfunction
+
 
 function! s:SetGrepOutputLength(input, full_input, output)
   let output = a:output
@@ -1482,27 +1512,6 @@ function! s:RunVimGrep(input, full_input)
     let result[0].more = more
   endif
   return result
-endfunction
-
-function! s:GetRgCmd(pattern)
-  let include = copy(s:find_in_files_include)
-  " rg does not support '{./**}'
-  call filter(include, {_, val -> val != '.'})
-
-  if len(include)
-    let include_pattern = map(include, 
-          \{_, val -> val.'/**' })
-    let include_arg = "-g '{".join(include_pattern, ',')."}'"
-  else
-    let include_arg = "-g '{**}'"
-  endif
-
-  let exclude = copy(s:find_in_files_exclude)
-  let exclude_arg = "-g '!{".join(exclude, ',')."}'"
-
-  let search_arg = '--line-number --ignore-case --fixed-strings'
-  let cmd = 'rg '.search_arg.' '.include_arg.' '.exclude_arg.' '.a:pattern
-  return cmd
 endfunction
 
 function! s:RunShellCmd(cmd)

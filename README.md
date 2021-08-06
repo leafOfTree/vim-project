@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/leafOfTree/leafOfTree.github.io/master/vim-project.png" height="60" alt="icon" align="left"/>
+
 # vim-project
 
 <p align="center">
@@ -10,7 +12,7 @@
 <img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-4.png" width="240" />
 </p>
 
-A vim plugin to manage projects
+One vim plugin to manage projects all
 
 **Features**
 
