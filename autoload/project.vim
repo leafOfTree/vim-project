@@ -680,7 +680,7 @@ endfunction
 
 function! s:OpenListBuffer()
   let s:max_height = winheight(0) - 5
-  let s:max_width = winwidth(0)
+  let s:max_width = &columns
   let win = s:list_buffer
   let num = bufwinnr(win)
   if num == -1
