@@ -674,8 +674,14 @@ function! project#FindInFiles()
 endfunction
 
 function! s:PrepareListBuffer()
+  " Avoid a cursor bug when opening from Fern.vim
+  let save_eventignore = &eventignore
+  set eventignore=all
+
   call s:OpenListBuffer()
   call s:SetupListBuffer()
+
+  let &eventignore = save_eventignore
 endfunction
 
 function! s:OpenListBuffer()
