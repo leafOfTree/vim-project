@@ -3,24 +3,24 @@
 # vim-project
 
 <p align="center">
-<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-1.png" width="240" />
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-1.png" width="180" />
 ➡️
-<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-2.png" width="240" />
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-2.png" width="180" />
 ➡️
-<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-3.png" width="240" />
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-3.png" width="180" />
 ➡️
-<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-4.png" width="240" />
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-4.png" width="180" />
 </p>
 
-One vim plugin to manage projects all
+A vim plugin to manage projects
 
 **Features**
 
 - Switch between projects
-- Configs per project 
-- Sessions per project and per branch
+- Config per project 
+- Session per project and per branch
 
-    To notice branch, it requires both vim feature `job` and shell command `tail` 
+    Branch requires both vim feature `job` and shell command `tail` 
 
 ## Usage
 
