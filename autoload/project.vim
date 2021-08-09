@@ -1645,22 +1645,18 @@ function! s:GetInputAndReplce(input)
   return [input, replace]
 endfunction
 
-function! s:ShowFindInFilesResultTimer(display, input, replace, full_input, is_init)
+function! s:ShowFindInFilesResultTimer(display, input, replace, full_input)
   call timer_start(1,
-        \function('s:ShowFindInFilesResult', [a:display, a:input, a:replace, a:full_input, a:is_init]))
+        \function('s:ShowFindInFilesResult', [a:display, a:input, a:replace, a:full_input]))
 endfunction
 " 
-function! s:ShowFindInFilesResult(display, input, replace, full_input, is_init, id)
+function! s:ShowFindInFilesResult(display, input, replace, full_input, id)
   if exists('s:list')
     call s:ShowInListBuffer(a:display, a:input)
     call s:HighlightCurrentLine(len(s:list))
     call s:HighlightInputCharsAsPattern(a:input)
     call s:HighlightReplaceChars(a:input, a:replace)
-    if a:is_init
-      call s:ShowInputLine('')
-    else
-      call s:ShowInputLine(a:full_input)
-    endif
+    call s:ShowInputLine(a:full_input)
   endif
 endfunction
 
@@ -1688,11 +1684,12 @@ function! s:FindInFilesBufferUpdate(full_input, is_init, id)
     let display = s:GetFindInFilesDisplay(s:list, input, replace)
   endif
 
-  let use_timer = (should_run || should_redraw) && !empty(a:full_input)
+  " Use timer just for fluent typing. Not necessary
+  let use_timer = (should_run || should_redraw) && !empty(a:full_input) && !a:is_init
   if use_timer
-    call s:ShowFindInFilesResultTimer(display, input, replace, a:full_input, a:is_init)
+    call s:ShowFindInFilesResultTimer(display, input, replace, a:full_input)
   else
-    call s:ShowFindInFilesResult(display, input, replace, a:full_input, a:is_init, 0)
+    call s:ShowFindInFilesResult(display, input, replace, a:full_input, 0)
   endif
 endfunction
 
@@ -1762,7 +1759,7 @@ function! s:ShowInputLine(input)
 endfunction
 
 function! s:ShowInitialInputLineTimer(input)
-  call timer_start(1, function('s:ShowInitialInputLine', [a:input]))
+  call timer_start(100, function('s:ShowInitialInputLine', [a:input]))
 endfunction
 
 function! s:ShowInitialInputLine(input, ...)
