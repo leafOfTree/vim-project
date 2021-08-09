@@ -1321,7 +1321,7 @@ function! s:SearchFilesBufferOpen(target, open_cmd)
   execute cmd.' '.file
 endfunction
 
-function! s:TryExtternalGrepCmd(input, full_input)
+function! s:TryExternalGrepCmd(input, full_input)
   " Try rg, ag, grep, vimgrep in order
   let programs = ['rg', 'ag', 'grep']
   let grep_cmd_map = {
@@ -1348,7 +1348,7 @@ endfunction
 
 function! s:GetGrepResult(input, full_input)
   if !exists('s:grep_cmd_func')
-    call s:TryExtternalGrepCmd(a:input, a:full_input)
+    call s:TryExternalGrepCmd(a:input, a:full_input)
   endif
 
   if s:grep_cmd_func != 0
@@ -1492,9 +1492,10 @@ function! s:RunVimGrep(input, full_input)
     execute 'set wildignore+=*/'.exclude.'*'
   endfor
 
-  let pattern = '/'.escape(a:input, '/').'/j'
+  let pattern = '/\V'.escape(a:input, '/').'/j'
   let cmd = 'silent! vimgrep '.pattern.' '.$vim_project.'/**/*'
   execute cmd
+  redraw!
 
   let &wildignore = original_wildignore
 
@@ -1597,7 +1598,7 @@ endfunction
 
 function! s:FindInFilesBufferUpdateTimer(input)
   call timer_stop(s:update_timer)
-  if !s:ShouldGetFindInFiles(a:input)
+  if !s:ShouldRunFindInFiles(a:input)
     call s:FindInFilesBufferUpdate(a:input, 0, 0)
   else
     let s:update_timer = timer_start(350,
@@ -1611,9 +1612,9 @@ function! s:IsReplaceInitiallyAdded(input)
   return has_separator && empty(replace) && s:replace == -1
 endfunction
 
-function! s:ShouldGetFindInFiles(input)
+function! s:ShouldRunFindInFiles(input)
   let [input, replace] = s:GetInputAndReplce(a:input)
-  let input_changed = input != s:input && !s:IsShowHistoryList(input)
+  let input_changed = exists('s:input') && input != s:input && !s:IsShowHistoryList(input)
   let replace_initially_added = s:IsReplaceInitiallyAdded(a:input)
   return input_changed || replace_initially_added
 endfunction
@@ -1659,10 +1660,10 @@ endfunction
 
 function! s:FindInFilesBufferUpdate(full_input, is_init, id)
   let [input, replace] = s:GetInputAndReplce(a:full_input)
-  let should_get = s:ShouldGetFindInFiles(a:full_input)
+  let should_run = s:ShouldRunFindInFiles(a:full_input)
   let should_redraw = s:ShouldRedrawWithReplace(input, replace)
 
-  if should_get
+  if should_run
     let list = s:GetFindInFilesResult(input, a:full_input)
     let display = s:GetFindInFilesDisplay(list, input, replace)
     let s:input = input
@@ -1681,7 +1682,7 @@ function! s:FindInFilesBufferUpdate(full_input, is_init, id)
     let display = s:GetFindInFilesDisplay(s:list, input, replace)
   endif
 
-  let use_timer = (should_get || should_redraw) && !empty(a:full_input)
+  let use_timer = (should_run || should_redraw) && !empty(a:full_input)
   if use_timer
     call s:ShowFindInFilesResultTimer(display, input, replace, a:full_input, a:is_init)
   else
