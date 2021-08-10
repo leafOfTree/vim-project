@@ -24,7 +24,7 @@ A vim plugin to manage projects
 
 ## Usage
 
-- `:ProjectAdd </path/to/project>`
+- `:Project </path/to/project>`
 - `:ProjectList` 
 
     It shows all projects that have been added. Navigate to target project and then press <kbd>Enter</kbd> to open it
@@ -59,7 +59,7 @@ A vim plugin to manage projects
 
 ### Manually
 
-`:ProjectAdd </path/to/project>`
+`:Project </path/to/project>`
 
 ### Auto
 
@@ -76,7 +76,7 @@ You can find and directly modify cached projects in these files in `~/.vim/vim-p
 
 - Add projects
 
-    `:ProjectAdd <path/to/project>` | Open a file in a project
+    `:Project <path/to/project>` | Open a file in a project
 
 - Open a project
 
@@ -99,7 +99,6 @@ You can find and directly modify cached projects in these files in `~/.vim/vim-p
 | command                             | description                               |
 |-------------------------------------|-------------------------------------------|
 | Project `<path>[, option]`          | Add project                               |
-| ProjectAdd `<path>[, option]`       | Add project                               |
 | ProjectList                         | Show projects                             |
 | ProjectOpen `<name>`                | Open a project by name                    |
 | ProjectRemove `<name>`              | Remove a project by name                  |
@@ -113,12 +112,12 @@ You can find and directly modify cached projects in these files in `~/.vim/vim-p
 
 > You can try adjust `wildmenu`, `wildmode` for enhanced command-line completion
 
-### :ProjectAdd `<path>[, option]`
+### :Project `<path>[, option]`
 
-You can also use `:Project <path>[, option]`. Example
+Example
 
 ```vim
-ProjectAdd '/path/to/demo', { 'entry': 'src', 'note': 'A demo' }
+Project '/path/to/demo', { 'entry': 'src', 'note': 'A demo' }
 ```
 
 #### Path

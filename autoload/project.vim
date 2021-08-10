@@ -438,7 +438,7 @@ function! s:SourcePluginConfigFiles()
 endfunction
 
 function! s:SaveToPluginConfigAdd(path)
-  let cmd = 'ProjectAdd '.a:path
+  let cmd = 'Project '.a:path
   let file = s:config_home.'/'.s:add_file
   call writefile([cmd], file, 'a')
 endfunction

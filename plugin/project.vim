@@ -21,9 +21,6 @@ command -complete=customlist,project#ListAllProjectNames -nargs=1
 command -complete=customlist,project#ListDirs -nargs=+
       \ Project call project#AddProject(s:TrimQuote(<q-args>))
 
-command -complete=customlist,project#ListDirs -nargs=+
-      \ ProjectAdd call project#AddProject(s:TrimQuote(<q-args>))
-
 command -complete=dir -nargs=1
       \ ProjectBase call project#SetBase(s:TrimQuote(<q-args>))
 
