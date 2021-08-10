@@ -674,7 +674,11 @@ function! project#FindInFiles()
 endfunction
 
 function! s:PrepareListBuffer()
-  " Avoid a cursor bug when opening from Fern.vim
+  " Manually trigger some events first
+  doautocmd BufLeave
+  doautocmd FocusLost
+
+  " Ignore events to avoid a cursor bug when opening from Fern.vim
   let save_eventignore = &eventignore
   set eventignore=all
 
