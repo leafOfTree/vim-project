@@ -31,7 +31,7 @@ function! s:Prepare()
 
   let s:default = {
         \'config_home': '~/.vim/vim-project-config',
-        \'project_base': '~',
+        \'project_base': ['~'],
         \'auto_detect': 'no',
         \'auto_detect_file': ['.git', '.svn'],
         \'auto_load_on_start': 0,
@@ -136,7 +136,7 @@ function! s:InitConfig()
   let s:check_branch_when_use_session =
         \s:config.check_branch_when_use_session
   let s:use_session = s:config.use_session
-  let s:base = s:config.project_base
+  let s:project_base = s:RemoveTrailingSlash(s:config.project_base)
   let s:search_include = s:config.search_include
   let s:search_exclude = s:config.search_exclude
   let s:find_in_files_include = s:config.find_in_files_include
@@ -162,8 +162,14 @@ function! s:AdjustConfig()
         \s:AdjustIncludeExcludePath(s:find_in_files_exclude, [])
 endfunction
 
-function! project#SetBase(base)
-  let s:base = a:base
+function! s:RemoveTrailingSlash(list)
+  call map(a:list, {_, val -> substitute(val, '[\/]$', '', '')})
+  return a:list
+endfunction
+
+function! s:RemoveHeadingDotSlash(list)
+  call map(a:list, {_, val -> substitute(val, '^\.[\/]', '', '')})
+  return a:list
 endfunction
 
 function! s:AdjustIncludeExcludePath(paths, default)
@@ -171,9 +177,8 @@ function! s:AdjustIncludeExcludePath(paths, default)
   if empty(paths)
     let paths = a:default
   endif
-  call map(paths, {_, val -> substitute(val, '\/$', '', '')})
-  call map(paths, {_, val -> substitute(val, '^\.[\/]', '', '')})
-
+  call s:RemoveTrailingSlash(paths)
+  call s:RemoveHeadingDotSlash(paths)
   return paths
 endfunction
 
@@ -302,11 +307,12 @@ endfunction
 function! s:GetAbsolutePath(path)
   let path = a:path
   if s:IsRelativePath(path)
-    let base = s:base
-    if base[len(base)-1] != '/'
-      let base = base.'/'
-    endif
-    return base.path
+    for base in s:project_base
+      let full_path = base.'/'.path
+      if isdirectory(expand(full_path))
+        return full_path
+      endif
+    endfor
   else
     return path
   endif
@@ -389,7 +395,7 @@ endfunction
 function! project#ListDirs(path, L, P)
   let head = s:GetPathHead(a:path)
   if s:IsRelativePath(a:path)
-    let head = s:GetAbsolutePath(head)
+    let head = join(s:project_base, ',').'/'.head
     let tail = a:path
   else
     let tail = s:GetPathTail(a:path)

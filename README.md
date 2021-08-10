@@ -108,7 +108,6 @@ You can find and directly modify cached projects in these files in `~/.vim/vim-p
 | ProjectConfig                       | Open project config directory             |
 | ProjectAllConfig                    | Open all config directory                 |
 | ProjectIgnore `<path>`              | Ignore project for auto detection         |
-| ProjectBase `<base>`                | Set base directory for relative project path |
 
 > You can try adjust `wildmenu`, `wildmode` for enhanced command-line completion
 
@@ -122,7 +121,7 @@ Project '/path/to/demo', { 'entry': 'src', 'note': 'A demo' }
 
 #### Path
 
-If `path` is a relative path which doesn't start with `/`, `~` or `C:`, it'll be relative to `base`. `base` is initialized by `g:vim_project_config.project_base` and can be modified by `:ProjectBase`. It defaults to `~`.
+If `path` is a relative path which doesn't start with `/`, `~` or `C:`, it'll be relative to any of `g:vim_project_config.project_base` which defaults to `[~]`.
 
 #### option
 
