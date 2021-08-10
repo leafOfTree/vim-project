@@ -386,13 +386,13 @@ function! project#ListAllProjectNames(A, L, P)
   return matches
 endfunction
 
-function! project#ListDirs(A, L, P)
-  let head = s:GetPathHead(a:A)
-  if s:IsRelativePath(a:A)
+function! project#ListDirs(path, L, P)
+  let head = s:GetPathHead(a:path)
+  if s:IsRelativePath(a:path)
     let head = s:GetAbsolutePath(head)
-    let tail = a:A
+    let tail = a:path
   else
-    let tail = s:GetPathTail(a:A)
+    let tail = s:GetPathTail(a:path)
   endif
   let dirs = split(globpath(head, '*'), "\n")
 
