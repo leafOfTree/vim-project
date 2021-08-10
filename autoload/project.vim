@@ -2106,7 +2106,7 @@ function! project#OpenProjectByName(name)
   endif
 endfunction
 
-function! project#RemoveProjectByName(name)
+function! s:RemoveProjectByName(name, is_recursive)
   let project = s:GetProjectByName(a:name, s:projects)
   if empty(project)
     let project = s:GetProjectByName(a:name, s:projects_error)
@@ -2114,9 +2114,14 @@ function! project#RemoveProjectByName(name)
 
   if !empty(project)
     call s:RemoveProject(project)
-  else
+    call s:RemoveProjectByName(a:name, 1)
+  elseif !a:is_recursive
     call s:Warn('Project not found: '.a:name)
   endif
+endfunction
+
+function! project#RemoveProjectByName(name)
+  call s:RemoveProjectByName(a:name, 0)
 endfunction
 
 function! project#ReloadProject()
@@ -2194,7 +2199,7 @@ function! s:RemoveProject(project)
 
   let idx = index(projects, target)
   call remove(projects, idx)
-  call s:Info('Removed: '. target.name)
+  call s:Info('Removed: '. target.name.' at '.target.path)
   call s:SaveToPluginConfigIgnore(target.fullpath)
   call s:RemoveItemInPluginConfigAdd(target.fullpath)
 endfunction
