@@ -6,7 +6,7 @@ function! s:Prepare()
   let s:project_list_prefix = 'Open a project:'
   let s:search_files_prefix = 'Search files by name:'
   let s:find_in_files_prefix = 'Find in files:'
-  let s:find_replace_separator = ' >>>>>> '
+  let s:search_replace_separator = ' >>>>>> '
   let s:find_in_files_max = 200
   let s:find_in_files_to_stop_max = 100000
   let s:list_history = {}
@@ -1564,13 +1564,13 @@ function! s:GetFindInFilesResult(input, full_input)
   return list
 endfunction
 
-function! s:GetFindInFilesDisplay(list, input, replace)
+function! s:GetFindInFilesDisplay(list, search, replace)
   if len(a:list) == 0
     return []
   endif
 
-  let pattern = s:GetFindInFilesInputPattern(a:input)
-  let show_replace = !empty(a:input) && !empty(a:replace)
+  let pattern = s:GetFindInFilesInputPattern(a:search)
+  let show_replace = !empty(a:search) && !empty(a:replace)
 
   let display = map(copy(a:list),
         \function('s:GetFindInFilesDisplayRow', [pattern, a:replace, show_replace]))
@@ -1629,36 +1629,36 @@ function! s:FindInFilesBufferUpdateTimer(input)
 endfunction
 
 function! s:IsReplaceInitiallyAdded(input)
-  let [_, replace] = s:GetInputAndReplce(a:input)
-  let has_separator = match(a:input, s:find_replace_separator) != -1
+  let [_, replace] = s:ParseInput(a:input)
+  let has_separator = match(a:input, s:search_replace_separator) != -1
   return has_separator && empty(replace) && s:replace == -1
 endfunction
 
 function! s:ShouldRunFindInFiles(input)
-  let [input, replace] = s:GetInputAndReplce(a:input)
-  let input_changed = exists('s:input') && input != s:input && !s:IsShowHistoryList(input)
+  let [search, replace] = s:ParseInput(a:input)
+  let search_changed = exists('s:input') && search != s:input && !s:IsShowHistoryList(search)
   let replace_initially_added = s:IsReplaceInitiallyAdded(a:input)
-  return input_changed || replace_initially_added
+  return search_changed || replace_initially_added
 endfunction
 
 function! s:IsShowHistoryList(input)
   return a:input == '' && s:input == -1 && !empty(s:list)
 endfunction
 
-function! s:GetInputAndReplce(input)
-  let inputs = split(a:input, s:find_replace_separator)
+function! s:ParseInput(input)
+  let inputs = split(a:input, s:search_replace_separator)
   let replace = ''
 
   if len(inputs) == 2
-    let input = inputs[0]
+    let search = inputs[0]
     let replace = inputs[1]
   elseif len(inputs) == 1
-    let input = inputs[0]
+    let search = inputs[0]
   else
-    let input = a:input
+    let search = a:input
   endif
 
-  return [input, replace]
+  return [search, replace]
 endfunction
 
 function! s:ShowFindInFilesResultTimer(display, input, replace, full_input)
@@ -1677,14 +1677,14 @@ function! s:ShowFindInFilesResult(display, input, replace, full_input, id)
 endfunction
 
 function! s:FindInFilesBufferUpdate(full_input, is_init, id)
-  let [input, replace] = s:GetInputAndReplce(a:full_input)
+  let [search, replace] = s:ParseInput(a:full_input)
   let should_run = s:ShouldRunFindInFiles(a:full_input)
-  let should_redraw = s:ShouldRedrawWithReplace(input, replace)
+  let should_redraw = s:ShouldRedrawWithReplace(search, replace)
 
   if should_run
-    let list = s:GetFindInFilesResult(input, a:full_input)
-    let display = s:GetFindInFilesDisplay(list, input, replace)
-    let s:input = input
+    let list = s:GetFindInFilesResult(search, a:full_input)
+    let display = s:GetFindInFilesDisplay(list, search, replace)
+    let s:input = search
     let s:list = list
     if s:IsReplaceInitiallyAdded(a:full_input)
       let s:replace = replace
@@ -1692,29 +1692,29 @@ function! s:FindInFilesBufferUpdate(full_input, is_init, id)
       let s:replace = -1
     endif
   elseif should_redraw
-    let [redraw_input, redraw_replace] =
-          \s:TryInputAndReplaceFromHistory(input, replace)
-    let display = s:GetFindInFilesDisplay(s:list, redraw_input, redraw_replace)
+    let [redraw_search, redraw_replace] =
+          \s:TryGetSearchAndReplaceFromHistory(search, replace)
+    let display = s:GetFindInFilesDisplay(s:list, redraw_search, redraw_replace)
     let s:replace = replace
   else
-    let display = s:GetFindInFilesDisplay(s:list, input, replace)
+    let display = s:GetFindInFilesDisplay(s:list, search, replace)
   endif
 
   " Use timer just for fluent typing. Not necessary
   let use_timer = (should_run || should_redraw) && !empty(a:full_input) && !a:is_init
   if use_timer
-    call s:ShowFindInFilesResultTimer(display, input, replace, a:full_input)
+    call s:ShowFindInFilesResultTimer(display, search, replace, a:full_input)
   else
-    call s:ShowFindInFilesResult(display, input, replace, a:full_input, 0)
+    call s:ShowFindInFilesResult(display, search, replace, a:full_input, 0)
   endif
 endfunction
 
-function! s:TryInputAndReplaceFromHistory(input, replace)
-  if s:IsShowHistoryList(a:input) && s:HasFindInFilesHistory()
+function! s:TryGetSearchAndReplaceFromHistory(search, replace)
+  if s:IsShowHistoryList(a:search) && s:HasFindInFilesHistory()
     let input = s:list_history.FIND_IN_FILES.input
-    return s:GetInputAndReplce(input)
+    return s:ParseInput(input)
   else
-    return [a:input, a:replace]
+    return [a:search, a:replace]
   endif
 endfunction
 
@@ -1814,6 +1814,7 @@ function! s:InitListVariables(Init)
   let s:input = -1
   let s:replace = -1
   let s:list = []
+
   call a:Init(input)
 
   " Empty input if it was set from history
@@ -1847,8 +1848,8 @@ function! s:ClearWordOfInput(input)
 endfunction
 
 function! s:AddFindReplaceSeparator(input)
-  if match(a:input, s:find_replace_separator) == -1
-    let input = a:input.s:find_replace_separator
+  if match(a:input, s:search_replace_separator) == -1
+    let input = a:input.s:search_replace_separator
   else
     let input = a:input
   endif
@@ -1913,11 +1914,11 @@ function! s:HandleInput(input, Update)
   return [cmd, input]
 endfunction
 
-function! s:ConfirmFindReplace(full_input)
-  let [current_input, current_replace] = s:GetInputAndReplce(a:full_input)
-  let [input, replace] =
-        \s:TryInputAndReplaceFromHistory(current_input, current_replace)
-  call s:RunReplaceAll(input, replace)
+function! s:ConfirmFindReplace(input)
+  let [current_search, current_replace] = s:ParseInput(a:input)
+  let [search, replace] =
+        \s:TryGetSearchAndReplaceFromHistory(current_search, current_replace)
+  call s:RunReplaceAll(search, replace)
 endfunction
 
 function! s:RunReplaceAll(input, replace)
@@ -1983,7 +1984,6 @@ function! s:SaveListVariables(input)
     return
   endif
 
-  " let input = s:GetInputAndReplce(a:input)[0]
   let input = a:input
 
   if s:HasFindInFilesHistory() 
