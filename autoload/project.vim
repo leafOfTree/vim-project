@@ -1110,7 +1110,13 @@ endfunction
 
 function! s:GetSearchFilesDisplayRow(idx, value)
   let value = a:value
-  return value.__file.'  '.value.__path
+  let full_path = $vim_project.'/'.value.path.'/'.value.file
+  if isdirectory(full_path)
+    let file = substitute(value.__file, '\S\zs\s\|\S\zs$', '/', '')
+  else
+    let file = value.__file
+  endif
+  return file.'  '.value.__path
 endfunction
 
 function! s:GetSearchFilesByOldFiles(input)

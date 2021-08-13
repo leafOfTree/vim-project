@@ -121,7 +121,7 @@ Project '/path/to/demo', { 'entry': 'src', 'note': 'A demo' }
 
 #### Path
 
-If `path` is a relative path which doesn't start with `/`, `~` or `C:`, it'll be relative to any of `g:vim_project_config.project_base` which defaults to `[~]`.
+If `path` is a relative path which doesn't start with `/`, `~` or `C:`, it'll try any of `g:vim_project_config.project_base` as relative base which defaults to `[~]`.
 
 #### option
 
@@ -140,7 +140,7 @@ let g:vim_project_config = {
       \'auto_detect': 'always',
       \'auto_detect_file': '.git, .svn, package.json, pom.xml, Gemfile',
       \'auto_load_on_start': 0,
-      \'project_base': '~',
+      \'project_base': ['~'],
       \'views': [],
       \'debug': 0,
       \}
