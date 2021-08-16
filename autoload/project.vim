@@ -40,6 +40,7 @@ function! s:Prepare()
         \'find_in_files_include': ['./'],
         \'find_in_files_exclude': ['.git', 'node_modules'],
         \'use_session': 0,
+        \'project_entry': './',
         \'open_entry_when_use_session': 0,
         \'check_branch_when_use_session': 0,
         \'views': [],
@@ -51,6 +52,7 @@ function! s:Prepare()
         \'find_in_files_include',
         \'find_in_files_exclude',
         \'use_session',
+        \'project_entry',
         \'open_entry_when_use_session',
         \'check_branch_when_use_session',
         \]
@@ -136,6 +138,7 @@ function! s:InitConfig()
   let s:check_branch_when_use_session =
         \s:config.check_branch_when_use_session
   let s:use_session = s:config.use_session
+  let s:project_entry = s:config.project_entry
   let s:project_base = s:RemoveTrailingSlash(s:config.project_base)
   let s:search_include = s:config.search_include
   let s:search_exclude = s:config.search_exclude
@@ -2413,11 +2416,9 @@ endfunction
 
 function! s:GetProjectEntryPath()
   let path = s:project.fullpath
-  if has_key(s:project.option, 'entry')
-    " Remove the relative part './'
-    let entry = substitute(s:project.option.entry, '^\.\?[/\\]', '', '')
-    let path = path.'/'.entry
-  endif
+  " Remove the relative part './'
+  let entry = substitute(s:project_entry, '^\.\?[/\\]', '', '')
+  let path = path.'/'.entry
   if isdirectory(path) || filereadable(path)
     return path
   else
@@ -2438,7 +2439,7 @@ function! s:SourceInitFile()
   call s:ResetConfig()
   call s:InitConfig()
   call s:SourceFile(s:init_file)
-  call s:EnableLocalConfig()
+  call s:ReadLocalConfig()
   call s:AdjustConfig()
 endfunction
 
@@ -2446,7 +2447,7 @@ function! s:ResetConfig()
   let g:vim_project_local_config = {}
 endfunction
 
-function! s:EnableLocalConfig()
+function! s:ReadLocalConfig()
   let local_config = s:GetConfig('local_config', {})
   if !empty(local_config)
     for key in s:local_config_keys
