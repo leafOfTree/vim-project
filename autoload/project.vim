@@ -212,7 +212,7 @@ function! s:AddProject(path, ...)
         \s:projects
         \)
   if hasProject
-    call s:Info('Already have it')
+    call s:Info('Already have '.a:path)
     return -1
   endif
 
