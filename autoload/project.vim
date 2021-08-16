@@ -456,7 +456,7 @@ function! s:RemoveItemInPluginConfigAdd(path)
   let adds = readfile(file)
   let idx = 0
   for line in adds
-    if match(line, target_pat) != -1
+    if s:Include(line, target_pat)
       break
     endif
     let idx += 1
@@ -620,7 +620,7 @@ endfunction
 
 function! s:GetProjectByPath(projects, path)
   let projects = copy(a:projects)
-  call filter(projects, {_, project -> match(a:path, project.fullpath) != -1})
+  call filter(projects, {_, project -> s:Include(a:path, project.fullpath)})
   if len(projects) == 1
     return projects[0]
   endif
@@ -1343,7 +1343,7 @@ function! s:SearchFilesBufferOpen(target, open_cmd)
   execute cmd.' '.file
 endfunction
 
-function! s:TryExternalGrepCmd(input, full_input)
+function! s:TryExternalGrepCmd()
   " Try rg, ag, grep, vimgrep in order
   let programs = ['rg', 'ag', 'grep']
   let grep_cmd_map = {
@@ -1368,22 +1368,25 @@ function! s:TryExternalGrepCmd(input, full_input)
 endfunction
 
 
-function! s:GetGrepResult(input, full_input)
+function! s:GetGrepResult(search, full_input)
   if !exists('s:grep_cmd_func')
-    call s:TryExternalGrepCmd(a:input, a:full_input)
+    call s:TryExternalGrepCmd()
   endif
 
+  let flags = s:GetSearchFlags(a:search)
+  let search = s:RemoveSearchFlags(a:search)
+
   if s:grep_cmd_func != 0
-    let list = s:RunExternalGrep(a:input, a:full_input)
+    let list = s:RunExternalGrep(search, flags, a:full_input)
   else
-    let list = s:RunVimGrep(a:input, a:full_input)
+    let list = s:RunVimGrep(search, flags, a:full_input)
   endif
 
   let result = s:GetJoinedList(list)
   return result
 endfunction
 
-function! s:GetAgCmd(pattern)
+function! s:GetAgCmd(pattern, flags)
   let include = copy(s:find_in_files_include)
   let include_arg = join(include, ' ')
 
@@ -1391,12 +1394,21 @@ function! s:GetAgCmd(pattern)
   let exclude_arg = join(
         \map(exclude,{_, val -> '--ignore-dir '.val}), ' ')
 
-  let search_arg = '--hidden --skip-vcs-ignores --fixed-strings'
+  let search_arg = '--hidden --skip-vcs-ignores'
+  if s:Include(a:flags, 'C')
+    let search_arg .= ' --case-sensitive'
+  else
+    let search_arg .= ' --ignore-case'
+  endif
+  if !s:Include(a:flags, 'E')
+    let search_arg .= ' --fixed-strings'
+  endif
+
   let cmd = 'ag '.search_arg.' '.include_arg.' '.exclude_arg.' '.a:pattern
   return cmd
 endfunction
 
-function! s:GetGrepCmd(pattern)
+function! s:GetGrepCmd(pattern, flags)
   let include = copy(s:find_in_files_include)
   let include_arg = join(include, ' ')
   if empty(include_arg)
@@ -1407,14 +1419,21 @@ function! s:GetGrepCmd(pattern)
   let exclude_arg = join(
         \map(exclude,{_, val -> '--exclude-dir '.val}), ' ')
 
-  let search_arg = '--line-number --recursive --ignore-case --fixed-strings'
+  let search_arg = '--line-number --recursive'
+  if !s:Include(a:flags, 'C')
+    let search_arg .= ' --ignore-case'
+  endif
+  if !s:Include(a:flags, 'E')
+    let search_arg .= ' --fixed-strings'
+  endif
+
   let cmd = 'fgrep '.search_arg.' '.a:pattern.' '.include_arg.' '.exclude_arg
   return cmd
 endfunction
 
-function! s:GetRgCmd(pattern)
+function! s:GetRgCmd(pattern, flags)
   let include = copy(s:find_in_files_include)
-  " rg does not support '{./**}'
+  " Remove '.', as rg does not support '{./**}'
   call filter(include, {_, val -> val != '.'})
 
   if len(include)
@@ -1428,17 +1447,24 @@ function! s:GetRgCmd(pattern)
   let exclude = copy(s:find_in_files_exclude)
   let exclude_arg = "-g '!{".join(exclude, ',')."}'"
 
-  let search_arg = '--line-number --ignore-case --fixed-strings'
+  let search_arg = '--line-number --no-ignore-vcs'
+  if !s:Include(a:flags, 'C')
+    let search_arg .= ' --ignore-case'
+  endif
+  if !s:Include(a:flags, 'E')
+    let search_arg .= ' --fixed-strings'
+  endif
+
   let cmd = 'rg '.search_arg.' '.include_arg.' '.exclude_arg.' '.a:pattern
   return cmd
 endfunction
 
-function! s:RunExternalGrep(input, full_input)
-  let pattern = '"'.escape(a:input, '"').'"'
-  let cmd = s:grep_cmd_func(pattern)
+function! s:RunExternalGrep(search, flags, full_input)
+  let pattern = '"'.escape(a:search, '"').'"'
+  let cmd = s:grep_cmd_func(pattern, a:flags)
 
   let output = s:RunShellCmd(cmd)
-  let result = s:GetResultFromGrepOutput(a:input, a:full_input, output)
+  let result = s:GetResultFromGrepOutput(a:search, a:full_input, output)
   return result
 endfunction
 
@@ -1508,13 +1534,25 @@ function! s:GetJoinedList(list)
   return joined_list
 endfunction
 
-function! s:RunVimGrep(input, full_input)
+function! s:RunVimGrep(search, flags, full_input)
   let original_wildignore = &wildignore
   for exclude in s:find_in_files_exclude
     execute 'set wildignore+=*/'.exclude.'*'
   endfor
 
-  let pattern = '/\V'.escape(a:input, '/').'/j'
+  let pattern_flag = ''
+  if s:Include(a:flags, 'C')
+    let pattern_flag .= '\C'
+  else
+    let pattern_flag .= '\c'
+  endif
+  if s:Include(a:flags, 'E')
+    let pattern_flag .= '\v'
+  else
+    let pattern_flag .= '\V'
+  endif
+
+  let pattern = '/'.pattern_flag.escape(a:search, '/').'/j'
   let cmd = 'silent! vimgrep '.pattern.' '.$vim_project.'/**/*'
   execute cmd
   redraw!
@@ -1523,7 +1561,7 @@ function! s:RunVimGrep(input, full_input)
 
   let output_qf = getqflist()
 
-  let [output, more] = s:SetGrepOutputLength(a:input, a:full_input, output_qf)
+  let [output, more] = s:SetGrepOutputLength(a:search, a:full_input, output_qf)
 
   let result = map(output, {_, val -> {
         \'file': s:RemoveProjectPath(getbufinfo(val.bufnr)[0].name),
@@ -1555,12 +1593,13 @@ function! s:RunShellCmd(cmd)
   return output
 endfunction
 
-function! s:GetFindInFilesResult(input, full_input)
-  if a:input == '' || len(a:input) == 1
+function! s:GetFindInFilesResult(search, full_input)
+  let raw_search = s:RemoveSearchFlags(a:search)
+  if raw_search == '' || len(raw_search) == 1
     return []
   endif
 
-  let list = s:GetGrepResult(a:input, a:full_input)
+  let list = s:GetGrepResult(a:search, a:full_input)
   return list
 endfunction
 
@@ -1569,7 +1608,7 @@ function! s:GetFindInFilesDisplay(list, search, replace)
     return []
   endif
 
-  let pattern = s:GetFindInFilesInputPattern(a:search)
+  let pattern = s:GetFindInFilesSearchPattern(a:search)
   let show_replace = !empty(a:search) && !empty(a:replace)
 
   let display = map(copy(a:list),
@@ -1605,7 +1644,7 @@ endfunction
 
 function! s:GetReplacedLine(line, pattern, replace, add)
   let prefix = a:add ? '\1' : ''
-  let line = substitute(a:line, '\('.a:pattern.'\)', prefix.a:replace, 'g')
+  let line = substitute(a:line, '\V\('.a:pattern.'\V\)', prefix.a:replace, 'g')
   return line
 endfunction
 
@@ -1630,7 +1669,7 @@ endfunction
 
 function! s:IsReplaceInitiallyAdded(input)
   let [_, replace] = s:ParseInput(a:input)
-  let has_separator = match(a:input, s:search_replace_separator) != -1
+  let has_separator = s:Include(a:input, s:search_replace_separator)
   return has_separator && empty(replace) && s:replace == -1
 endfunction
 
@@ -1645,33 +1684,52 @@ function! s:IsShowHistoryList(input)
   return a:input == '' && s:input == -1 && !empty(s:list)
 endfunction
 
+function! s:GetSearchFlags(search)
+  let case_sensitive = s:Include(a:search, '\\C')
+  let use_regexp = s:Include(a:search, '\\E')
+
+  let flags = ''
+  if case_sensitive
+    let flags .= 'C'
+  endif
+  if use_regexp
+    let flags .= 'E'
+  endif
+  return flags
+endfunction
+
+function! s:RemoveSearchFlags(search)
+  return substitute(a:search, '\\C\|\\E', '', 'g')
+endfunction
+
 function! s:ParseInput(input)
   let inputs = split(a:input, s:search_replace_separator)
-  let replace = ''
 
   if len(inputs) == 2
     let search = inputs[0]
     let replace = inputs[1]
   elseif len(inputs) == 1
     let search = inputs[0]
+    let replace = ''
   else
     let search = a:input
+    let replace = ''
   endif
 
   return [search, replace]
 endfunction
 
-function! s:ShowFindInFilesResultTimer(display, input, replace, full_input)
+function! s:ShowFindInFilesResultTimer(display, search, replace, full_input)
   call timer_start(1,
-        \function('s:ShowFindInFilesResult', [a:display, a:input, a:replace, a:full_input]))
+        \function('s:ShowFindInFilesResult', [a:display, a:search, a:replace, a:full_input]))
 endfunction
 " 
-function! s:ShowFindInFilesResult(display, input, replace, full_input, id)
+function! s:ShowFindInFilesResult(display, search, replace, full_input, id)
   if exists('s:list')
-    call s:ShowInListBuffer(a:display, a:input)
+    call s:ShowInListBuffer(a:display, a:search)
     call s:HighlightCurrentLine(len(s:list))
-    call s:HighlightInputCharsAsPattern(a:input)
-    call s:HighlightReplaceChars(a:input, a:replace)
+    call s:HighlightSearchAsPattern(a:search)
+    call s:HighlightReplaceChars(a:search, a:replace)
     call s:ShowInputLine(a:full_input)
   endif
 endfunction
@@ -1742,12 +1800,12 @@ function! s:ShouldRedrawWithReplace(input, replace)
   return a:replace != s:replace && !s:IsShowHistoryList(a:input)
 endfunction
 
-function! s:HighlightReplaceChars(input, replace)
+function! s:HighlightReplaceChars(search, replace)
   if a:replace == ''
     return
   endif
 
-  let pattern = s:GetFindInFilesInputPattern(a:input)
+  let pattern = s:GetFindInFilesSearchPattern(a:search)
   execute 'silent! 2match BeforeReplace /'.pattern.'/'
   execute 'silent! match AfterReplace /'.pattern.'\zs\V'.a:replace.'/'
 endfunction
@@ -1848,7 +1906,7 @@ function! s:ClearWordOfInput(input)
 endfunction
 
 function! s:AddFindReplaceSeparator(input)
-  if match(a:input, s:search_replace_separator) == -1
+  if !s:Include(a:input, s:search_replace_separator)
     let input = a:input.s:search_replace_separator
   else
     let input = a:input
@@ -1921,12 +1979,12 @@ function! s:ConfirmFindReplace(input)
   call s:RunReplaceAll(search, replace)
 endfunction
 
-function! s:RunReplaceAll(input, replace)
+function! s:RunReplaceAll(search, replace)
   let index_line = 0
   let index_file = 0
   let total_lines = s:GetTotalReplaceLines()
   let total_files = len(s:list) - total_lines
-  let pattern = s:GetFindInFilesInputPattern(a:input)
+  let pattern = s:GetFindInFilesSearchPattern(a:search)
 
   for item in s:list
     if s:IsFileLineItem(item)
@@ -2733,20 +2791,38 @@ function! s:OpenFile(open_type, target)
   execute a:open_type.' '.expand(target)
 endfunction
 
-function! s:GetFindInFilesInputPattern(input)
-  let pattern = a:input
-  let pattern = escape(pattern, '/')
-  let pattern = s:TransformPatternOneByOne(pattern)
-  return '\c\V'.pattern
+function! s:Include(string, search_string)
+  return match(a:string, a:search_string) != -1
 endfunction
 
-function! s:HighlightInputCharsAsPattern(input)
-  if a:input == ''
+function! s:GetFindInFilesSearchPattern(search)
+  let flags = s:GetSearchFlags(a:search)
+  let pattern_flags = ''
+  if s:Include(flags, 'C')
+    let pattern_flags .= '\C'
+  else
+    let pattern_flags .= '\c'
+  endif
+  if s:Include(flags, 'E')
+    let pattern_flags .= '\v'
+  else
+    let pattern_flags .= '\V'
+  endif
+
+  let search = s:RemoveSearchFlags(a:search)
+  let pattern = search
+  let pattern = escape(pattern, '/')
+  let pattern = s:TransformPatternOneByOne(pattern)
+  return pattern_flags.pattern
+endfunction
+
+function! s:HighlightSearchAsPattern(search)
+  if a:search == ''
     return
   endif
 
   call clearmatches()
-  let pattern = s:GetFindInFilesInputPattern(a:input)
+  let pattern = s:GetFindInFilesSearchPattern(a:search)
   execute 'silent! match InputChar /'.pattern.'/'
 endfunction
 
@@ -2757,7 +2833,7 @@ function! s:TransformPatternOneByOne(pattern)
     " \b -> \W for rg/ag
     call s:ReplaceEscapedChar(chars, idx, char, ['b'], ['W'])
     " * -> \*
-    call s:AddBackslashIfNot(chars, idx, char, ['*'])
+    " call s:AddBackslashIfNot(chars, idx, char, ['*'])
     let idx += 1
   endfor
 
