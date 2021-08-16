@@ -1070,11 +1070,15 @@ function! s:ProjectListBufferUpdate(input)
 endfunction
 
 function! s:ProjectListBufferOpen(project, open_cmd)
-  let project = a:project
-  if s:IsValidProject(project)
-    call s:OpenProject(project)
+  if empty(a:project)
+    call s:Warn('No project selected')
+    return
+  endif
+
+  if s:IsValidProject(a:project)
+    call s:OpenProject(a:project)
   else
-    call s:Warn('Not accessible path: '.project.fullpath)
+    call s:Warn('Not accessible path: '.a:project.fullpath)
   endif
 endfunction
 

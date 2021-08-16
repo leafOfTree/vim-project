@@ -15,6 +15,11 @@
 
 ### Search files / Find in files in a project
 
+<p align="center">
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/search-files.png" width="380" />
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/find-in-files.png" width="380" />
+</p>
+
 A vim plugin to manage projects
 
 **Features**
