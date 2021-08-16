@@ -1,7 +1,8 @@
-<img src="https://raw.githubusercontent.com/leafOfTree/leafOfTree.github.io/master/vim-project.png" height="60" alt="icon" align="left"/>
+<img src="https://raw.githubusercontent.com/leafOfTree/leafOfTree.github.io/master/vim-project.svg" height="60" alt="icon" align="left"/>
 
 # vim-project
 
+### Add / Open a project
 <p align="center">
 <img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-1.png" width="180" />
 ➡️
@@ -11,6 +12,8 @@
 ➡️
 <img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-4.png" width="180" />
 </p>
+
+### Search files / Find in files in a project
 
 A vim plugin to manage projects
 

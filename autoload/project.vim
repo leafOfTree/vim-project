@@ -2852,7 +2852,8 @@ function! s:HighlightSearchAsPattern(search)
 
   call clearmatches()
   let pattern = s:GetFindInFilesSearchPattern(a:search)
-  execute 'silent! match InputChar /'.pattern.'/'
+  execute 'silent! 2match InputChar /'.pattern.'/'
+  execute 'silent! 1match FirstColumn /^\S*/'
 endfunction
 
 function! s:TransformPatternOneByOne(pattern)
@@ -2861,8 +2862,6 @@ function! s:TransformPatternOneByOne(pattern)
   for char in chars
     " \b -> \W for rg/ag
     call s:ReplaceEscapedChar(chars, idx, char, ['b'], ['W'])
-    " * -> \*
-    " call s:AddBackslashIfNot(chars, idx, char, ['*'])
     let idx += 1
   endfor
 
