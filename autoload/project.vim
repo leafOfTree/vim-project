@@ -1231,16 +1231,35 @@ function! s:GetSearchFilesResultList(input)
   return list
 endfunction
 
-function! s:GetSearchFilesAll()
-  " Try fd, find, glob in order
-  if executable('fd') == 1
-    let result = s:GetFilesByFd()
-  elseif executable('find') == 1
-    let result = s:GetFilesByFind()
-  else
-    let result = s:GetFilesByGlob()
+function! s:TrySearchFilesProgram()
+  let programs = ['fd', 'find']
+  let find_cmd_map = {
+        \'fd': function('s:GetFilesByFd'),
+        \'find': function('s:GetFilesByFind'),
+        \'glob': function('s:GetFilesByGlob'),
+        \}
+  let find_program = ''
+  for program in programs
+    if executable(program)
+      let find_program = program
+      break
+    endif
+  endfor
+
+  if find_program == ''
+    let find_program = 'glob'
   endif
 
+  let s:find_cmd_func = find_cmd_map[find_program]
+  return find_program
+endfunction
+
+function! s:GetSearchFilesAll()
+  if !exists('s:find_cmd_func')
+    call s:TrySearchFilesProgram()
+  endif
+
+  let result = s:find_cmd_func()
   call s:MapSearchFiles(result)
   let s:list_initial_result = result
   let list = copy(s:list_initial_result)
@@ -1346,7 +1365,7 @@ function! s:SearchFilesBufferOpen(target, open_cmd)
   execute cmd.' '.file
 endfunction
 
-function! s:TryExternalGrepCmd()
+function! s:TryExternalGrepProgram()
   " Try rg, ag, grep, vimgrep in order
   let programs = ['rg', 'ag', 'grep']
   let grep_cmd_map = {
@@ -1365,15 +1384,17 @@ function! s:TryExternalGrepCmd()
 
   if grep_program != ''
     let s:grep_cmd_func = grep_cmd_map[grep_program]
+    return grep_program
   else
     let s:grep_cmd_func = 0
+    return 'vimgrep'
   endif
 endfunction
 
 
 function! s:GetGrepResult(search, full_input)
   if !exists('s:grep_cmd_func')
-    call s:TryExternalGrepCmd()
+    call s:TryExternalGrepProgram()
   endif
 
   let flags = s:GetSearchFlags(a:search)
@@ -2346,7 +2367,9 @@ function! project#ShowProjectInfo()
   if !empty(s:project)
     call s:Info('Name: '.s:project.name)
     call s:Info('Path: '.s:ReplaceHomeWithTide(s:project.path))
-    call s:Info('Config: ')
+    call s:Info('Search: '.s:TrySearchFilesProgram())
+    call s:Info('Find in files: '.s:TryExternalGrepProgram())
+    call s:Info('----- Config -----')
     call s:ShowProjectConfig()
   else
     call s:Info('No project opened')
@@ -2355,7 +2378,12 @@ endfunction
 
 function! s:ShowProjectConfig()
   for key in sort(keys(s:config))
-    call s:Info(key.': '.string(s:config[key]))
+    if has_key(s:, key)
+      let value = s:[key]
+    else
+      let value = s:config[key]
+    endif
+    call s:Info(key.': '.string(value))
   endfor
 endfunction
 
