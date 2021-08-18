@@ -30,22 +30,23 @@ function! s:Prepare()
   let s:quit_file = 'quit.vim'
 
   let s:default = {
-        \'config_home': '~/.vim/vim-project-config',
-        \'project_base': ['~'],
-        \'use_session': 0,
-        \'open_entry_when_use_session': 0,
+        \'config_home':                   '~/.vim/vim-project-config',
+        \'project_base':                  ['~'],
+        \'use_session':                   0,
+        \'open_entry_when_use_session':   0,
         \'check_branch_when_use_session': 0,
-        \'project_entry': './',
-        \'auto_detect': 'no',
-        \'auto_detect_file': ['.git', '.svn'],
-        \'auto_load_on_start': 0,
-        \'search_include': ['./'],
-        \'search_exclude': ['.git', 'node_modules'],
-        \'find_in_files_include': ['./'],
-        \'find_in_files_exclude': ['.git', 'node_modules'],
-        \'views': [],
-        \'debug': 0,
+        \'project_entry':                 './',
+        \'auto_detect':                   'no',
+        \'auto_detect_file':              ['.git', '.svn'],
+        \'auto_load_on_start':            0,
+        \'search_include':                ['./'],
+        \'search_exclude':                ['.git', 'node_modules'],
+        \'find_in_files_include':         ['./'],
+        \'find_in_files_exclude':         ['.git', 'node_modules'],
+        \'views':                         [],
+        \'debug':                         0,
         \}
+
   let s:local_config_keys = [
         \'search_include',
         \'search_exclude',
