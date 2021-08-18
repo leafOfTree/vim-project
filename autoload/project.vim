@@ -15,7 +15,7 @@ function! s:Prepare()
   let s:head_file_job = 0
   let s:project = {}
   let s:branch = ''
-  let s:branch_default = '_'
+  let s:branch_default = ''
   let s:reloading_project = 0
   let s:start_project = {}
   let s:start_buf = ''
@@ -48,14 +48,14 @@ function! s:Prepare()
         \}
 
   let s:local_config_keys = [
+        \'use_session',
+        \'open_entry_when_use_session',
+        \'check_branch_when_use_session',
         \'search_include',
         \'search_exclude',
         \'find_in_files_include',
         \'find_in_files_exclude',
-        \'use_session',
         \'project_entry',
-        \'open_entry_when_use_session',
-        \'check_branch_when_use_session',
         \]
   let s:default.list_map = {
         \'open':             "\<cr>",
@@ -2511,15 +2511,13 @@ function! s:SourceFile(file)
   endif
 endfunction
 
-function! s:FindBranch(...)
-  if !s:check_branch_when_use_session
+function! s:FindBranch()
+  if !s:check_branch_when_use_session || !s:use_session
     let s:branch = s:branch_default
     return
   endif
 
-  let project = a:0>0 ? a:1 : s:project
-  let head_file = project.fullpath.'/.git/HEAD'
-
+  let head_file = s:project.fullpath.'/.git/HEAD'
   if filereadable(head_file)
     let head = join(readfile(head_file), "\n")
 
@@ -2570,7 +2568,11 @@ function! s:LoadSession()
 endfunction
 
 function! s:StartWatchJob()
-  let should_watch = s:check_branch_when_use_session && executable('tail') == 1
+  let should_watch = s:check_branch_when_use_session
+        \&& s:use_session
+        \&& executable('tail') == 1
+        \&& (exists('*job_start') || exists('*jobstart'))
+
   if should_watch
     let cmd = s:GetWatchCmd()
     if !empty(cmd)
