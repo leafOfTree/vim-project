@@ -32,6 +32,10 @@ function! s:Prepare()
   let s:default = {
         \'config_home': '~/.vim/vim-project-config',
         \'project_base': ['~'],
+        \'use_session': 0,
+        \'open_entry_when_use_session': 0,
+        \'check_branch_when_use_session': 0,
+        \'project_entry': './',
         \'auto_detect': 'no',
         \'auto_detect_file': ['.git', '.svn'],
         \'auto_load_on_start': 0,
@@ -39,10 +43,6 @@ function! s:Prepare()
         \'search_exclude': ['.git', 'node_modules'],
         \'find_in_files_include': ['./'],
         \'find_in_files_exclude': ['.git', 'node_modules'],
-        \'use_session': 0,
-        \'project_entry': './',
-        \'open_entry_when_use_session': 0,
-        \'check_branch_when_use_session': 0,
         \'views': [],
         \'debug': 0,
         \}
@@ -56,27 +56,27 @@ function! s:Prepare()
         \'open_entry_when_use_session',
         \'check_branch_when_use_session',
         \]
-  let s:default.list_mapping = {
-        \'open':         "\<cr>",
-        \'open_split':   "\<c-s>",
-        \'open_vsplit':  "\<c-v>",
-        \'open_tabedit': "\<c-t>",
-        \'close_list':   "\<esc>",
-        \'clear_char':   ["\<bs>", "\<c-a>"],
-        \'clear_word':   "\<c-w>",
-        \'clear_all':    "\<c-u>",
-        \'prev_item':    ["\<c-k>", "\<up>"],
-        \'next_item':    ["\<c-j>", "\<down>"],
-        \'first_item':   ["\<c-h>", "\<left>"],
-        \'last_item':    ["\<c-l>", "\<right>"],
-        \'scroll_up':      "\<c-p>",
-        \'scroll_down':    "\<c-n>",
-        \'prev_view':    "\<s-tab>",
-        \'next_view':    "\<tab>",
-        \'find_replace': "\<c-r>",
-        \'find_replace_dismiss': "\<c-d>",
-        \'find_replace_confirm': "\<c-y>",
-        \'switch_to_list': "\<c-o>",
+  let s:default.list_map = {
+        \'open':             "\<cr>",
+        \'open_split':       "\<c-s>",
+        \'open_vsplit':      "\<c-v>",
+        \'open_tabedit':     "\<c-t>",
+        \'close_list':       "\<esc>",
+        \'clear_char':       ["\<bs>", "\<c-a>"],
+        \'clear_word':       "\<c-w>",
+        \'clear_all':        "\<c-u>",
+        \'prev_item':        ["\<c-k>", "\<up>"],
+        \'next_item':        ["\<c-j>", "\<down>"],
+        \'first_item':       ["\<c-h>", "\<left>"],
+        \'last_item':        ["\<c-l>", "\<right>"],
+        \'scroll_up':        "\<c-p>",
+        \'scroll_down':      "\<c-n>",
+        \'prev_view':        "\<s-tab>",
+        \'next_view':        "\<tab>",
+        \'replace_prompt':   "\<c-r>",
+        \'replace_dismiss':  "\<c-d>",
+        \'replace_confirm':  "\<c-y>",
+        \'switch_to_list':   "\<c-o>",
         \}
   let s:default.file_open_types = {
         \'':  'edit',
@@ -115,10 +115,10 @@ function! s:MergeUserConfigIntoDefault(user, default)
           \default.file_open_types)
   endif
 
-  if has_key(user, 'list_mapping')
-    let user.list_mapping = s:MergeUserConfigIntoDefault(
-          \user.list_mapping,
-          \default.list_mapping)
+  if has_key(user, 'list_map')
+    let user.list_map = s:MergeUserConfigIntoDefault(
+          \user.list_map,
+          \default.list_map)
   endif
 
   for key in keys(default)
@@ -151,7 +151,7 @@ function! s:InitConfig()
   let s:auto_load_on_start = s:config.auto_load_on_start
   let s:views = s:config.views
   let s:view_index = -1
-  let s:list_mapping = s:config.list_mapping
+  let s:list_map = s:config.list_map
   let s:open_types = s:config.file_open_types
   let s:debug = s:config.debug
 endfunction
@@ -1037,7 +1037,7 @@ endfunction
 
 function! s:GetListCommand(char)
   let command = ''
-  for [key, value] in items(s:list_mapping)
+  for [key, value] in items(s:list_map)
     if type(value) == v:t_string
       let match = value == a:char
     else
@@ -1974,11 +1974,11 @@ function! s:HandleInput(input, Update)
         let s:offset = s:offset - winheight(0)/2
       elseif cmd == 'scroll_down'
         let s:offset = s:offset + winheight(0)/2
-      elseif cmd == 'find_replace'
+      elseif cmd == 'replace_prompt'
         let input = s:AddFindReplaceSeparator(input)
-      elseif cmd == 'find_replace_dismiss'
+      elseif cmd == 'replace_dismiss'
         call s:DismissFindReplaceItem()
-      elseif cmd == 'find_replace_confirm'
+      elseif cmd == 'replace_confirm'
         call s:ConfirmFindReplace(input)
         break
       elseif cmd == 'switch_to_list'
