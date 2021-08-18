@@ -1834,8 +1834,9 @@ function! s:HighlightReplaceChars(search, replace)
   endif
 
   let pattern = s:GetFindInFilesSearchPattern(a:search)
-  execute 'silent! 2match BeforeReplace /'.pattern.'/'
-  execute 'silent! match AfterReplace /'.pattern.'\zs\V'.a:replace.'/'
+  execute 'silent! 3match BeforeReplace /'.pattern.'/'
+  execute 'silent! 2match AfterReplace /'.pattern.'\zs\V'.a:replace.'/'
+  execute 'silent! 1match FirstColumn /^\S*/'
 endfunction
 
 function! s:FindInFilesBufferOpen(target, open_cmd)
