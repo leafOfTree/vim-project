@@ -43,8 +43,7 @@ Project wide
 - `:Project </path/to/project>`
 - `:ProjectList` 
 
-It will show all the projects. Select a project by filter and <kbd>Up</kbd> <kbd>Down</kbd>.
-Then press <kbd>Enter</kbd> to open it
+It will show all the projects. Select a project by filter and <kbd>Up</kbd> <kbd>Down</kbd>. Then press <kbd>Enter</kbd> to open it
 
 ## Installation
 
@@ -86,9 +85,9 @@ You could install it just like other plugins.
 
 ## Config files
 
-The config files are located at `~/.vim/vim-project-config/`, where `<project-name>/` is for each project.
+The config files are located at `~/.vim/vim-project-config/`, where `<project-name>/` is for each project
 
-`:ProjectAllConfig` and `:ProjectConfig` will open the two paths.
+`:ProjectAllConfig` and `:ProjectConfig` will open the two paths
 
 ```
 ~/.vim/vim-project-config/
@@ -133,9 +132,7 @@ Quit
 
 ### :Project `<path>[, option]`
 
-`path`: If `path` is relative or just a project name which doesn't start with `/`, `~` or `C:`, it'll try any of `g:vim_project_config.project_base` as base which defaults to `[~]`
-
-You can use <kbd>Tab</kbd> to auto complete the path
+`path`: If `path` is relative or just a project name which doesn't start with `/`, `~` or `C:`, it'll try any of `g:vim_project_config.project_base` as its base which defaults to `[~]`. You can use <kbd>Tab</kbd> to auto complete the path
 
 `note`: Description shown in project list (optional)
 
@@ -152,31 +149,25 @@ The only config `g:vim_project_config` default value is below. You can copy it a
 
 ```vim
 let g:vim_project_config = {
-      \'config_home': '~/.vim/vim-project-config',
-      \'project_base': ['~'],
-      \'use_session': 0,
-      \'open_entry_when_use_session': 0,
+      \'config_home':                   '~/.vim/vim-project-config',
+      \'project_base':                  ['~'],
+      \'use_session':                   0,
+      \'open_entry_when_use_session':   0,
       \'check_branch_when_use_session': 0,
-      \'project_entry': './',
-      \'auto_detect': 'no',
-      \'auto_detect_file': ['.git', '.svn'],
-      \'auto_load_on_start': 0,
-      \'search_include': ['./'],
-      \'search_exclude': ['.git', 'node_modules'],
-      \'find_in_files_include': ['./'],
-      \'find_in_files_exclude': ['.git', 'node_modules'],
-      \'views': [],
-      \'debug': 0,
+      \'project_entry':                 './',
+      \'auto_detect':                   'no',
+      \'auto_detect_file':              ['.git', '.svn'],
+      \'auto_load_on_start':            0,
+      \'search_include':                ['./'],
+      \'search_exclude':                ['.git', 'node_modules'],
+      \'find_in_files_include':         ['./'],
+      \'find_in_files_exclude':         ['.git', 'node_modules'],
+      \'views':                         [],
+      \'debug':                         0,
       \}
 
-let g:vim_project_config.file_open_types = {
-      \'': 'edit',
-      \'v': 'vsplit',
-      \'s': 'split',
-      \'t': 'tabedit',
-      \}
-
-let g:vim_project_config.list_mapping = {
+" Keymaps for list prompt
+let g:vim_project_config.list_map = {
       \'open':             "\<cr>",
       \'open_split':       "\<c-s>",
       \'open_vsplit':      "\<c-v>",
@@ -211,24 +202,29 @@ let g:vim_project_config.list_mapping = {
 | auto_detect                   | Auto detect projects when opening a file. <br>Choose 'always', 'ask', or 'no' |
 | auto_detect_file              | File used to detect potential projects                                        |
 | auto_load_on_start            | Auto load a project if Vim starts within its directory                        |
-| list_mapping                  | Mapping for list prompt                                                       |
+| list_map                      | KeyMaps for list prompt                                                       |
+| search_include                | List of including folders for search files                                    |
+| search_exclude                | List of excluding folders for search files                                    |
+| find_in_files_include         | List of including folders for find in files                                   |
+| find_in_files_exclude         | List of excluding folders for find in files                                   |
 | views                         | Define views by `[[show-pattern, hide-pattern?], ...]`                        |
 | debug                         | Show debug messages                                                           |
 
+
 ### Switch between files
 
-You can define mappings to frequently changed files in `init.vim`
+You can define mappings to frequently changed files in project's `init.vim`
 
 For example, with below example, you can
 
-- Switch to `autoload/project.vim` by `'a` and so on.
+- Switch to `autoload/project.vim` by `'a` and so on
 
 - Switch between `['autoload/project.vim', 'plugin/project.vim']` by `'l`
 
 - Switch to file returned by user-defined function by `'c`
 
 ```vim
-function! UpperStyle()
+function! StyleFromUpperDir()
   let upper_dir = expand('%:p:h:h')
   let name = expand('%:r')
   return upper_dir.'/'.name.'.css'
@@ -244,7 +240,7 @@ let g:vim_project_local_config.file_map = {
       \   'key': 'l',
       \},
       \'custom': {
-      \   'file': function('UpperStyle'),
+      \   'file': function('StyleFromUpperDir'),
       \   'key': 'c',
       \},
       \}
@@ -271,7 +267,7 @@ let g:vim_project_local_config.file_map = {
 With `file_open_types`, you can use `'a`, `'va`, `'sa`, `'ta'` to edit file in different ways
 ```vim
 let g:vim_project_config.file_open_types = {
-      \'': 'edit',
+      \'':  'edit',
       \'v': 'vsplit',
       \'s': 'split',
       \'t': 'tabedit',
@@ -304,14 +300,18 @@ let g:vim_project_config.views = [
 
 You can get current project info from `g:vim_project`. Try `echo g:vim_project` after opening a project
 
-For example, define a function called `GetProjectInfo` and add `%{GetProjectInfo()}` to `statusline` to show current project name and branch.
+For example, define a function called `GetProjectInfo` and add `%{GetProjectInfo()}` to `statusline` to show current project name and branch
 
 ```vim
 function! GetProjectInfo()
   if exists('g:vim_project_loaded') && !empty(g:vim_project)
      let name = g:vim_project.name
      let branch = g:vim_project.branch
-     return '['.name.','.branch.']'
+     if empty(branch)
+       return '['.name.']'
+     else
+       return '['.name.', '.branch.']'
+     endif
    else
      return ''
   endif
