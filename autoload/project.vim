@@ -230,7 +230,7 @@ function! s:AddProject(path, ...)
         \'option': option,
         \}
   if !isdirectory(fullpath)
-    call s:Warn('No directory: '.s:ReplaceHomeWithTide(fullpath))
+    call s:Warn('No directory found: '.s:ReplaceHomeWithTide(fullpath))
     call insert(s:projects_error, project)
     return -1
   else
@@ -316,9 +316,8 @@ function! s:GetAbsolutePath(path)
         return full_path
       endif
     endfor
-  else
-    return path
   endif
+  return path
 endfunction
 
 function! s:InitProjectConfig(project)
