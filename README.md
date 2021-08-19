@@ -38,12 +38,16 @@ Project wide
 
     You can save session per branch if both vim feature `job` and shell command `tail` are preset
 
-## Usage
+## Basic Usage
 
 - `:Project </path/to/project>`
 - `:ProjectList` 
+- `:ProjectSearchFiles`
+- `:ProjectFindInFiles`
 
-It will show all the projects. Select a project by filter and <kbd>Up</kbd> <kbd>Down</kbd>. Then press <kbd>Enter</kbd> to open it
+In a list, filter and select an item by <kbd>Up</kbd> <kbd>Down</kbd>. Then press <kbd>Enter</kbd> to open it. 
+
+> For other keymaps, see [Keymaps](#keymaps)
 
 ## Installation
 
@@ -144,8 +148,14 @@ Project /path/to/demo, { note: 'A demo' }
 Project demo
 ```
 
-## Config
-The only config `g:vim_project_config` default value is below. You can copy it as a starting point
+<a name="keymaps"></a>
+
+## Config and Keymaps
+
+- `g:vim_project_config` (global)
+- `g:vim_project_local_config` (project local)
+
+The `g:vim_project_config` should be set at `.vimrc`. Its default value is below. You can copy it as a starting point
 
 ```vim
 let g:vim_project_config = {
@@ -155,14 +165,15 @@ let g:vim_project_config = {
       \'open_entry_when_use_session':   0,
       \'check_branch_when_use_session': 0,
       \'project_entry':                 './',
-      \'auto_detect':                   'no',
-      \'auto_detect_file':              ['.git', '.svn'],
       \'auto_load_on_start':            0,
       \'search_include':                ['./'],
       \'search_exclude':                ['.git', 'node_modules'],
       \'find_in_files_include':         ['./'],
       \'find_in_files_exclude':         ['.git', 'node_modules'],
-      \'views':                         [],
+      \'auto_detect':                   'no',
+      \'auto_detect_file':              ['.git', '.svn'],
+      \'project_views':                         [],
+      \'file_map':                      {},
       \'debug':                         0,
       \}
 
@@ -207,9 +218,28 @@ let g:vim_project_config.list_map = {
 | search_exclude                | List of excluding folders for search files                                    |
 | find_in_files_include         | List of including folders for find in files                                   |
 | find_in_files_exclude         | List of excluding folders for find in files                                   |
-| views                         | Define views by `[[show-pattern, hide-pattern?], ...]`                        |
+| file_map                      | Define keymaps to siwtch between files quickly                                |
+| project_views                         | Define project views by `[[show-pattern, hide-pattern?], ...]`                |
 | debug                         | Show debug messages                                                           |
 
+### Project local config
+
+Those config options can be overridden by `g:vim_project_local_config` in the project's `init.vim`. For example
+
+```
+let g:vim_project_local_config = {
+  \'use_session': 0,
+  \'open_entry_when_use_session': 0,
+  \'check_branch_when_use_session': 0,
+  \'search_include': ['./'],
+  \'search_exclude': ['.git', 'node_modules'],
+  \'find_in_files_include': [],
+  \'find_in_files_exclude': ['.git', 'node_modules'],
+  \'project_entry': './src',
+  \}
+```
+
+For project local file map, see below.
 
 ### Switch between files
 
@@ -280,10 +310,10 @@ See `:h sessionoptions`
 
 ### Project views
 
-In project list, you can switch between different views with <kbd>tab</kbd> and <kbd>s-tab</kbd>. You can define views by setting `g:vim_project_config.views` to `[[show_pattern, hide_patten], ...]` like below
+In project list, you can switch between different views with <kbd>tab</kbd> and <kbd>s-tab</kbd>. You can set `project_views` to `[[show_pattern, hide_patten?], ...]` like
 
 ```vim
-let g:vim_project_config.views = [
+let g:vim_project_config.project_views = [
       \['vim', 'plugin'],
       \['^vue'],
       \['^react'],

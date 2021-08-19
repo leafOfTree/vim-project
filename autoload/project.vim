@@ -36,14 +36,15 @@ function! s:Prepare()
         \'open_entry_when_use_session':   0,
         \'check_branch_when_use_session': 0,
         \'project_entry':                 './',
-        \'auto_detect':                   'no',
-        \'auto_detect_file':              ['.git', '.svn'],
         \'auto_load_on_start':            0,
         \'search_include':                ['./'],
         \'search_exclude':                ['.git', 'node_modules'],
         \'find_in_files_include':         ['./'],
         \'find_in_files_exclude':         ['.git', 'node_modules'],
-        \'views':                         [],
+        \'auto_detect':                   'no',
+        \'auto_detect_file':              ['.git', '.svn'],
+        \'project_views':                 [],
+        \'file_map':                      {},
         \'debug':                         0,
         \}
 
@@ -56,7 +57,9 @@ function! s:Prepare()
         \'find_in_files_include',
         \'find_in_files_exclude',
         \'project_entry',
+        \'file_map',
         \]
+
   let s:default.list_map = {
         \'open':             "\<cr>",
         \'open_split':       "\<c-s>",
@@ -150,7 +153,8 @@ function! s:InitConfig()
   let s:auto_detect = s:config.auto_detect
   let s:auto_detect_file = s:config.auto_detect_file
   let s:auto_load_on_start = s:config.auto_load_on_start
-  let s:views = s:config.views
+  let s:file_map = s:config.file_map
+  let s:project_views = s:config.project_views
   let s:view_index = -1
   let s:list_map = s:config.list_map
   let s:open_types = s:config.file_open_types
@@ -925,19 +929,19 @@ function! s:FilterProjectsListName(list, filter, reverse)
 endfunction
 
 function! s:NextView()
-  let max = len(s:views)
+  let max = len(s:project_views)
   let s:view_index = s:view_index < max ? s:view_index + 1 : 0
 endfunction
 
 function! s:PreviousView()
-  let max = len(s:views)
+  let max = len(s:project_views)
   let s:view_index = s:view_index > 0 ? s:view_index - 1 : max
 endfunction
 
 function! s:FilterProjectsByView(projects)
-  let max = len(s:views)
+  let max = len(s:project_views)
   if s:view_index >= 0 && s:view_index < max
-    let view = s:views[s:view_index]
+    let view = s:project_views[s:view_index]
     if len(view) == 2
       let [show, hide] = view
     elseif len(view) == 1
@@ -2474,6 +2478,7 @@ function! s:SourceInitFile()
   call s:SourceFile(s:init_file)
   call s:ReadLocalConfig()
   call s:AdjustConfig()
+  call s:MapFile(s:file_map)
 endfunction
 
 function! s:ResetConfig()
@@ -2489,11 +2494,8 @@ function! s:ReadLocalConfig()
       endif
     endfor
   endif
-
-  if has_key(local_config, 'file_map')
-    call s:MapFile(local_config.file_map)
-  endif
 endfunction
+
 
 function! s:SourceQuitFile()
   call s:SourceFile(s:quit_file)
@@ -2814,9 +2816,7 @@ function! s:GotoLinkedFile(link, open_type)
       let target = linked_files[0]
     endif
   endif
-  if exists('target')
-    call s:OpenFile(a:open_type, target)
-  endif
+  call s:OpenFile(a:open_type, target)
 endfunction
 
 function! s:OpenFile(open_type, target)
@@ -2824,7 +2824,8 @@ function! s:OpenFile(open_type, target)
   if s:IsRelativePath(target)
     let target = $vim_project.'/'.target
   endif
-  execute a:open_type.' '.expand(target)
+  let expended_target = expand(target)
+  execute a:open_type.' '.expended_target
 endfunction
 
 function! s:Include(string, search_string)
