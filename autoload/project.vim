@@ -736,7 +736,7 @@ function! s:SetupListBuffer()
   autocmd QuitPre <buffer> call s:WipeoutListBuffer()
 
   setlocal buftype=nofile bufhidden=delete nobuflisted
-  setlocal filetype=projectlist
+  setlocal filetype=vimprojectlist
   setlocal nonumber
   setlocal nocursorline
   setlocal nowrap
