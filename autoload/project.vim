@@ -1812,7 +1812,7 @@ function! s:HasFindInFilesHistory()
   return has_key(s:list_history, 'FIND_IN_FILES')
 endfunction
 
-function! s:IsDismissed()
+function! s:HasDismissed()
   return s:dismissed_find_replace
 endfunction
 
@@ -1823,7 +1823,7 @@ function! s:ResetDismissedVar()
 endfunction
 
 function! s:ShouldRedrawWithReplace(input, replace)
-  if s:IsDismissed()
+  if s:HasDismissed()
     return 1
   endif
   if empty(a:replace) && s:replace == -1
