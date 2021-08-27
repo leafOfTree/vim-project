@@ -340,9 +340,12 @@ function! s:InitProjectConfig(project)
           \'" Project:      '.name,
           \'" When:         after session is loaded',
           \'" Variables:    $vim_project, $vim_project_config',
-          \'" Example:      to open `./src` on start',
-          \'" - edit $vim_project/src',
+          \'" Example:      to open `./src/index.html` on start',
+          \'" - edit $vim_project/src/index.html',
           \'""""""""""""""""""""""""""""""""""""""""""""""',
+          \'',
+          \'let g:vim_project_local_config = {',
+          \'\}',
           \]
     call writefile(init_content, init_file)
 

@@ -32,7 +32,7 @@ Project wide
 
 - Search files by name
 - Find in files
-- Find and replace (experimental)
+- Find and replace (**experimental**)
 - Config
 - Session (optional)
 
@@ -47,7 +47,7 @@ Project wide
 
 In a list, filter and select an item by <kbd>Up</kbd> <kbd>Down</kbd>. Then press <kbd>Enter</kbd> to open it. 
 
-> For other keymaps, see [Keymaps](#keymaps)
+> For other keymaps, see [Keymaps](#config_keymaps)
 
 ## Installation
 
@@ -119,18 +119,20 @@ Quit
 
 ## Commands
 
-| command                             | description                               |
-|-------------------------------------|-------------------------------------------|
-| Project `<path>[, option]`          | Add project                               |
-| ProjectOpen `<name>`                | Open a project by name                    |
-| ProjectRemove `<name>`              | Remove a project by name                  |
-| ProjectList                         | Show all projects                         |
-| ProjectInfo                         | Show project info                         |
-| ProjectQuit                         | Quit project                              |
-| ProjectEntry                        | Open project entry                        |
-| ProjectConfig                       | Open project config directory             |
-| ProjectAllConfig                    | Open all config directory                 |
-| ProjectIgnore `<path>`              | Ignore project for auto detection         |
+| command                    | description                       |
+|----------------------------|-----------------------------------|
+| Project `<path>[, option]` | Add project                       |
+| ProjectOpen `<name>`       | Open a project by name            |
+| ProjectRemove `<name>`     | Remove a project by name          |
+| ProjectList                | Show all projects                 |
+| ProjectSearchFiles         | Search files by name              |
+| ProjectFindInFiles         | Find given string/regexp in files |
+| ProjectInfo                | Show project info                 |
+| ProjectQuit                | Quit project                      |
+| ProjectEntry               | Open project entry                |
+| ProjectConfig              | Open project config directory     |
+| ProjectAllConfig           | Open all config directory         |
+| ProjectIgnore `<path>`     | Ignore project for auto detection |
 
 > You can try to adjust `wildmenu`, `wildmode` for enhanced command-line completion
 
@@ -148,7 +150,38 @@ Project /path/to/demo, { note: 'A demo' }
 Project demo
 ```
 
-<a name="keymaps"></a>
+### Project search files / find in files
+
+- `:ProjectSearchFiles` Under the hood, it tries [[fd][4], `find`, `glob (vim function)`] for the first available one as the search engine.
+
+- `:ProjectFindInFiles` Under the hood, it tries [[rg][5], [ag][6], `grep`, `vimgrep (vim function)`] for the first available one as the search engine.
+
+It's recommended to install one of [[fd][4], `find`] and one of [[rg][5], [ag][6], `grep`]. They have better performance especially for Windows users and large projects.
+
+#### Config
+
+For consistency, the behaviors are supposed to be controlled as below no matter which engine is actually used.
+
+- Include & Exclude
+
+    Check below options in the [config](#config_keymaps) 
+
+    - `search_include`
+    - `search_exclude`
+    - `find_in_files_include`
+    - `find_in_files_exclude`
+
+Only for `find in files`
+
+- Match case
+
+    Prefix your input with `\C`. By default it's case insensitive.
+
+- Regexp
+
+    Prefix your input with `\E`. By default it's treated as literal/fixed string.
+
+<a name="config_keymaps"></a>
 
 ## Config and Keymaps
 
@@ -172,7 +205,7 @@ let g:vim_project_config = {
       \'find_in_files_exclude':         ['.git', 'node_modules'],
       \'auto_detect':                   'no',
       \'auto_detect_file':              ['.git', '.svn'],
-      \'project_views':                         [],
+      \'project_views':                 [],
       \'file_map':                      {},
       \'debug':                         0,
       \}
@@ -219,7 +252,7 @@ let g:vim_project_config.list_map = {
 | find_in_files_include         | List of including folders for find in files                                   |
 | find_in_files_exclude         | List of excluding folders for find in files                                   |
 | file_map                      | Define keymaps to siwtch between files quickly                                |
-| project_views                         | Define project views by `[[show-pattern, hide-pattern?], ...]`                |
+| project_views                 | Define project views by `[[show-pattern, hide-pattern?], ...]`                |
 | debug                         | Show debug messages                                                           |
 
 ### Project local config
@@ -357,3 +390,6 @@ Thanks to timsofteng for the great idea. It all started with that
 [1]: https://github.com/VundleVim/Vundle.vim
 [2]: https://github.com/tpope/vim-pathogen
 [3]: https://github.com/junegunn/vim-plug
+[4]: https://github.com/sharkdp/fd
+[5]: https://github.com/BurntSushi/ripgrep
+[6]: https://github.com/ggreer/the_silver_searcher
