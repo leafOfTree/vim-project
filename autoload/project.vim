@@ -61,26 +61,26 @@ function! s:Prepare()
         \]
 
   let s:default.list_map = {
-        \'open':             "\<cr>",
-        \'open_split':       "\<c-s>",
-        \'open_vsplit':      "\<c-v>",
-        \'open_tabedit':     "\<c-t>",
-        \'close_list':       "\<esc>",
-        \'clear_char':       ["\<bs>", "\<c-a>"],
-        \'clear_word':       "\<c-w>",
-        \'clear_all':        "\<c-u>",
-        \'prev_item':        ["\<c-k>", "\<up>"],
-        \'next_item':        ["\<c-j>", "\<down>"],
-        \'first_item':       ["\<c-h>", "\<left>"],
-        \'last_item':        ["\<c-l>", "\<right>"],
-        \'scroll_up':        "\<c-p>",
-        \'scroll_down':      "\<c-n>",
-        \'prev_view':        "\<s-tab>",
-        \'next_view':        "\<tab>",
-        \'replace_prompt':   "\<c-r>",
-        \'replace_dismiss':  "\<c-d>",
-        \'replace_confirm':  "\<c-y>",
-        \'switch_to_list':   "\<c-o>",
+        \'open':                 "\<cr>",
+        \'open_split':           "\<c-s>",
+        \'open_vsplit':          "\<c-v>",
+        \'open_tabedit':         "\<c-t>",
+        \'close_list':           "\<esc>",
+        \'clear_char':           ["\<bs>", "\<c-a>"],
+        \'clear_word':           "\<c-w>",
+        \'clear_all':            "\<c-u>",
+        \'prev_item':            ["\<c-k>", "\<up>"],
+        \'next_item':            ["\<c-j>", "\<down>"],
+        \'first_item':           ["\<c-h>", "\<left>"],
+        \'last_item':            ["\<c-l>", "\<right>"],
+        \'scroll_up':            "\<c-p>",
+        \'scroll_down':          "\<c-n>",
+        \'prev_view':            "\<s-tab>",
+        \'next_view':            "\<tab>",
+        \'replace_prompt':       "\<c-r>",
+        \'replace_dismiss_item': "\<c-d>",
+        \'replace_confirm':      "\<c-y>",
+        \'switch_to_list':       "\<c-o>",
         \}
   let s:default.file_open_types = {
         \'':  'edit',
@@ -1984,7 +1984,7 @@ function! s:HandleInput(input, Update)
         let s:offset = s:offset + winheight(0)/2
       elseif cmd == 'replace_prompt'
         let input = s:AddFindReplaceSeparator(input)
-      elseif cmd == 'replace_dismiss'
+      elseif cmd == 'replace_dismiss_item'
         call s:DismissFindReplaceItem()
       elseif cmd == 'replace_confirm'
         call s:ConfirmFindReplace(input)

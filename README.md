@@ -36,7 +36,7 @@ Project wide
 - Config
 - Session (optional)
 
-    You can save session per branch if both vim feature `job` and shell command `tail` are preset
+    You can save session per branch if both vim feature `job` and shell command `tail` are present
 
 ## Basic Usage
 
@@ -138,9 +138,9 @@ Quit
 
 ### :Project `<path>[, option]`
 
-`path`: If `path` is relative or just a project name which doesn't start with `/`, `~` or `C:`, it'll try any of `g:vim_project_config.project_base` as its base which defaults to `[~]`. You can use <kbd>Tab</kbd> to auto complete the path
+`path`: If `path` is relative or just a project name that doesn't start with `/`, `~` or `C:`, it'll try any of `g:vim_project_config.project_base` as its base which defaults to `[~]`. You can use <kbd>Tab</kbd> to auto complete the path
 
-`note`: Description shown in project list (optional)
+`note`: Description which is shown in project list (optional)
 
 Example
 ```vim
@@ -150,7 +150,7 @@ Project /path/to/demo, { note: 'A demo' }
 Project demo
 ```
 
-### Project search files / find in files
+### Search files / Find in files
 
 - `:ProjectSearchFiles` Under the hood, it tries [[fd][4], `find`, `glob (vim function)`] for the first available one as the search engine.
 
@@ -160,7 +160,9 @@ It's recommended to install one of [[fd][4], `find`] and one of [[rg][5], [ag][6
 
 #### Config
 
-For consistency, the behaviors are supposed to be controlled as below no matter which engine is actually used.
+For consistency, the behaviors are controlled as below no matter which engine is used.
+
+`Search files` and `Find in files`
 
 - Include & Exclude
 
@@ -171,15 +173,21 @@ For consistency, the behaviors are supposed to be controlled as below no matter 
     - `find_in_files_include`
     - `find_in_files_exclude`
 
-Only for `find in files`
+`Find in files`
 
 - Match case
 
-    Prefix your input with `\C`. By default it's case insensitive.
+    Prefix your input with `\C`. By default, it's case insensitive.
 
 - Regexp
 
-    Prefix your input with `\E`. By default it's treated as literal/fixed string.
+    Prefix your input with `\E`. By default, it's treated as literal/fixed string.
+
+`Find and replace`
+
+⚠️Please note this feature is not fully tested. It may cause unexpected changes to your files. Always remember to commit your changes before running it. Feel free to open an issue if anything goes wrong.
+
+When `Find in files`, you can press <kbd>c-r</kbd> to start to replace, <kbd>c-y</kbd> to confirm. <kbd>c-d</kbd> to dismiss any item on the list.
 
 <a name="config_keymaps"></a>
 
@@ -212,26 +220,26 @@ let g:vim_project_config = {
 
 " Keymaps for list prompt
 let g:vim_project_config.list_map = {
-      \'open':             "\<cr>",
-      \'open_split':       "\<c-s>",
-      \'open_vsplit':      "\<c-v>",
-      \'open_tabedit':     "\<c-t>",
-      \'close_list':       "\<esc>",
-      \'clear_char':       ["\<bs>", "\<c-a>"],
-      \'clear_word':       "\<c-w>",
-      \'clear_all':        "\<c-u>",
-      \'prev_item':        ["\<c-k>", "\<up>"],
-      \'next_item':        ["\<c-j>", "\<down>"],
-      \'first_item':       ["\<c-h>", "\<left>"],
-      \'last_item':        ["\<c-l>", "\<right>"],
-      \'scroll_up':        "\<c-p>",
-      \'scroll_down':      "\<c-n>",
-      \'prev_view':        "\<s-tab>",
-      \'next_view':        "\<tab>",
-      \'replace_prompt':   "\<c-r>",
-      \'replace_dismiss':  "\<c-d>",
-      \'replace_confirm':  "\<c-y>",
-      \'switch_to_list':   "\<c-o>",
+      \'open':                 "\<cr>",
+      \'open_split':           "\<c-s>",
+      \'open_vsplit':          "\<c-v>",
+      \'open_tabedit':         "\<c-t>",
+      \'close_list':           "\<esc>",
+      \'clear_char':           ["\<bs>", "\<c-a>"],
+      \'clear_word':           "\<c-w>",
+      \'clear_all':            "\<c-u>",
+      \'prev_item':            ["\<c-k>", "\<up>"],
+      \'next_item':            ["\<c-j>", "\<down>"],
+      \'first_item':           ["\<c-h>", "\<left>"],
+      \'last_item':            ["\<c-l>", "\<right>"],
+      \'scroll_up':            "\<c-p>",
+      \'scroll_down':          "\<c-n>",
+      \'prev_view':            "\<s-tab>",
+      \'next_view':            "\<tab>",
+      \'replace_prompt':       "\<c-r>",
+      \'replace_dismiss_item': "\<c-d>",
+      \'replace_confirm':      "\<c-y>",
+      \'switch_to_list':       "\<c-o>",
       \}
 ```
 
@@ -251,7 +259,7 @@ let g:vim_project_config.list_map = {
 | search_exclude                | List of excluding folders for search files                                    |
 | find_in_files_include         | List of including folders for find in files                                   |
 | find_in_files_exclude         | List of excluding folders for find in files                                   |
-| file_map                      | Define keymaps to siwtch between files quickly                                |
+| file_map                      | Define keymaps to switch between files quickly                                |
 | project_views                 | Define project views by `[[show-pattern, hide-pattern?], ...]`                |
 | debug                         | Show debug messages                                                           |
 
@@ -272,13 +280,13 @@ let g:vim_project_local_config = {
   \}
 ```
 
-For project local file map, see below.
+For the project local `file_map`, see below.
 
 ### Switch between files
 
-You can define mappings to frequently changed files in project's `init.vim`
+You can define mappings to frequently changed files in the project's `init.vim`
 
-For example, with below example, you can
+For example, with the below example, you can
 
 - Switch to `autoload/project.vim` by `'a` and so on
 
@@ -311,7 +319,7 @@ let g:vim_project_local_config.file_map = {
 
 Another example where you can
 
-- Switch between linked file type such as `*.html` and `*.css` at the same path
+- Switch between linked file types such as `*.html` and `*.css` at the same path
 - Switch to file returned by `:h lambda` expression
 
 ```vim
