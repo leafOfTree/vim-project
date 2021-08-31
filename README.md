@@ -28,7 +28,7 @@ A vim plugin to manage projects
 
 - Switch between projects
 
-Project wide
+Project-wide
 
 - Search files by name
 - Find in files
@@ -181,7 +181,7 @@ For consistency, the behaviors are controlled as below no matter which engine is
 
 - Regexp
 
-    Prefix your input with `\E`. By default, it's treated as literal/fixed string.
+    Prefix your input with `\E`. By default, it's treated as a literal/fixed string.
 
 `Find and replace`
 
