@@ -4,7 +4,7 @@
 
 A vim plugin to manage projects
 
-**Add / Open a project**
+<p align="center"><b>Add / Open a project</b></p>
 <p align="center">
 <img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-1.png" width="180" />
 ➡️
@@ -15,8 +15,7 @@ A vim plugin to manage projects
 <img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-4.png" width="180" />
 </p>
 
-**Search files / Find in files / Find and replace in a project**
-
+<p align="center"><b>Search files / Find in files / Find and replace in a project</b></p>
 <p align="center">
 <img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/search-files.png" width="380" />
 <img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/find-in-files.png" width="380" />
@@ -47,11 +46,11 @@ Project-wide
 
 In a list, filter and select an item by <kbd>Up</kbd> <kbd>Down</kbd>. Then press <kbd>Enter</kbd> to open it. 
 
-> For other keymaps, see [Keymaps](#config_keymaps)
+See [Keymaps](#config_keymaps) for others.
 
 ## Installation
 
-You could install it just like other plugins.
+You can install it just like other plugins.
 
 <details>
 <summary><a>How to install</a></summary>
@@ -119,20 +118,21 @@ Quit
 
 ## Commands
 
-| command                    | description                       |
-|----------------------------|-----------------------------------|
-| Project `<path>[, option]` | Add project                       |
-| ProjectOpen `<name>`       | Open a project by name            |
-| ProjectRemove `<name>`     | Remove a project by name          |
-| ProjectList                | Show all projects                 |
-| ProjectSearchFiles         | Search files by name              |
-| ProjectFindInFiles         | Find given string/regexp in files |
-| ProjectInfo                | Show project info                 |
-| ProjectQuit                | Quit project                      |
-| ProjectEntry               | Open project entry                |
-| ProjectConfig              | Open project config directory     |
-| ProjectAllConfig           | Open all config directory         |
-| ProjectIgnore `<path>`     | Ignore project for auto detection |
+| command                    | description                              |
+|----------------------------|------------------------------------------|
+| Project `<path>[, option]` | Add project                              |
+| ProjectOpen `<name>`       | Open a project by name                   |
+| ProjectRemove `<name>`     | Remove a project by name                 |
+| ProjectList                | Show all projects                        |
+| ProjectSearchFiles         | Search files by name                     |
+| ProjectFindInFiles         | Find given string/regexp in files        |
+| ProjectInfo                | Show project info                        |
+| ProjectQuit                | Quit project                             |
+| ProjectEntry               | Open project entry                       |
+| ProjectConfig              | Open project config directory            |
+| ProjectAllConfig           | Open all config directory                |
+| ProjectReload              | Reload project to enable modified config |
+| ProjectIgnore `<path>`     | Ignore project for auto detection        |
 
 > You can try to adjust `wildmenu`, `wildmode` for enhanced command-line completion
 
