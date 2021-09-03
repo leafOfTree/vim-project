@@ -2402,6 +2402,7 @@ endfunction
 function! s:InitStartBuffer()
   if !s:reloading_project
     enew
+    only
   endif
 endfunction
 
@@ -2414,11 +2415,15 @@ function! s:SetStartBuffer()
   if s:ShouldOpenEntry()
     call s:OpenEntry(path)
   else
-    execute 'cd '.path
+    call s:ChangeDirectoryToEntry(path)
   endif
 endfunction
 
-function! s:OpenEntry(path)
+function! s:ChangeDirectoryToEntry(path)
+  execute 'cd '.a:path
+endfunction
+
+function! s:DeleteNerdtreeBuf()
   let bufname = expand('%')
   let is_nerdtree_tmp = count(bufname, s:nerdtree_tmp) == 1
   if is_nerdtree_tmp
@@ -2426,22 +2431,43 @@ function! s:OpenEntry(path)
   endif
 
   call s:Debug('Open entry from buffer '.bufname)
+endfunction
 
-  let path = a:path
-  if empty(path)
-    execute 'silent only | enew'
+function! s:OpenNewBufOnly()
+  enew
+  only
+endfunction
+
+function! s:EditPathAsFile(path)
+    execute 'edit '.a:path
+endfunction
+
+function! s:OpenEntryPath(path)
+  if exists('g:loaded_nerd_tree')
+    let edit_cmd = 'NERDTree'
   else
-    if isdirectory(path)
-      if exists('g:loaded_nerd_tree')
-        let edit_cmd = 'NERDTree'
-      else
-        let edit_cmd = 'edit'
-      endif
-      execute edit_cmd.' '.path.' | silent only |  cd '.path
-    else
-      execute 'edit '.path
-    endif
+    let edit_cmd = 'edit'
   endif
+  execute edit_cmd.' '.a:path
+
+  only
+  execute 'cd '.a:path
+endfunction
+
+function! s:OpenEntry(path)
+  call s:DeleteNerdtreeBuf()
+
+  if empty(a:path)
+    call s:OpenNewBufOnly()
+    return
+  endif
+
+  if !isdirectory(a:path)
+    call s:EditPathAsFile(a:path)
+    return
+  endif
+
+  call s:OpenEntryPath(a:path)
 endfunction
 
 function! s:ShouldOpenEntry()
