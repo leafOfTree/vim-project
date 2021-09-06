@@ -4,25 +4,6 @@
 
 A vim plugin to manage projects
 
-<p align="center"><b>Add / Open a project</b></p>
-<p align="center">
-<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-1.png" width="180" />
-➡️
-<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-2.png" width="180" />
-➡️
-<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-3.png" width="180" />
-➡️
-<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-4.png" width="180" />
-</p>
-
-<p align="center"><b>Search files / Find in files / Find and replace in a project</b></p>
-<p align="center">
-<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/search-files.png" width="380" />
-<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/find-in-files.png" width="380" />
-<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/find-and-replace.png" width="380" />
-</p>
-
----
 
 **Features**
 
@@ -37,6 +18,29 @@ Project-wide
 - Session (optional)
 
     You can save session per branch if both vim feature `job` and shell command `tail` are present
+
+---
+
+<p align="center"><b>Add / Open a project</b></p>
+<p align="center">
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-1.png" width="180" />
+➡️
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-2.png" width="180" />
+➡️
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-3.png" width="180" />
+➡️
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-4.png" width="180" />
+</p>
+
+---
+
+<p align="center"><b>Search files / Find in files / Find and replace in a project</b></p>
+<p align="center">
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/search-files.png" width="380" />
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/find-in-files.png" width="380" />
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/find-and-replace.png" width="380" />
+</p>
+
 
 ## Basic Usage
 
