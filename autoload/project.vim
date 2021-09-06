@@ -2376,7 +2376,7 @@ endfunction
 function! project#OpenProjectConfig()
   if s:ProjectExists()
     let config = s:GetProjectConfigPath(s:config_home, s:project)
-    execute 'edit '.config.'/init.vim'
+    execute 'edit '.config.'/'.s:init_file
   endif
 endfunction
 
