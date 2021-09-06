@@ -99,7 +99,7 @@ You can install it just like other plugins.
 | ProjectInfo                | Show project info                        |
 | ProjectQuit                | Quit project                             |
 | ProjectEntry               | Open project entry                       |
-| ProjectConfig              | Open project config directory            |
+| ProjectConfig              | Open project config file `init.vim`      |
 | ProjectAllConfig           | Open all config directory                |
 | ProjectReload              | Reload project to enable modified config |
 | ProjectIgnore `<path>`     | Ignore project for auto detection        |
@@ -126,7 +126,7 @@ Project demo
 
 - `:ProjectFindInFiles` Under the hood, it tries [[rg][5], [ag][6], `grep`, `vimgrep (vim function)`] for the first available one as the search engine.
 
-It's recommended to install one of [[fd][4], `find`] and one of [[rg][5], [ag][6], `grep`]. They have better performance especially for Windows users and large projects.
+It's recommended to install one of [[fd][4], `find`] and one of [[rg][5], [ag][6], `grep`]. They have better performance especially for Windows users and large projects. However, none of them will respect `.gitignore` serving as a search engine for consistency.
 
 #### Config
 
