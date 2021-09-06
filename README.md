@@ -22,6 +22,7 @@ A vim plugin to manage projects
 <img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/find-and-replace.png" width="380" />
 </p>
 
+---
 
 **Features**
 
@@ -152,9 +153,9 @@ For consistency, the behaviors are controlled as below no matter which engine is
 
     Prefix your input with `\E`. By default, it's treated as a literal/fixed string.
 
-`Find and replace`
+`Find and replace` ⚠️
 
-⚠️Please note this feature is not fully tested. It may cause unexpected changes to your files. Always remember to commit your changes before running it. Feel free to open an issue if anything goes wrong.
+Please note this feature is not fully tested. It may cause unexpected changes to your files. Always remember to commit your changes before running it. Feel free to open an issue if anything goes wrong.
 
 When `Find in files`, you can press <kbd>c-r</kbd> to start to replace, <kbd>c-y</kbd> to confirm. <kbd>c-d</kbd> to dismiss any item on the list.
 
