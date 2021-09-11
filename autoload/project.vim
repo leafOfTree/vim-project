@@ -264,7 +264,8 @@ function! project#IgnoreProject(path)
 endfunction
 
 function! s:ReplaceHomeWithTide(path)
-  return substitute(a:path, '^'.expand('~'), '~', '')
+  let home = substitute(expand('~'), '\\', '/', 'g')
+  return substitute(a:path, '^'.home, '~', '')
 endfunction
 
 function! s:RemoveProjectPath(path)
@@ -401,7 +402,7 @@ endfunction
 function! s:GetProjectConfigPath(config_home, project)
   let id = a:project.path
   let id = s:ReplaceHomeWithTide(id)
-  let id = substitute(id, '/', '_', 'g')
+  let id = substitute(id, '[/:]', '_', 'g')
   let project_folder = a:project.name.'___@'.id
   return a:config_home.'/'.project_folder
 endfunction
