@@ -22,6 +22,7 @@ function! s:Prepare()
   let s:update_timer = 0
   let s:list_buffer = '__vim_project_list__'
   let s:nerdtree_tmp = '__vim_project_nerdtree_tmp__'
+  let s:is_win_version = has('win32') || has('win64')
 
   let s:add_file = 'project.add.vim'
   let s:ignore_file = 'project.ignore.vim'
@@ -263,8 +264,16 @@ function! project#IgnoreProject(path)
   endif
 endfunction
 
+function! s:ReplaceBackSlash(val)
+  if s:is_win_version
+    return substitute(a:val, '\', '/', 'g')
+  else
+    return a:val
+  endif
+endfunction
+
 function! s:ReplaceHomeWithTide(path)
-  let home = substitute(expand('~'), '\\', '/', 'g')
+  let home = s:ReplaceBackSlash(expand('~'))
   return substitute(a:path, '^'.home, '~', '')
 endfunction
 
@@ -429,18 +438,22 @@ function! project#ListDirs(path, L, P)
   else
     let tail = s:GetPathTail(a:path)
   endif
-  let dirs = map(split(globpath(head, '*'), "\n"), {idx, val ->substitute(val, '\', '/', 'g')})
-
-  call filter(dirs,
-        \{idx, val -> match(s:GetPathTail(val), tail) == 0})
-  call filter(dirs,
-        \{idx, val -> isdirectory(expand(val))})
+  let dirs = split(globpath(head, '*'), "\n")
   call map(dirs,
-        \{idx, val -> s:ReplaceHomeWithTide(val)})
+        \{_, val -> s:ReplaceBackSlash(val)})
 
+  call filter(dirs,
+        \{_, val -> match(s:GetPathTail(val), tail) != -1})
+  call filter(dirs,
+        \{_, val -> isdirectory(expand(val))})
+  call map(dirs,
+        \{_, val -> s:ReplaceHomeWithTide(val)})
+
+  " If only one found, append a '/' to its end to show difference
   if len(dirs) == 1 && isdirectory(expand(dirs[0]))
-    let dirs[0] .= '/'
+    let dirs[0] = dirs[0].'/'
   endif
+
   return dirs
 endfunction
 
@@ -1649,8 +1662,13 @@ function! s:RunVimGrep(search, flags, full_input)
 endfunction
 
 function! s:RunShellCmd(cmd)
-  let cmd = 'cd /d '.expand($vim_project).' && '.a:cmd
-  let output = systemlist(cmd)
+  let cd_option = s:is_win_version ? '/d' : ''
+  let cmd = 'cd '.cd_option.' '.$vim_project.' && '.a:cmd
+  try
+    let output = systemlist(cmd)
+  catch
+    return []
+  endtry
 
   if v:shell_error
     if !empty(output)
