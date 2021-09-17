@@ -851,18 +851,17 @@ function! s:ShowInListBuffer(display, input)
   let length = len(a:display)
   call s:AdjustHeight(length, a:input)
   call s:AddEmptyLines(length)
-
   call s:RemoveExtraBlankLineAtBottom()
 endfunction
 
 function! s:RemoveExtraBlankLineAtBottom()
-  normal! Gdd
+  normal! G"_dd
   normal! gg
   normal! G
 endfunction
 
 function! s:AddToListBuffer(display)
-  normal! ggdG
+  normal! gg"_dG
   if len(a:display) > 0
     call append(0, a:display)
   endif
