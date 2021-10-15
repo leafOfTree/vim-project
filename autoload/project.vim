@@ -2291,17 +2291,25 @@ endfunction
 
 function! s:RemoveProject(project)
   let target = a:project
-  let projects = s:projects
-
   if target == s:project
     call s:QuitProject()
   endif
 
-  let idx = index(projects, target)
-  call remove(projects, idx)
-  call s:Info('Removed: '. target.name.' at '.target.path)
-  call s:SaveToPluginConfigIgnore(target.fullpath)
-  call s:RemoveItemInPluginConfigAdd(target.fullpath)
+  let idx = index(s:projects, target)
+  if idx >= 0
+    call remove(s:projects, idx)
+  else
+    let idx = index(s:projects_error, target)
+    if idx >= 0
+      call remove(s:projects_error, idx)
+    endif
+  endif
+
+  if idx >= 0
+    call s:Info('Removed: '. target.name.' at '.target.path)
+    call s:SaveToPluginConfigIgnore(target.fullpath)
+    call s:RemoveItemInPluginConfigAdd(target.fullpath)
+  endif
 endfunction
 
 function! s:SetEnvVariables()
