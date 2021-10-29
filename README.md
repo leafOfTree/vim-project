@@ -75,7 +75,6 @@ You can install it just like other plugins.
 <br />
 </details>
 
-
 ## Workflow
 
 - Add: `:Project <path/to/project>`
@@ -85,36 +84,6 @@ You can install it just like other plugins.
 - Quit: `:ProjectQuit` | Open another project | Quit vim
 
 - Remove: `:ProjectRemove <name>`
-
-## Config files
-
-The config files are located at `~/.vim/vim-project-config/`, where `<project-name>/` is for each project
-
-`:ProjectAllConfig` and `:ProjectConfig` will open the two paths
-
-```
-~/.vim/vim-project-config/
-     | project.add.vim            " Added projects
-     | project.igonre.vim         " Ignored projects
-     | <project-name>/
-         | init.vim               
-         | quit.vim               
-         | sessions/              " session for each branch
-             | master.vim
-             | dev.vim
-
-```
-
-Open 
-
-- Load session
-- Source project's `init.vim`
-
-Quit
-
-- Save session
-- Source project's `quit.vim`
-
 
 ## Commands
 
@@ -263,20 +232,50 @@ let g:vim_project_config.list_map = {
 | project_views                 | Define project views by `[[show-pattern, hide-pattern?], ...]`                |
 | debug                         | Show debug messages                                                           |
 
+### Config files
+
+The config files are located at `~/.vim/vim-project-config/`, where `~/.vim/vim-project-config/<project-name>/` is for each project
+
+`:ProjectAllConfig` and `:ProjectConfig` will open the two paths
+
+```
+~/.vim/vim-project-config/
+     | project.add.vim            " Added projects
+     | project.igonre.vim         " Ignored projects
+     | <project-name>/
+         | init.vim
+         | quit.vim
+         | sessions/              " session for each branch
+             | master.vim
+             | dev.vim
+
+```
+
+Open
+
+- Load session
+- Source project's `init.vim`
+
+Quit
+
+- Save session
+- Source project's `quit.vim`
+
+
 ### Project local config
 
-Those config options can be overridden by `g:vim_project_local_config` in the project's `init.vim`. For example
+These config options can be overridden by `g:vim_project_local_config` in the project's `init.vim`. For example
 
 ```
 let g:vim_project_local_config = {
+  \'search_include': ['./'],
+  \'search_exclude': ['.git', 'node_modules'],
+  \'find_in_files_include': ['./'],
+  \'find_in_files_exclude': ['.git', 'node_modules'],
+  \'project_entry': './src',
   \'use_session': 0,
   \'open_entry_when_use_session': 0,
   \'check_branch_when_use_session': 0,
-  \'search_include': ['./'],
-  \'search_exclude': ['.git', 'node_modules'],
-  \'find_in_files_include': [],
-  \'find_in_files_exclude': ['.git', 'node_modules'],
-  \'project_entry': './src',
   \}
 ```
 
