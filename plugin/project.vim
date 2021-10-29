@@ -1,3 +1,8 @@
+let upgraded_with_prev_config = project#checkVersion()
+if upgraded_with_prev_config
+  finish
+endif
+
 function! s:TrimQuote(args)
   let args = a:args
   let args = substitute(args, "^'", '', 'g')

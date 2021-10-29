@@ -1,5 +1,4 @@
 if exists('g:vim_project_loaded') | finish | endif
-let g:vim_project_loaded = 1
 
 function! s:Prepare()
   let s:name = 'vim-project'
@@ -435,9 +434,27 @@ endfunction
 
 " Call this entry function first
 function! project#begin()
+  let g:vim_project_loaded = 1
   call s:Main()
   call s:SourcePluginConfigFiles()
   call s:WatchOnBufEnter()
+endfunction
+
+function! project#checkVersion()
+  return s:CheckVersion()
+endfunction
+
+function! s:CheckVersion()
+  if exists('g:vim_project_config')
+        \&& type(g:vim_project_config) == type('')
+    let message1 =  'Hey, it seems that you just upgraded. Please configure `g:vim_project_config` as a dict'
+    let message2 =  'For details, please check README.md or https://github.com/leafOfTree/vim-project'
+    echom '[vim-project] '.message1
+    echom '[vim-project] '.message2
+    return 1
+  endif
+
+  return 0
 endfunction
 
 function! s:SourcePluginConfigFiles()
