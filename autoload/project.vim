@@ -428,7 +428,7 @@ function! project#ListDirs(path, L, P)
   else
     let tail = s:GetPathTail(a:path)
   endif
-  let dirs = split(globpath(head, '*'), "\n")
+  let dirs = map(split(globpath(head, '*'), "\n"), {idx, val ->substitute(val, '\', '/', 'g')})
 
   call filter(dirs,
         \{idx, val -> match(s:GetPathTail(val), tail) == 0})
@@ -1453,6 +1453,7 @@ function! s:GetGrepResult(search, full_input)
     let list = s:RunVimGrep(search, flags, a:full_input)
   endif
 
+
   let result = s:GetJoinedList(list)
   return result
 endfunction
@@ -1510,13 +1511,13 @@ function! s:GetRgCmd(pattern, flags)
   if len(include)
     let include_pattern = map(include, 
           \{_, val -> val.'/**' })
-    let include_arg = "-g '{".join(include_pattern, ',')."}'"
+    let include_arg = '-g "{'.join(include_pattern, ',').'}"'
   else
-    let include_arg = "-g '{**}'"
+    let include_arg = '-g "{**}"'
   endif
 
   let exclude = copy(s:find_in_files_exclude)
-  let exclude_arg = "-g '!{".join(exclude, ',')."}'"
+  let exclude_arg = '-g "!{'.join(exclude, ',').'}"'
 
   let search_arg = '--line-number --no-ignore-vcs'
   if !s:Include(a:flags, 'C')
@@ -1647,12 +1648,8 @@ function! s:RunVimGrep(search, flags, full_input)
 endfunction
 
 function! s:RunShellCmd(cmd)
-  let cmd = 'cd '.$vim_project.' && '.a:cmd
-  try
-    let output = systemlist(cmd)
-  catch
-    return []
-  endtry
+  let cmd = 'cd /d '.expand($vim_project).' && '.a:cmd
+  let output = systemlist(cmd)
 
   if v:shell_error
     if !empty(output)
