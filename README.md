@@ -295,7 +295,6 @@ For example as below, you can
 - Switch to file `autoload/project.vim` by `'a` and so on
 - Switch between files `['autoload/project.vim', 'plugin/project.vim']` by `'l`
 - Switch between file types such as `*.html` and `*.css` at the same path with `'t`
-
 - Switch to file returned by user-defined function with `'c`
 - Switch to file returned by `:h lambda` expression with `'d`
 
