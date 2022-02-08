@@ -271,7 +271,7 @@ Quit
 
 These config options can be overridden by `g:vim_project_local_config` in the project's `init.vim`. For example
 
-```
+```vim
 let g:vim_project_local_config = {
   \'search_include': ['./'],
   \'search_exclude': ['.git', 'node_modules'],
@@ -290,53 +290,31 @@ For the project local `file_map`, see below.
 
 You can define mappings to frequently changed files in the project's `init.vim`
 
-For example, with the below example, you can
+For example as below, you can
 
-- Switch to `autoload/project.vim` by `'a` and so on
-
+- Switch to file `autoload/project.vim` by `'a` and so on
 - Switch between `['autoload/project.vim', 'plugin/project.vim']` by `'l`
-
-- Switch to file returned by user-defined function by `'c`
+- Switch between linked file types such as `*.html` and `*.css` at the same path with `'t`
+- Switch to file returned by user-defined function with `'c`
+- Switch to file returned by `:h lambda` expression with `'d`
 
 ```vim
-function! StyleFromUpperDir()
+function! StyleInUpperDir()
   let upper_dir = expand('%:p:h:h')
   let name = expand('%:r')
   return upper_dir.'/'.name.'.css'
 endfunction
 
 let g:vim_project_local_config.file_map = {
-      \'direct': {
-      \   'file': ['autoload/project.vim', 'plugin/project.vim', $vim_project_config.'/init.vim', 'README.md'],
-      \   'key': ['a', 'p', 'i', 'r'],
-      \},
-      \'link': {
-      \   'file': ['autoload/project.vim', 'plugin/project.vim'],
-      \   'key': 'l',
-      \},
-      \'custom': {
-      \   'file': function('StyleFromUpperDir'),
-      \   'key': 'c',
-      \},
-      \}
-```
-
-Another example where you can
-
-- Switch between linked file types such as `*.html` and `*.css` at the same path
-- Switch to file returned by `:h lambda` expression
-
-```vim
-let g:vim_project_local_config.file_map = {
-      \'link': {
-      \   'file': ['html', 'css'],
-      \   'key': 'l',
-      \},
-      \'custom': {
-      \   'file': {->expand('%:p:h:h').'/'.expand('%:r').'.css'},
-      \   'key': 'c',
-      \},
-      \}
+    \'r': 'README.md',
+    \'a': 'autoload/project.vim', 
+    \'p': 'plugin/project.vim', 
+    \'i': $vim_project_config.'/init.vim',
+    \'l': ['autoload/project.vim', 'plugin/project.vim'],
+    \'t': ['html', 'css'],
+    \'c': function('StyleInUpperDir'),
+    \'d': {-> expand('%:p:h:h').'/'.expand('%:r').'.css'},
+\}
 ```
 
 With `file_open_types`, you can use `'a`, `'va`, `'sa`, `'ta'` to edit file in different ways

@@ -235,7 +235,7 @@ function! s:AddProject(path, ...)
         \'option': option,
         \}
   if !isdirectory(fullpath)
-    call s:Warn('No directory found: '.s:ReplaceHomeWithTide(fullpath))
+    call s:Warn('Directory not found: '.s:ReplaceHomeWithTide(fullpath))
     call insert(s:projects_error, project)
     return -1
   else
@@ -279,7 +279,9 @@ endfunction
 
 function! s:RemoveProjectPath(path)
   let result = substitute(a:path, $vim_project, '', '')
-  let result = substitute(result, '^/', '', '')
+  if result != a:path
+    let result = substitute(result, '^/', '', '')
+  endif
   return result
 endfunction
 
@@ -353,7 +355,7 @@ function! s:InitProjectConfig(project)
           \'" - edit $vim_project/src/index.html',
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \'',
-          \'" Example of local config',
+          \'" Example: local config which will overwrite global config',
           \'" let g:vim_project_local_config = {',
           \'"   \''search_include'': [''./''],',
           \'"   \''search_exclude'': [''.git'', ''node_modules''],',
@@ -366,13 +368,12 @@ function! s:InitProjectConfig(project)
           \'"   \}',
           \'',
           \'" let g:vim_project_local_config.file_map = {',
-          \'"   \''direct'': {',
-          \'"   \   ''file'': [''README.md''],',
-          \'"   \   ''key'': [''r''],',
-          \'"   \},',
+          \'"   \''r'': ''README.md'',',
           \'"   \}',
           \'',
           \'let g:vim_project_local_config = {',
+          \'\}',
+          \'let g:vim_project_local_config.file_map = {',
           \'\}',
           \]
     call writefile(init_content, init_file)
@@ -2566,7 +2567,7 @@ function! s:SourceInitFile()
   call s:SourceFile(s:init_file)
   call s:ReadLocalConfig()
   call s:AdjustConfig()
-  call s:MapFile(s:file_map)
+  call s:MapFile()
 endfunction
 
 function! s:ResetConfig()
@@ -2832,88 +2833,93 @@ function! s:GetProjectsDisplayRow(key, value)
         \.s:ReplaceHomeWithTide(value.__path)
 endfunction
 
-function! s:MapFile(config)
-  let config = a:config
-  if has_key(config, 'direct')
-    call s:MapDirectFile(config.direct)
-  endif
+function! s:MapFile()
+  let config = s:file_map
 
-  if has_key(config, 'link')
-    call s:MapLinkedFile(config.link)
-  endif
+  for [key, V] in items(config)
+    let value_type = type(V)
+    if value_type == v:t_string
+      call s:MapDirectFile(key, V)
+    endif
 
-  if has_key(config, 'custom')
-    call s:MapCustomFile(config.custom)
-  endif
-endfunction
+    if value_type == v:t_list
+      call s:MapLinkedFile(key, V)
+    endif
 
-function! s:MapDirectFile(direct)
-  let index = 0
-  for key in a:direct.key
-    let file = a:direct.file[index]
-    for [open_key, open_type] in items(s:open_types)
-      execute "nnoremap '".open_key.key.' :update<cr>'
-            \.':call <SID>OpenFile("'.open_type.'", "'.file.'")<cr>'
-    endfor
-    let index += 1
+    if value_type == v:t_func
+      call s:MapCustomFile(key)
+    endif
   endfor
 endfunction
 
-function! s:MapLinkedFile(link)
-  if len(a:link.file) == 2
-    let s:GotoLinkFuncRef = function('s:GotoLinkedFile', [a:link])
-  " It seems that only function... can be called by <SID> in map
-    function! s:GotoLinkedFunc(open_type)
-      call s:GotoLinkFuncRef(a:open_type)
-    endfunction
-
-    for [open_key, open_type] in items(s:open_types)
-      execute "nnoremap '".open_key.a:link.key
-            \.' :update<cr>:call <SID>GotoLinkedFunc("'.open_type.'")<cr>'
-    endfor
-  endif
-endfunction
-
-function! s:MapCustomFile(custom)
-  let s:CustomFuncRef = a:custom.file
-  " It seems that only function... can be called by <SID> in map
-  function! s:CustomFunc()
-    return s:CustomFuncRef()
-  endfunction
-
+function! s:MapDirectFile(key, file)
   for [open_key, open_type] in items(s:open_types)
-    let sid = expand('<SID>')
-    execute "nnoremap '".open_key.a:custom.key
-          \.' :update<cr>'
-          \.' :call <SID>OpenFile("'.open_type.'", '.sid.'CustomFunc())<cr>'
+    execute "nnoremap '".open_key.a:key.' :update<cr>'
+          \.':call <SID>OpenFile("'.open_type.'", "'.a:file.'")<cr>'
   endfor
 endfunction
 
-function! s:GotoLinkedFile(link, open_type)
-  let linked_files = a:link.file
-  let current_index = index(linked_files, expand('%:e'))
+function! s:MapLinkedFile(key, files)
+  for [open_key, open_type] in items(s:open_types)
+    execute "nnoremap '".open_key.a:key
+          \.' :update<cr>:call <SID>GotoLinkedFile('
+          \.s:ListToString(a:files).', '.'"'.open_type.'")<cr>'
+  endfor
+endfunction
+
+function! s:ListToString(list)
+  return '['.join(map(a:list, {nr, val -> '"'.val.'"'}),',').']'
+endfunction
+
+function! s:CallCustomFunc(key)
+  let Func = s:file_map[a:key]
+  let target = Func()
+  return target
+endfunction
+
+function! s:MapCustomFile(key)
+  let sid = expand('<SID>')
+  for [open_key, open_type] in items(s:open_types)
+    execute "nnoremap '".open_key.a:key
+          \.' :update<cr>'
+          \.' :call <SID>OpenFile("'.open_type.'", <SID>CallCustomFunc("'.a:key.'"))<cr>'
+  endfor
+endfunction
+
+function! s:GotoLinkedFile(files, open_type)
+  let current_index = index(a:files, expand('%:e'))
 
   if current_index != -1 " By file extension
-    let target =  expand('%:p:r').'.'.linked_files[1 - current_index]
-  else " By specific file, default to first one
+    let target =  expand('%:p:r').'.'.a:files[1 - current_index]
+  else " By file name, default to first one
     let current_file = substitute(expand('%:p'), $vim_project.'/', '', '')
-    let current_index = index(linked_files, current_file)
+    let current_index = index(a:files, current_file)
     if current_index != -1
-      let target = linked_files[1 - current_index]
-    elseif linked_files[0] !~ '^\w*$'
-      let target = linked_files[0]
+      let target = a:files[1 - current_index]
+    elseif a:files[0] !~ '^\w*$'
+      let target = a:files[0]
     endif
   endif
-  call s:OpenFile(a:open_type, target)
+
+  if exists('target')
+    call s:OpenFile(a:open_type, target)
+  endif
 endfunction
 
 function! s:OpenFile(open_type, target)
-  let target = a:target
-  if s:IsRelativePath(target)
-    let target = $vim_project.'/'.target
+  let open_target = a:target
+  if s:IsRelativePath(open_target)
+    let open_target = $vim_project.'/'.open_target
   endif
-  let expended_target = expand(target)
-  execute a:open_type.' '.expended_target
+  let expended_open_target = expand(open_target)
+
+  if !filereadable(expended_open_target)
+    let display_target = s:ReplaceHomeWithTide(s:RemoveProjectPath(expended_open_target))
+    call s:Warn('File not found: '.display_target)
+    return
+  endif
+
+  execute a:open_type.' '.expended_open_target
 endfunction
 
 function! s:Include(string, search_string)
