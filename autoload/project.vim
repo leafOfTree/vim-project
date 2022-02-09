@@ -202,14 +202,16 @@ endfunction
 function! project#AddProject(args)
   let [path, option] = s:GetAddArgs(a:args)
   let error = s:AddProject(path, option)
-  if !error && !s:sourcing_file
-    let save_path = s:ReplaceHomeWithTide(s:GetFullPath(path))
-    call s:SaveToAddFile(save_path)
-    redraw
-    let message = 'Added project: '.path
-          \.'. Config created at '.s:ReplaceHomeWithTide(s:config_home)
-    call s:InfoHl(message)
+  if error || s:sourcing_file
+    return 
   endif
+
+  let save_path = s:ReplaceHomeWithTide(s:GetFullPath(path))
+  call s:SaveToAddFile(save_path)
+  redraw
+  let message = 'Added project: '.path
+        \.'. Config created at '.s:ReplaceHomeWithTide(s:config_home)
+  call s:InfoHl(message)
 endfunction
 
 function! s:AddProject(path, ...)
