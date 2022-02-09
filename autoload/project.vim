@@ -2887,17 +2887,21 @@ function! s:MapCustomFile(key)
 endfunction
 
 function! s:GotoLinkedFile(files, open_type)
-  let current_index = index(a:files, expand('%:e'))
 
-  if current_index != -1 " By file extension
-    let target =  expand('%:p:r').'.'.a:files[1 - current_index]
+  if a:files[0] =~ '^\w*$' " By file extension
+    let current_index = index(a:files, expand('%:e'))
+    if current_index == -1 
+      call s:Warn('File map extension not found: '.expand('%:e').' in '.join(a:files, ', '))
+    else
+      let target =  expand('%:p:r').'.'.a:files[1 - current_index]
+    endif
   else " By file name, default to first one
     let current_file = substitute(expand('%:p'), $vim_project.'/', '', '')
     let current_index = index(a:files, current_file)
-    if current_index != -1
-      let target = a:files[1 - current_index]
-    elseif a:files[0] !~ '^\w*$'
+    if current_index == -1
       let target = a:files[0]
+    else
+      let target = a:files[1 - current_index]
     endif
   endif
 
