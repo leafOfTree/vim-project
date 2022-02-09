@@ -22,7 +22,7 @@ Project-wide
 ---
 
 <p align="center"><b>Add / Open a project</b></p>
-<p align="center">
+<p style="display: flex; align-items: center; justify-content: center">
 <img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-1.png" width="300" />
 ➡️
 <img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-2.png" width="300" />
