@@ -20,6 +20,7 @@ function! s:Prepare()
   let s:start_buf = ''
   let s:dismissed_find_replace = 0
   let s:update_timer = 0
+  let s:init_input = ''
   let s:list_buffer = '__vim_project_list__'
   let s:nerdtree_tmp = '__vim_project_nerdtree_tmp__'
   let s:is_win_version = has('win32') || has('win64')
@@ -725,19 +726,41 @@ function! project#SearchFiles()
   call s:RenderList(Init, Update, Open)
 endfunction
 
-function! project#FindInFiles()
+function! project#FindInFiles(...)
   if !s:ProjectExists()
     call s:Warn('No project opened')
     return
   endif
 
+  call s:SetInitInput(a:000)
   call s:PrepareListBuffer()
   let Init = function('s:FindInFilesBufferInit')
   let Update = function('s:FindInFilesBufferUpdateTimer')
   let Open = function('s:FindInFilesBufferOpen')
   let s:prefix = s:find_in_files_prefix
   let s:list_type = 'FIND_IN_FILES'
+
   call s:RenderList(Init, Update, Open)
+endfunction
+
+function! s:SetInitInput(args)
+  if len(a:args) == 2
+    let input = a:args[0]
+    let range = a:args[1]
+
+    if !empty(input)
+      let s:init_input = input
+      return
+    endif
+
+    if range > 0
+      let saved = @z
+      normal! gv"zy
+      let s:init_input = @z
+      let @z = saved
+      return
+    endif
+  endif
 endfunction
 
 function! s:PrepareListBuffer()
@@ -1943,8 +1966,14 @@ function! s:RenderList(Init, Update, Open)
 endfunction
 
 function! s:InitListVariables(Init)
+  let has_init_input = !empty(s:init_input)
   let has_history = has_key(s:list_history, s:list_type)
-  if has_history
+  if has_init_input
+    let input = s:init_input
+    let s:offset = 0
+    let s:initial_height = s:max_height
+    let s:init_input = ''
+  elseif has_history
     let prev = s:list_history[s:list_type]
     let input = prev.input
     let s:offset = prev.offset
@@ -1962,8 +1991,8 @@ function! s:InitListVariables(Init)
 
   call a:Init(input)
 
-  " Empty input if it was set from history
-  if has_history
+  " Empty input if no init and it was set from history
+  if !has_init_input && has_history
     let s:input = -1
     let input = ''
   endif

@@ -30,6 +30,7 @@ command -complete=customlist,project#ListDirs -nargs=1
       \ ProjectIgnore call project#IgnoreProject(s:TrimQuote(<q-args>))
 
 command ProjectSearchFiles call project#SearchFiles()
-command ProjectFindInFiles call project#FindInFiles()
+command -nargs=? -range 
+      \ ProjectFindInFiles call project#FindInFiles(s:TrimQuote(<q-args>), <q-range>)
 
 call project#begin()
