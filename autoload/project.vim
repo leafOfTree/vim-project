@@ -20,6 +20,7 @@ function! s:Prepare()
   let s:start_buf = ''
   let s:dismissed_find_replace = 0
   let s:update_timer = 0
+  let s:sourcing_file = 0
   let s:init_input = ''
   let s:list_buffer = '__vim_project_list__'
   let s:nerdtree_tmp = '__vim_project_nerdtree_tmp__'
@@ -237,14 +238,17 @@ function! s:AddProject(path, ...)
         \'note': note,
         \'option': option,
         \}
+
   if !isdirectory(fullpath)
-    call s:Warn('Directory not found: '.s:ReplaceHomeWithTide(fullpath))
+    if !s:sourcing_file
+      call s:Warn('Directory not found: '.s:ReplaceHomeWithTide(fullpath))
+    endif
     call insert(s:projects_error, project)
     return -1
-  else
-    call s:InitProjectConfig(project)
-    call add(s:projects, project)
   endif
+
+  call s:InitProjectConfig(project)
+  call add(s:projects, project)
 endfunction
 
 function! s:ProjectExistsWithSameFullPath(fullpath, projects)
