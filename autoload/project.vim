@@ -202,7 +202,7 @@ function! project#AddProject(args)
   let error = s:AddProject(path, option)
   if !error && !s:sourcing_file
     let save_path = s:ReplaceHomeWithTide(s:GetFullPath(path))
-    call s:SaveToPluginConfigAdd(save_path)
+    call s:SaveToAddFile(save_path)
     redraw
     call s:InfoHl('Added: '.path)
   endif
@@ -504,7 +504,7 @@ function! s:SourcePluginConfigFiles()
   let s:sourcing_file = 0
 endfunction
 
-function! s:SaveToPluginConfigAdd(path)
+function! s:SaveToAddFile(path)
   let cmd = 'Project '.a:path
   let file = s:config_home.'/'.s:add_file
   call writefile([cmd], file, 'a')
@@ -642,7 +642,7 @@ endfunction
 
 function! s:AutoAddProject(path)
   call s:AddProject(a:path, {})
-  call s:SaveToPluginConfigAdd(a:path)
+  call s:SaveToAddFile(a:path)
   redraw
   call s:InfoHl('Added: '.a:path)
 endfunction
