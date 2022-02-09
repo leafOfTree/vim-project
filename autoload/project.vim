@@ -2887,7 +2887,6 @@ function! s:MapCustomFile(key)
 endfunction
 
 function! s:GotoLinkedFile(files, open_type)
-
   if a:files[0] =~ '^\w*$' " By file extension
     let current_index = index(a:files, expand('%:e'))
     if current_index == -1 
