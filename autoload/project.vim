@@ -2424,6 +2424,8 @@ function! project#OpenProjectConfig()
   if s:ProjectExists()
     let config = s:GetProjectConfigPath(s:config_home, s:project)
     execute 'edit '.config.'/'.s:init_file
+  else
+    call s:Warn('No project opened')
   endif
 endfunction
 
@@ -2472,7 +2474,7 @@ function! project#ShowProjectInfo()
     call s:Info('----- Config -----')
     call s:ShowProjectConfig()
   else
-    call s:Info('No project opened')
+    call s:Warn('No project opened')
   endif
 endfunction
 
