@@ -205,7 +205,9 @@ function! project#AddProject(args)
     let save_path = s:ReplaceHomeWithTide(s:GetFullPath(path))
     call s:SaveToAddFile(save_path)
     redraw
-    call s:InfoHl('Added: '.path)
+    let message = 'Added project: '.path
+          \.'. Config created at '.s:ReplaceHomeWithTide(s:config_home)
+    call s:InfoHl(message)
   endif
 endfunction
 
