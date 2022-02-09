@@ -1931,7 +1931,6 @@ endfunction
 function! s:RenderList(Init, Update, Open)
   let input = s:InitListVariables(a:Init)
   call s:ShowInitialInputLine(input)
-  " call s:ShowInitialInputLineTimer(input)
 
   let [cmd, input] = s:HandleInput(input, a:Update)
 
