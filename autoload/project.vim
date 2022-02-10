@@ -201,17 +201,19 @@ endfunction
 
 function! project#AddProject(args)
   let [path, option] = s:GetAddArgs(a:args)
-  let error = s:AddProject(path, option)
+  let [error, project] = s:AddProject(path, option)
   if error || s:sourcing_file
     return 
   endif
 
+  call s:OpenProject(project)
+
   let save_path = s:ReplaceHomeWithTide(s:GetFullPath(path))
   call s:SaveToAddFile(save_path)
   redraw
-  let message = 'Added project: '.path
+  let message = 'Added '.path
         \.'. Config created at '.s:ReplaceHomeWithTide(s:config_home)
-  call s:InfoHl(message)
+  call s:Info(message)
 endfunction
 
 function! s:AddProject(path, ...)
@@ -224,7 +226,7 @@ function! s:AddProject(path, ...)
         \)
   if hasProject
     call s:Info('Already have '.a:path)
-    return -1
+    return [1, v:null]
   endif
 
   let name = matchstr(fullpath, '/\zs[^/]*$')
@@ -246,11 +248,12 @@ function! s:AddProject(path, ...)
       call s:Warn('Directory not found: '.s:ReplaceHomeWithTide(fullpath))
     endif
     call insert(s:projects_error, project)
-    return -1
+    return [1, v:null]
   endif
 
   call s:InitProjectConfig(project)
   call add(s:projects, project)
+  return [0, project]
 endfunction
 
 function! s:ProjectExistsWithSameFullPath(fullpath, projects)
@@ -410,12 +413,12 @@ function! s:Info(msg)
   echom '['.s:name.'] '.a:msg
 endfunction
 
-function! s:EchoInfo(msg)
+function! s:InfoEcho(msg)
   echo '['.s:name.'] '.a:msg
 endfunction
 
 function! s:InfoHl(msg)
-  echohl Statement | echom '['.s:name.'] ' | echohl None | echon a:msg
+  echohl Type | echom '['.s:name.'] '.a:msg | echohl None
 endfunction
 
 function! s:GetProjectConfigPath(config_home, project)
@@ -2120,7 +2123,7 @@ function! s:RunReplaceAll(search, replace)
     let info_line = 'line '.index_line.' of '.total_lines
     let info_file = 'file '.index_file.' of '.total_files
     redraw
-    call s:EchoInfo('Replaced '.info_file.', '.info_line)
+    call s:InfoEcho('Replaced '.info_file.', '.info_line)
   endfor
 endfunction
 
@@ -2346,7 +2349,7 @@ function! s:OpenProject(project)
     call s:PostLoadProject()
 
     redraw
-    call s:Info('Open: '.new.name)
+    call s:Info('Open '.new.name)
   else
     call s:Info('Already opened')
   endif
@@ -2499,8 +2502,7 @@ endfunction
 
 function! s:InitStartBuffer()
   if !s:reloading_project
-    enew
-    only
+    call s:OpenNewBufOnly()
   endif
 endfunction
 
@@ -2533,7 +2535,7 @@ endfunction
 
 function! s:OpenNewBufOnly()
   enew
-  only
+  silent only
 endfunction
 
 function! s:EditPathAsFile(path)
@@ -2548,7 +2550,7 @@ function! s:OpenEntryPath(path)
   endif
   execute edit_cmd.' '.a:path
 
-  only
+  silent only
   execute 'cd '.a:path
 endfunction
 
