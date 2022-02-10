@@ -25,6 +25,8 @@ function! s:Prepare()
   let s:list_buffer = '__vim_project_list__'
   let s:nerdtree_tmp = '__vim_project_nerdtree_tmp__'
   let s:is_win_version = has('win32') || has('win64')
+  let s:first_column_pattern = '^\S\+\(\s\S\+\)*'
+  let s:second_column_pattern = '\s\{2,}\S*'
 
   let s:add_file = 'project.add.vim'
   let s:ignore_file = 'project.ignore.vim'
@@ -713,12 +715,12 @@ function! s:Warn(msg)
 endfunction
 
 function! project#ListProjects()
+  let s:prefix = s:project_list_prefix
+  let s:list_type = 'PROJECTS'
   call s:PrepareListBuffer()
   let Init = function('s:ProjectListBufferInit')
   let Update = function('s:ProjectListBufferUpdate')
   let Open = function('s:ProjectListBufferOpen')
-  let s:prefix = s:project_list_prefix
-  let s:list_type = 'PROJECTS'
   call s:RenderList(Init, Update, Open)
 endfunction
 
@@ -728,12 +730,13 @@ function! project#SearchFiles()
     return
   endif
 
+  let s:prefix = s:search_files_prefix
+  let s:list_type = 'SEARCH_FILES'
   call s:PrepareListBuffer()
+
   let Init = function('s:SearchFilesBufferInit')
   let Update = function('s:SearchFilesBufferUpdate')
   let Open = function('s:SearchFilesBufferOpen')
-  let s:prefix = s:search_files_prefix
-  let s:list_type = 'SEARCH_FILES'
   call s:RenderList(Init, Update, Open)
 endfunction
 
@@ -743,14 +746,14 @@ function! project#FindInFiles(...)
     return
   endif
 
+  let s:prefix = s:find_in_files_prefix
+  let s:list_type = 'FIND_IN_FILES'
   call s:SetInitInput(a:000)
   call s:PrepareListBuffer()
+
   let Init = function('s:FindInFilesBufferInit')
   let Update = function('s:FindInFilesBufferUpdateTimer')
   let Open = function('s:FindInFilesBufferOpen')
-  let s:prefix = s:find_in_files_prefix
-  let s:list_type = 'FIND_IN_FILES'
-
   call s:RenderList(Init, Update, Open)
 endfunction
 
@@ -832,18 +835,22 @@ function! s:SetupListBuffer()
 
   syntax clear
   " Allow no more than one space in FirstColumn
-  syntax match FirstColumn /^\S\+\(\s\S\+\)*/
-  syntax match SecondColumn /\s\{2,}\S*/
-  syntax match Comment /file results\|recently opened/
+  execute 'syntax match FirstColumn /'.s:first_column_pattern.'/'
+  execute 'syntax match SecondColumn /'.s:second_column_pattern.'/'
   syntax match Special / \.\.\.more$/
 
-  highlight link ItemSelected CursorLine
-  highlight link FirstColumn Normal
-  highlight link SecondColumn Comment
+  if s:IsFindINFilesList()
+    highlight link FirstColumn Keyword
+    highlight link SecondColumn Normal
+  else
+    highlight link FirstColumn Normal
+    highlight link SecondColumn Comment
+  endif
   highlight link InfoColumn Comment
   highlight link InputChar Constant
   highlight link BeforeReplace Comment
   highlight link AfterReplace Function
+  highlight link ItemSelected CursorLine
   highlight! link SignColumn Noise
 
   sign define selected text=> texthl=ItemSelected linehl=ItemSelected
@@ -1927,7 +1934,7 @@ function! s:HighlightReplaceChars(search, replace)
   let pattern = s:GetFindInFilesSearchPattern(a:search)
   execute 'silent! 3match BeforeReplace /'.pattern.'/'
   execute 'silent! 2match AfterReplace /'.pattern.'\zs\V'.a:replace.'/'
-  execute 'silent! 1match FirstColumn /^\S*/'
+  execute 'silent! 1match FirstColumn /'.s:first_column_pattern.'/'
 endfunction
 
 function! s:FindInFilesBufferOpen(target, open_cmd)
@@ -2163,8 +2170,16 @@ function! s:IsOpenCmd(cmd)
   return count(open_cmds, a:cmd) > 0
 endfunction
 
+function! s:IsFindINFilesList()
+  return s:list_type == 'FIND_IN_FILES'
+endfunction
+
+function! s:IsSearchFilesList()
+  return s:list_type == 'SEARCH_FILES'
+endfunction
+
 function! s:SaveListVariables(input)
-  if s:list_type != 'FIND_IN_FILES'
+  if !s:IsFindINFilesList()
     return
   endif
 
@@ -2997,7 +3012,7 @@ function! s:HighlightSearchAsPattern(search)
   call clearmatches()
   let pattern = s:GetFindInFilesSearchPattern(a:search)
   execute 'silent! 2match InputChar /'.pattern.'/'
-  execute 'silent! 1match FirstColumn /^\S*/'
+  execute 'silent! 1match FirstColumn /'.s:first_column_pattern.'/'
 endfunction
 
 function! s:TransformPatternOneByOne(pattern)
@@ -3068,7 +3083,7 @@ function! s:GetMatchPos(lnum, input)
   let pos = []
   let start = 0
 
-  let first_col_str = matchstr(getline(a:lnum), '^\S*')
+  let first_col_str = matchstr(getline(a:lnum), s:first_column_pattern)
   let first_col = split(first_col_str, '\zs')
 
   " Try first col full match
@@ -3095,7 +3110,7 @@ function! s:GetMatchPos(lnum, input)
   " No match in first col, try second col
   if start == 0
     let first_length = len(first_col)
-    let second_col_str = matchstr(getline(a:lnum), '\s\+.*')
+    let second_col_str = matchstr(getline(a:lnum), s:second_column_pattern)
     let second_col = split(second_col_str, '\zs')
     let second_index = 0
   endif
