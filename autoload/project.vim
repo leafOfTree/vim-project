@@ -2123,6 +2123,7 @@ function! s:RunReplaceAll(search, replace)
     redraw
     call s:InfoEcho('Replaced '.info_file.', '.info_line)
   endfor
+  edit
 endfunction
 
 function! s:GetTotalReplaceLines()
