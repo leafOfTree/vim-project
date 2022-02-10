@@ -831,7 +831,8 @@ function! s:SetupListBuffer()
   set laststatus=0
 
   syntax clear
-  syntax match FirstColumn /^\S*/
+  " Allow no more than one space in FirstColumn
+  syntax match FirstColumn /^\S\+\(\s\S\+\)*/
   syntax match Comment /file results\|recently opened/
   syntax match Special / \.\.\.more$/
 
@@ -924,7 +925,7 @@ endfunction
 
 function! s:FilterProjectsList(list, filter, origin_filter)
   let list = a:list
-  let filter = a:filter
+  let filter = a:filter " The regexp filter 
   let origin_filter = a:origin_filter
 
   for item in list
@@ -934,8 +935,8 @@ function! s:FilterProjectsList(list, filter, origin_filter)
     " Filter by name
     let match_index = match(item.name, filter)
     if match_index != -1
-      " Prefer continous match
-      if len(origin_filter) > 1 && count(item.name, origin_filter) == 0
+      " Prefer continous match. If not, add 10 to match_index
+      if len(origin_filter) > 1 && count(tolower(item.name), origin_filter) == 0
         let match_index = match_index + 10
       endif
       let item._match_type = 'name'
