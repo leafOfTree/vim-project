@@ -134,7 +134,7 @@ It's recommended to install one of [[fd][4], `find`] and one of [[rg][5], [ag][6
 
 For consistency, the behaviors are controlled as below no matter which engine is used.
 
-`Search files` and `Find in files`
+Both `Search files` and `Find in files`
 
 - Include & Exclude
 
@@ -180,8 +180,8 @@ let g:vim_project_config = {
       \'project_entry':                 './',
       \'auto_load_on_start':            0,
       \'search_include':                ['./'],
-      \'search_exclude':                ['.git', 'node_modules'],
       \'find_in_files_include':         ['./'],
+      \'search_exclude':                ['.git', 'node_modules'],
       \'find_in_files_exclude':         ['.git', 'node_modules'],
       \'auto_detect':                   'no',
       \'auto_detect_file':              ['.git', '.svn'],

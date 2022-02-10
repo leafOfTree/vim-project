@@ -370,8 +370,8 @@ function! s:InitProjectConfig(project)
           \'" Example: local config which will overwrite global config',
           \'" let g:vim_project_local_config = {',
           \'"   \''search_include'': [''./''],',
-          \'"   \''search_exclude'': [''.git'', ''node_modules''],',
           \'"   \''find_in_files_include'': [''./''],',
+          \'"   \''search_exclude'': [''.git'', ''node_modules''],',
           \'"   \''find_in_files_exclude'': [''.git'', ''node_modules''],',
           \'"   \''project_entry'': ''./src'',',
           \'"   \''use_session'': 0,',
@@ -833,11 +833,13 @@ function! s:SetupListBuffer()
   syntax clear
   " Allow no more than one space in FirstColumn
   syntax match FirstColumn /^\S\+\(\s\S\+\)*/
+  syntax match SecondColumn /\s\{2,}\S*/
   syntax match Comment /file results\|recently opened/
   syntax match Special / \.\.\.more$/
 
   highlight link ItemSelected CursorLine
-  highlight link FirstColumn Keyword
+  highlight link FirstColumn Normal
+  highlight link SecondColumn Comment
   highlight link InfoColumn Comment
   highlight link InputChar Constant
   highlight link BeforeReplace Comment
@@ -1190,20 +1192,15 @@ function! s:SortFilesList(input, a1, a2)
   endif
 endfunction
 
-function! s:GetSearchFilesDisplay(list, oldfiles_len)
-  let display = map(copy(a:list), function('s:GetSearchFilesDisplayRow'))
-  let oldfiles_len = a:oldfiles_len
-
-  if oldfiles_len > 0
-    let display_len = len(display)
-    let display[display_len - 1] .= '  recently opened'
-    if display_len > oldfiles_len
-      let display[display_len - oldfiles_len - 1] .= '  file results'
-    endif
-  endif
+function! s:decorateSearchFilesDisplay(list, display)
   if s:IsListMore(a:list)
-    let display[0] .= '  ...more'
+    let a:display[0] .= '  ...more'
   endif
+endfunction
+
+function! s:GetSearchFilesDisplay(list)
+  let display = map(copy(a:list), function('s:GetSearchFilesDisplayRow'))
+  call s:decorateSearchFilesDisplay(a:list, display)
   return display
 endfunction
 
@@ -1434,7 +1431,7 @@ function! s:GetSearchFilesResult(input)
   let [list, oldfiles] = s:GetSearchFiles(a:input)
   let max_col_width = s:max_width / 8 * 5
   call s:TabulateList(list, ['file', 'path'], max_col_width, ['path'])
-  let display = s:GetSearchFilesDisplay(list, len(oldfiles))
+  let display = s:GetSearchFilesDisplay(list)
   return [list, display]
 endfunction
 
