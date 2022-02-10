@@ -2342,6 +2342,8 @@ function! s:ReloadProject()
     call s:QuitProject()
     call s:OpenProject(project)
 
+    redraw
+    call s:Info('Reloaded')
     let s:reloading_project = 0
   endif
 endfunction

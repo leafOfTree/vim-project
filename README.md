@@ -42,7 +42,7 @@ Project-wide
 
 ## Basic Usage
 
-- `:Project </path/to/project>`
+- `:Project /path/to/project`
 - `:ProjectList` 
 - `:ProjectSearchFiles`
 - `:ProjectFindInFiles`
@@ -92,7 +92,7 @@ You can install it just like other plugins.
 
 | command                    | description                              |
 |----------------------------|------------------------------------------|
-| Project `<path>[, option]` | Add project                              |
+| Project `<path>[, option]` | Add project, then open it                |
 | ProjectOpen `<name>`       | Open a project by name                   |
 | ProjectRemove `<name>`     | Remove a project by name                 |
 | ProjectList                | Show all projects                        |
@@ -102,11 +102,11 @@ You can install it just like other plugins.
 | ProjectQuit                | Quit project                             |
 | ProjectEntry               | Open project entry                       |
 | ProjectConfig              | Open project config file `init.vim`      |
+| ProjectConfigReload        | Reload project to enable modified config |
 | ProjectAllConfig           | Open all config directory                |
-| ProjectReload              | Reload project to enable modified config |
 | ProjectIgnore `<path>`     | Ignore project for auto detection        |
 
-> You can try to adjust `wildmenu`, `wildmode` for enhanced command-line completion
+> You can try adjusting `wildmenu`, `wildmode` for enhanced command-line completion
 
 ### :Project `<path>[, option]`
 
