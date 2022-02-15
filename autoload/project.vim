@@ -2365,7 +2365,7 @@ function! s:OpenProject(project)
     call s:PostLoadProject()
 
     redraw
-    call s:Info('Open '.new.name)
+    call s:Info('Opened '.new.name)
   else
     call s:Info('Already opened')
   endif
@@ -2413,7 +2413,7 @@ function! s:RemoveProject(project)
   endif
 
   if idx >= 0
-    call s:Info('Removed: '. target.name.' at '.target.path)
+    call s:Info('Removed '. target.name.' at '.target.path)
     call s:SaveToPluginConfigIgnore(target.fullpath)
     call s:RemoveItemInPluginConfigAdd(target.fullpath)
   endif
@@ -2466,7 +2466,7 @@ endfunction
 
 function! s:QuitProject()
   if s:ProjectExists()
-    call s:Info('Quit: '.s:project.name)
+    call s:Info('Quitted '.s:project.name)
     call s:SaveSession()
     call s:SourceQuitFile()
 
@@ -2546,7 +2546,7 @@ function! s:DeleteNerdtreeBuf()
     silent bdelete
   endif
 
-  call s:Debug('Open entry from buffer '.bufname)
+  call s:Debug('Opened entry from buffer '.bufname)
 endfunction
 
 function! s:OpenNewBufOnly()
@@ -2864,7 +2864,7 @@ function! ReloadSession(channel, msg, ...)
 
   let new_branch = matchstr(msg, 'refs\/heads\/\zs.*')
   if !empty(new_branch) && new_branch != s:branch
-    call s:Info('Change branch and reload: '.new_branch)
+    call s:Info('Changed branch to '.new_branch)
     call s:BeforeReloadSession()
 
     call s:SaveSession()
