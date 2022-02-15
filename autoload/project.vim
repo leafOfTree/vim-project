@@ -2458,7 +2458,7 @@ endfunction
 function! project#OpenProjectConfig()
   if s:ProjectExists()
     let config = s:GetProjectConfigPath(s:config_home, s:project)
-    execute 'edit '.config.'/'.s:init_file
+    execute 'tabedit '.config.'/'.s:init_file
   else
     call s:Warn('No project opened')
   endif
