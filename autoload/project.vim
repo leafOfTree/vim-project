@@ -147,7 +147,7 @@ function! s:InitConfig()
         \s:config.check_branch_when_use_session
   let s:use_session = s:config.use_session
   let s:project_entry = s:config.project_entry
-  let s:project_base = s:RemoveTrailingSlash(s:config.project_base)
+  let s:project_base = s:RemoveListTrailingSlash(s:config.project_base)
   let s:search_include = s:config.search_include
   let s:search_exclude = s:config.search_exclude
   let s:find_in_files_include = s:config.find_in_files_include
@@ -174,13 +174,13 @@ function! s:AdjustConfig()
         \s:AdjustIncludeExcludePath(s:find_in_files_exclude, [])
 endfunction
 
-function! s:RemoveTrailingSlash(list)
-  call map(a:list, {_, val -> substitute(val, '[\/]$', '', '')})
+function! s:RemoveListTrailingSlash(list)
+  call map(a:list, {_, val -> s:RemovePathTrailingSlash(val)})
   return a:list
 endfunction
 
-function! s:RemoveHeadingDotSlash(list)
-  call map(a:list, {_, val -> substitute(val, '^\.[\/]', '', '')})
+function! s:RemoveListHeadingDotSlash(list)
+  call map(a:list, {_, val -> s:RemovePathHeadingDotSlash(val)})
   return a:list
 endfunction
 
@@ -189,8 +189,8 @@ function! s:AdjustIncludeExcludePath(paths, default)
   if empty(paths)
     let paths = a:default
   endif
-  call s:RemoveTrailingSlash(paths)
-  call s:RemoveHeadingDotSlash(paths)
+  call s:RemoveListTrailingSlash(paths)
+  call s:RemoveListHeadingDotSlash(paths)
   return paths
 endfunction
 
@@ -322,11 +322,19 @@ function! s:IgnoreProject(path)
   call add(s:projects_ignore, project)
 endfunction
 
+function! s:RemovePathTrailingSlash(path)
+  return substitute(a:path, '[\/\\]$', '', '')
+endfunction
+
+function! s:RemovePathHeadingDotSlash(path)
+  return substitute(a:path, '^\.[\/]', '', '')
+endfunction
+
 function! s:GetFullPath(path)
   let path = a:path
+  let path = s:RemovePathTrailingSlash(path)
   let path = s:GetAbsolutePath(path)
   let path = substitute(expand(path), '\', '\/', 'g')
-  let path = substitute(path, '\/$', '', '')
   return path
 endfunction
 
@@ -2413,7 +2421,7 @@ function! s:RemoveProject(project)
   endif
 
   if idx >= 0
-    call s:Info('Removed '. target.name.' at '.target.path)
+    call s:Info('Removed the record of '. target.name.'('.target.path.')')
     call s:SaveToPluginConfigIgnore(target.fullpath)
     call s:RemoveItemInPluginConfigAdd(target.fullpath)
   endif
@@ -2496,8 +2504,8 @@ function! project#ShowProjectInfo()
   if !empty(s:project)
     call s:Info('Name: '.s:project.name)
     call s:Info('Path: '.s:ReplaceHomeWithTide(s:project.path))
-    call s:Info('Search: '.s:TrySearchFilesProgram())
-    call s:Info('Find in files: '.s:TryExternalGrepProgram())
+    call s:Info('Search bin: '.s:TrySearchFilesProgram())
+    call s:Info('Find in files bin: '.s:TryExternalGrepProgram())
     call s:Info('----- Config -----')
     call s:ShowProjectConfig()
   else
@@ -2654,7 +2662,7 @@ function! s:SourceFile(file)
     call s:Debug('Source file: '.file)
     execute 'source '.file
   else
-    call s:Debug('Not found file: '.file)
+    call s:Debug('File not found: '.file)
   endif
 endfunction
 
