@@ -2932,7 +2932,7 @@ function! s:MapLinkedFile(key, files)
 endfunction
 
 function! s:ListToString(list)
-  return '['.join(map(a:list, {nr, val -> '"'.val.'"'}),',').']'
+  return '['.join(map(copy(a:list), {nr, val -> '"'.val.'"'}),',').']'
 endfunction
 
 function! s:CallCustomFunc(key)
