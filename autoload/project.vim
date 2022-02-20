@@ -1869,9 +1869,13 @@ function! s:ShowFindInFilesResult(display, search, replace, full_input, id)
 endfunction
 
 function! s:FindInFilesBufferUpdate(full_input, is_init, id)
-  let [search, replace] = s:ParseInput(a:full_input)
   let should_run = s:ShouldRunFindInFiles(a:full_input)
+  let [search, replace] = s:ParseInput(a:full_input)
   let should_redraw = s:ShouldRedrawWithReplace(search, replace)
+
+  if !exists('s:list')
+    let s:list = []
+  endif
 
   if should_run
     let list = s:GetFindInFilesResult(search, a:full_input)
