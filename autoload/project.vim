@@ -1135,10 +1135,10 @@ function! s:TabulateList(list, keys, no_limit_keys, min_col_width, max_col_width
   endif
 
   " Add right padding
-  for key in a:keys
-    let max_width = max([max[key], a:min_col_width])
-    for item in a:list
+  for item in a:list
+    for key in a:keys
       if has_key(item, key)
+        let max_width = max([max[key], a:min_col_width])
         let item['__'.key] = s:AddRightPadding(item['__'.key], max_width)
       endif
     endfor
