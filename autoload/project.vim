@@ -1715,6 +1715,8 @@ function! s:RunShellCmd(cmd)
   try
     let output = systemlist(cmd)
   catch
+    call s:Warn('Exception on running '.a:cmd)
+    call s:Warn(v:exception)
     return []
   endtry
 
