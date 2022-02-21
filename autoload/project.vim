@@ -42,9 +42,9 @@ function! s:Prepare()
         \'project_entry':                 './',
         \'auto_load_on_start':            0,
         \'search_include':                ['./'],
-        \'search_exclude':                ['.git', 'node_modules'],
         \'find_in_files_include':         ['./'],
-        \'find_in_files_exclude':         ['.git', 'node_modules'],
+        \'search_exclude':                ['.git', 'node_modules', '.DS_Store'],
+        \'find_in_files_exclude':         ['.git', 'node_modules', '.DS_Store'],
         \'auto_detect':                   'no',
         \'auto_detect_file':              ['.git', '.svn'],
         \'project_views':                 [],
@@ -1081,7 +1081,7 @@ endfunction
 
 function! s:AddRightPadding(string, length)
   let string = a:string
-  let padding = repeat(' ', a:length - len(string))
+  let padding = repeat(' ', a:length - len(string) + 1)
   let string .= padding
   return string
 endfunction
@@ -1093,13 +1093,12 @@ function! project#OutputProjects(...)
   echo projects
 endfunction
 
-function! s:TabulateList(list, keys, max_col_width, no_limit_keys)
-  let list = a:list
-  let max_col_width = a:max_col_width
+function! s:TabulateList(list, keys, no_limit_keys, min_col_width, max_col_width)
+  " Init max width of each column
+  let max = {}
 
   " Get max width of each column
-  let max = {}
-  for item in list
+  for item in a:list
     for key in a:keys
       if has_key(item, key)
         let value = s:ReplaceHomeWithTide(item[key])
@@ -1119,12 +1118,12 @@ function! s:TabulateList(list, keys, max_col_width, no_limit_keys)
   endfor
   if max_width > s:max_width
     let max = {}
-    for item in list
+    for item in a:list
       for key in a:keys
         if has_key(item, key)
           let value = item['__'.key]
-          if len(value) > max_col_width && count(a:no_limit_keys, key) == 0
-            let value = value[0:max_col_width-2].'..'
+          if len(value) > a:max_col_width && count(a:no_limit_keys, key) == 0
+            let value = value[0 : a:max_col_width-2].'..'
             let item['__'.key] = value
           endif
           if !has_key(max, key) || len(value) > max[key]
@@ -1136,10 +1135,11 @@ function! s:TabulateList(list, keys, max_col_width, no_limit_keys)
   endif
 
   " Add right padding
-  for item in list
-    for key in a:keys
+  for key in a:keys
+    let max_width = max([max[key], a:min_col_width])
+    for item in a:list
       if has_key(item, key)
-        let item['__'.key] = s:AddRightPadding(item['__'.key], max[key])
+        let item['__'.key] = s:AddRightPadding(item['__'.key], max_width)
       endif
     endfor
   endfor
@@ -1163,7 +1163,7 @@ endfunction
 
 function! s:ProjectListBufferInit(input)
   let max_col_width = s:max_width / 2 - 10
-  call s:TabulateList(s:projects, ['name', 'path', 'note'], max_col_width, ['note'])
+  call s:TabulateList(s:projects, ['name', 'path', 'note'], ['note'], 0, max_col_width)
   return s:ProjectListBufferUpdate(a:input)
 endfunction
 
@@ -1207,7 +1207,7 @@ function! s:SortFilesList(input, a1, a2)
   endif
 endfunction
 
-function! s:decorateSearchFilesDisplay(list, display)
+function! s:DecorateSearchFilesDisplay(list, display)
   if s:IsListMore(a:list)
     let a:display[0] .= '  ...more'
   endif
@@ -1215,7 +1215,7 @@ endfunction
 
 function! s:GetSearchFilesDisplay(list)
   let display = map(copy(a:list), function('s:GetSearchFilesDisplayRow'))
-  call s:decorateSearchFilesDisplay(a:list, display)
+  call s:DecorateSearchFilesDisplay(a:list, display)
   return display
 endfunction
 
@@ -1444,8 +1444,9 @@ endfunction
 
 function! s:GetSearchFilesResult(input)
   let [list, oldfiles] = s:GetSearchFiles(a:input)
+  let min_col_width = s:max_width / 4
   let max_col_width = s:max_width / 8 * 5
-  call s:TabulateList(list, ['file', 'path'], max_col_width, ['path'])
+  call s:TabulateList(list, ['file', 'path'], ['path'], min_col_width, max_col_width)
   let display = s:GetSearchFilesDisplay(list)
   return [list, display]
 endfunction
