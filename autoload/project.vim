@@ -391,7 +391,7 @@ function! s:InitProjectConfig(project)
           \'',
           \'" let g:vim_project_local_config.file_map = {',
           \'"   \''r'': ''README.md'',',
-          \'"   \''l'': [''html'', ''css''],
+          \'"   \''l'': [''html'', ''css'']',
           \'"   \}',
           \'',
           \'let g:vim_project_local_config = {',
