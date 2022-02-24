@@ -1972,6 +1972,10 @@ function! s:ShowInputLine(input)
   endif
 
   redraw
+
+  " Fix  cursor flashing for Vim in terminal
+  echo ''
+
   echo s:prefix.total.' '.a:input
 endfunction
 
