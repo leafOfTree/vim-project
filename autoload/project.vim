@@ -227,7 +227,9 @@ function! s:AddProject(path, ...)
         \s:projects
         \)
   if hasProject
-    call s:Info('Already has '.a:path)
+    if !s:sourcing_file
+      call s:Info('Already has '.a:path)
+    endif
     return [1, v:null]
   endif
 
@@ -430,6 +432,13 @@ endfunction
 
 function! s:InfoHl(msg)
   echohl Type | echom '['.s:name.'] '.a:msg | echohl None
+endfunction
+
+function! s:Warn(msg)
+  redraw
+  echohl WarningMsg
+  echom '['.s:name.'] '.a:msg
+  echohl None
 endfunction
 
 function! s:GetProjectConfigPath(config_home, project)
@@ -714,13 +723,6 @@ function! s:GetProjectByPath(projects, path)
   endif
 
   return {}
-endfunction
-
-function! s:Warn(msg)
-  redraw
-  echohl WarningMsg
-  echom '['.s:name.'] '.a:msg
-  echohl None
 endfunction
 
 function! project#ListProjects()
