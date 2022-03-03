@@ -1541,7 +1541,7 @@ function! s:GetAgCmd(pattern, flags)
     let search_arg .= ' --fixed-strings'
   endif
 
-  let cmd = 'ag '.search_arg.' '.include_arg.' '.exclude_arg.' '.a:pattern
+  let cmd = 'ag '.search_arg.' '.include_arg.' '.exclude_arg.' -- '.a:pattern
   return cmd
 endfunction
 
@@ -1564,7 +1564,7 @@ function! s:GetGrepCmd(pattern, flags)
     let search_arg .= ' --fixed-strings'
   endif
 
-  let cmd = 'fgrep '.search_arg.' '.a:pattern.' '.include_arg.' '.exclude_arg
+  let cmd = 'fgrep '.search_arg.' '.include_arg.' '.exclude_arg.' -- '.a:pattern
   return cmd
 endfunction
 
@@ -1592,7 +1592,7 @@ function! s:GetRgCmd(pattern, flags)
     let search_arg .= ' --fixed-strings'
   endif
 
-  let cmd = 'rg '.search_arg.' '.include_arg.' '.exclude_arg.' '.a:pattern
+  let cmd = 'rg '.search_arg.' '.include_arg.' '.exclude_arg.' -- '.a:pattern
   return cmd
 endfunction
 
