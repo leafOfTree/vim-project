@@ -186,7 +186,7 @@ let g:vim_project_config = {
       \'auto_detect':                   'no',
       \'auto_detect_file':              ['.git', '.svn'],
       \'project_views':                 [],
-      \'file_mappings':                      {},
+      \'file_mappings':                 {},
       \'debug':                         0,
       \}
 
