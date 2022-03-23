@@ -48,7 +48,7 @@ function! s:Prepare()
         \'auto_detect':                   'no',
         \'auto_detect_file':              ['.git', '.svn'],
         \'project_views':                 [],
-        \'file_map':                      {},
+        \'file_mappings':                      {},
         \'debug':                         0,
         \}
 
@@ -58,13 +58,13 @@ function! s:Prepare()
         \'find_in_files_include',
         \'find_in_files_exclude',
         \'project_entry',
-        \'file_map',
+        \'file_mappings',
         \'use_session',
         \'open_entry_when_use_session',
         \'check_branch_when_use_session',
         \]
 
-  let s:default.list_map = {
+  let s:default.list_mappings = {
         \'open':                 "\<cr>",
         \'open_split':           "\<c-s>",
         \'open_vsplit':          "\<c-v>",
@@ -123,10 +123,10 @@ function! s:MergeUserConfigIntoDefault(user, default)
           \default.file_open_types)
   endif
 
-  if has_key(user, 'list_map')
-    let user.list_map = s:MergeUserConfigIntoDefault(
-          \user.list_map,
-          \default.list_map)
+  if has_key(user, 'list_mappings')
+    let user.list_mappings = s:MergeUserConfigIntoDefault(
+          \user.list_mappings,
+          \default.list_mappings)
   endif
 
   for key in keys(default)
@@ -157,10 +157,10 @@ function! s:InitConfig()
   let s:auto_detect = s:config.auto_detect
   let s:auto_detect_file = s:config.auto_detect_file
   let s:auto_load_on_start = s:config.auto_load_on_start
-  let s:file_map = s:config.file_map
+  let s:file_mappings = s:config.file_mappings
   let s:project_views = s:config.project_views
   let s:view_index = -1
-  let s:list_map = s:config.list_map
+  let s:list_mappings = s:config.list_mappings
   let s:open_types = s:config.file_open_types
   let s:debug = s:config.debug
 endfunction
@@ -391,14 +391,14 @@ function! s:InitProjectConfig(project)
           \'"   \''check_branch_when_use_session'': 0,',
           \'"   \}',
           \'',
-          \'" let g:vim_project_local_config.file_map = {',
+          \'" let g:vim_project_local_config.file_mappings = {',
           \'"   \''r'': ''README.md'',',
           \'"   \''l'': [''html'', ''css'']',
           \'"   \}',
           \'',
           \'let g:vim_project_local_config = {',
           \'\}',
-          \'let g:vim_project_local_config.file_map = {',
+          \'let g:vim_project_local_config.file_mappings = {',
           \'\}',
           \]
     call writefile(init_content, init_file)
@@ -1150,7 +1150,7 @@ endfunction
 
 function! s:GetListCommand(char)
   let command = ''
-  for [key, value] in items(s:list_map)
+  for [key, value] in items(s:list_mappings)
     if type(value) == v:t_string
       let match = value == a:char
     else
@@ -2912,7 +2912,7 @@ function! s:GetProjectsDisplayRow(key, value)
 endfunction
 
 function! s:MapFile()
-  let config = s:file_map
+  let config = s:file_mappings
 
   for [key, V] in items(config)
     let value_type = type(V)
@@ -2950,7 +2950,7 @@ function! s:ListToString(list)
 endfunction
 
 function! s:CallCustomFunc(key)
-  let Func = s:file_map[a:key]
+  let Func = s:file_mappings[a:key]
   let target = Func()
   return target
 endfunction

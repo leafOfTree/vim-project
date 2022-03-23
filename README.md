@@ -186,12 +186,12 @@ let g:vim_project_config = {
       \'auto_detect':                   'no',
       \'auto_detect_file':              ['.git', '.svn'],
       \'project_views':                 [],
-      \'file_map':                      {},
+      \'file_mappings':                      {},
       \'debug':                         0,
       \}
 
 " Keymaps for list prompt
-let g:vim_project_config.list_map = {
+let g:vim_project_config.list_mappings = {
       \'open':                 "\<cr>",
       \'open_split':           "\<c-s>",
       \'open_vsplit':          "\<c-v>",
@@ -226,12 +226,12 @@ let g:vim_project_config.list_map = {
 | auto_detect                   | Auto detect projects when opening a file. <br>Choose 'always', 'ask', or 'no' |
 | auto_detect_file              | File used to detect potential projects                                        |
 | auto_load_on_start            | Auto load a project if Vim starts within its directory                        |
-| list_map                      | KeyMaps for list prompt                                                       |
+| list_mappings                      | KeyMaps for list prompt                                                       |
 | search_include                | List of including folders for search files                                    |
 | search_exclude                | List of excluding folders for search files                                    |
 | find_in_files_include         | List of including folders for find in files                                   |
 | find_in_files_exclude         | List of excluding folders for find in files                                   |
-| file_map                      | Define keymaps to switch between files quickly                                |
+| file_mappings                      | Define keymaps to switch between files quickly                                |
 | project_views                 | Define project views by `[[show-pattern, hide-pattern?], ...]`                |
 | debug                         | Show debug messages                                                           |
 
@@ -282,7 +282,7 @@ let g:vim_project_local_config = {
   \}
 ```
 
-For the project local `file_map`, see below.
+For the project local `file_mappings`, see below.
 
 ### Switch between files
 
@@ -303,7 +303,7 @@ function! StyleInUpperDir()
   return upper_dir.'/'.name.'.css'
 endfunction
 
-let g:vim_project_local_config.file_map = {
+let g:vim_project_local_config.file_mappings = {
     \'r': 'README.md',
     \'a': 'autoload/project.vim', 
     \'p': 'plugin/project.vim', 
