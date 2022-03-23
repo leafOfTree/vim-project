@@ -23,20 +23,20 @@ Project-wide
 
 <p align="center"><b>Add / Open a project</b></p>
 <p align="center" style="display: flex; align-items: center; justify-content: center">
-<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-1.png" width="300" />
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-1.png" width="30%" />
 ➡️
-<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-2.png" width="300" />
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-2.png" width="30%" />
 ➡️
-<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-3.png" width="300" />
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-3.png" width="30%" />
 </p>
 
 ---
 
 <p align="center"><b>Search files / Find in files / Find and replace in a project</b></p>
 <p align="center">
-<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/search-files.png" width="380" />
-<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/find-in-files.png" width="380" />
-<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/find-and-replace.png" width="380" />
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/search-files.png" width="30%" />
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/find-in-files.png" width="30%" />
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/find-and-replace.png" width="30%" />
 </p>
 
 
@@ -80,13 +80,13 @@ You can install it just like other plugins.
 
 ## Workflow
 
-- Add: `:Project <path/to/project>`
+- Add `:Project <path/to/project>`
 
-- Open: `:ProjectList` | `:ProjectOpen <name>`
+- Open `:ProjectList` | `:ProjectOpen <name>`
 
-- Quit: `:ProjectQuit` | Open another project | Quit vim
+- Quit `:ProjectQuit` | Open another project | Quit vim
 
-- Remove: `:ProjectRemove <name>`
+- Remove `:ProjectRemove <name>`
 
 ## Commands
 
