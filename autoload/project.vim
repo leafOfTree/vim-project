@@ -850,7 +850,7 @@ function! s:SetupListBuffer()
   execute 'syntax match SecondColumn /'.s:second_column_pattern.'/'
   syntax match Special / \.\.\.more$/
 
-  if s:IsFindINFilesList()
+  if s:IsFindInFilesList()
     highlight link FirstColumn Keyword
     highlight link SecondColumn Normal
   else
@@ -1975,8 +1975,10 @@ function! s:ShowInputLine(input)
 
   redraw
 
-  " Fix  cursor flashing for Vim in terminal
-  echo ''
+  " Fix cursor flashing when in terminal
+  if !has('gui_running')
+    echo ''
+  endif
 
   echo s:prefix.total.' '.a:input
 endfunction
@@ -2153,6 +2155,7 @@ function! s:RunReplaceAll(search, replace)
     call s:InfoEcho('Replaced '.info_file.', '.info_line)
   endfor
   edit
+  call s:InfoEcho('Replaced '.info_file.', '.info_line)
 endfunction
 
 function! s:GetTotalReplaceLines()
@@ -2192,7 +2195,7 @@ function! s:IsOpenCmd(cmd)
   return count(open_cmds, a:cmd) > 0
 endfunction
 
-function! s:IsFindINFilesList()
+function! s:IsFindInFilesList()
   return s:list_type == 'FIND_IN_FILES'
 endfunction
 
@@ -2201,7 +2204,7 @@ function! s:IsSearchFilesList()
 endfunction
 
 function! s:SaveListVariables(input)
-  if !s:IsFindINFilesList()
+  if !s:IsFindInFilesList()
     return
   endif
 
