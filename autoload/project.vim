@@ -5,7 +5,7 @@ function! s:Prepare()
   let s:project_list_prefix = 'Open a project:'
   let s:search_files_prefix = 'Search files by name:'
   let s:find_in_files_prefix = 'Find in files:'
-  let s:search_replace_separator = ' >>>>>> '
+  let s:search_replace_separator = ' => '
   let s:find_in_files_max = 200
   let s:find_in_files_to_stop_max = 100000
   let s:list_history = {}
@@ -858,13 +858,60 @@ function! s:SetupListBuffer()
     highlight link SecondColumn Comment
   endif
   highlight link InfoColumn Comment
-  highlight link InputChar Constant
-  highlight link BeforeReplace Comment
-  highlight link AfterReplace Function
   highlight link ItemSelected CursorLine
   highlight! link SignColumn Noise
 
+  call s:HighlightWithBgBasedOn('Comment', 0, 'undercurl', 'BeforeReplace')
+  call s:HighlightWithBgBasedOn('Function', 'CursorLine', 'bold', 'AfterReplace')
+  highlight link InputChar Constant
+
   sign define selected text=> texthl=ItemSelected linehl=ItemSelected
+endfunction
+
+function! s:HighlightWithBgBasedOn(base_group, bg_group, attr, new_group)
+  let ctermfg = s:GetArgValue(a:base_group, 'fg', 'cterm')
+  let ctermbg = s:GetArgValue(a:base_group, 'bg', 'cterm')
+  let guifg = s:GetArgValue(a:base_group, 'fg', 'gui')
+  let guibg = s:GetArgValue(a:base_group, 'bg', 'gui')
+
+  if !empty(a:base_group)
+    let ctermbg_default = s:GetArgValue(a:bg_group, 'bg', 'cterm')
+    let guibg_default = s:GetArgValue(a:bg_group, 'bg', 'gui')
+    if empty(ctermbg)
+      let ctermbg = ctermbg_default
+    endif
+
+    if empty(guibg)
+      let guibg = guibg_default
+    endif
+  endif
+
+  let highlight_cmd = 'highlight '.a:new_group
+
+  if !empty(a:attr)
+    let highlight_cmd .= ' term='.a:attr.' cterm='.a:attr.' gui='.a:attr
+  endif
+
+  if !empty(ctermfg)
+    let highlight_cmd .= ' ctermfg='.ctermfg
+  endif
+  if !empty(ctermbg)
+    let highlight_cmd .= ' ctermbg='.ctermbg
+  endif
+
+  if !empty(guifg)
+    let highlight_cmd .= ' guifg='.guifg
+  endif
+  if !empty(guibg)
+    let highlight_cmd .= ' guibg='.guibg
+  endif
+
+  echom highlight_cmd
+  execute highlight_cmd
+endfunction
+
+function! s:GetArgValue(name, what, mode)
+  return synIDattr(synIDtrans(hlID(a:name)), a:what, a:mode)
 endfunction
 
 function! s:IsCurrentListBuffer()
