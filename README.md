@@ -22,7 +22,7 @@ Project-wide
 ---
 
 <p align="center"><b>Add / Open a project</b></p>
-<p align="center" style="display: flex; align-items: center; justify-content: center">
+<p align="center">
 <img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-1.png" width="30%" />
 ➡️
 <img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-2.png" width="30%" />
@@ -49,7 +49,7 @@ Project-wide
 
 In a list, filter and select an item by <kbd>Up</kbd> <kbd>Down</kbd>. Then press <kbd>Enter</kbd> to open it. 
 
-See [Keymaps](#config_keymaps) for others.
+See [Keymaps](#config_keymaps) for others. It's recommended to install [[fd][4] and [rg][5]/[ag][6] to improve performance.
 
 ## Installation
 
