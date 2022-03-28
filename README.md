@@ -49,7 +49,7 @@ Project-wide
 
 In a list, filter and select an item by <kbd>Up</kbd> <kbd>Down</kbd>. Then press <kbd>Enter</kbd> to open it. 
 
-See [Keymaps](#config_keymaps) for others. It's recommended to install [[fd][4] and [rg][5]/[ag][6] to improve performance.
+See [Keymaps](#config_keymaps) for others. It's recommended to install [fd][4] and [rg][5]/[ag][6] to improve performance.
 
 ## Installation
 
