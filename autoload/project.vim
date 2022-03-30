@@ -37,9 +37,9 @@ function! s:Prepare()
         \'config_home':                   '~/.vim/vim-project-config',
         \'project_base':                  ['~'],
         \'use_session':                   0,
-        \'open_entry_when_use_session':   0,
+        \'open_root_when_use_session':   0,
         \'check_branch_when_use_session': 0,
-        \'project_entry':                 './',
+        \'project_root':                 './',
         \'auto_load_on_start':            0,
         \'search_include':                ['./'],
         \'find_in_files_include':         ['./'],
@@ -57,10 +57,10 @@ function! s:Prepare()
         \'search_exclude',
         \'find_in_files_include',
         \'find_in_files_exclude',
-        \'project_entry',
+        \'project_root',
         \'file_mappings',
         \'use_session',
-        \'open_entry_when_use_session',
+        \'open_root_when_use_session',
         \'check_branch_when_use_session',
         \]
 
@@ -141,12 +141,12 @@ endfunction
 function! s:InitConfig()
   let s:config = s:GetConfig('config', {})
   let s:config_home = expand(s:config.config_home)
-  let s:open_entry_when_use_session =
-        \s:config.open_entry_when_use_session
+  let s:open_root_when_use_session =
+        \s:config.open_root_when_use_session
   let s:check_branch_when_use_session =
         \s:config.check_branch_when_use_session
   let s:use_session = s:config.use_session
-  let s:project_entry = s:config.project_entry
+  let s:project_root = s:config.project_root
   let s:project_base = s:RemoveListTrailingSlash(s:config.project_base)
   let s:search_include = s:config.search_include
   let s:search_exclude = s:config.search_exclude
@@ -385,9 +385,9 @@ function! s:InitProjectConfig(project)
           \'"   \''find_in_files_include'': [''./''],',
           \'"   \''search_exclude'': [''.git'', ''node_modules''],',
           \'"   \''find_in_files_exclude'': [''.git'', ''node_modules''],',
-          \'"   \''project_entry'': ''./src'',',
+          \'"   \''project_root'': ''./src'',',
           \'"   \''use_session'': 0,',
-          \'"   \''open_entry_when_use_session'': 0,',
+          \'"   \''open_root_when_use_session'': 0,',
           \'"   \''check_branch_when_use_session'': 0,',
           \'"   \}',
           \'',
@@ -615,7 +615,7 @@ function! s:AutoloadOnVimEnter()
     execute 'ProjectOpen '.project.name
 
     if project.fullpath is s:start_buf
-      " Follow session files if open the entry path
+      " Follow session files if open the root path
       " Use timer to avoid conflict with Fern.vim
       call timer_start(1, 'VimProject_HandleFileManagerPlugin')
     else
@@ -2510,9 +2510,9 @@ function! s:ProjectExists()
   endif
 endfunction
 
-function! project#OpenProjectEntry()
+function! project#OpenProjectRoot()
   if s:ProjectExists()
-    let path = s:GetProjectEntryPath()
+    let path = s:GetProjectRootPath()
     if !empty(path)
       execute 'edit '.path
     endif
@@ -2599,15 +2599,15 @@ function! s:SetStartBuffer()
     return 0
   endif
 
-  let path = s:GetProjectEntryPath()
-  if s:ShouldOpenEntry()
-    call s:OpenEntry(path)
+  let path = s:GetProjectRootPath()
+  if s:ShouldOpenRoot()
+    call s:OpenRoot(path)
   else
-    call s:ChangeDirectoryToEntry(path)
+    call s:ChangeDirectoryToRoot(path)
   endif
 endfunction
 
-function! s:ChangeDirectoryToEntry(path)
+function! s:ChangeDirectoryToRoot(path)
   execute 'cd '.a:path
 endfunction
 
@@ -2618,7 +2618,7 @@ function! s:DeleteNerdtreeBuf()
     silent bdelete
   endif
 
-  call s:Debug('Opened entry from buffer '.bufname)
+  call s:Debug('Opened root from buffer '.bufname)
 endfunction
 
 function! s:OpenNewBufOnly()
@@ -2630,7 +2630,7 @@ function! s:EditPathAsFile(path)
     execute 'edit '.a:path
 endfunction
 
-function! s:OpenEntryPath(path)
+function! s:OpenRootPath(path)
   if exists('g:loaded_nerd_tree')
     let edit_cmd = 'NERDTree'
   else
@@ -2642,7 +2642,7 @@ function! s:OpenEntryPath(path)
   execute 'cd '.a:path
 endfunction
 
-function! s:OpenEntry(path)
+function! s:OpenRoot(path)
   call s:DeleteNerdtreeBuf()
 
   if empty(a:path)
@@ -2655,24 +2655,24 @@ function! s:OpenEntry(path)
     return
   endif
 
-  call s:OpenEntryPath(a:path)
+  call s:OpenRootPath(a:path)
 endfunction
 
-function! s:ShouldOpenEntry()
+function! s:ShouldOpenRoot()
   let bufname = expand('%')
   let is_nerdtree_tmp = count(bufname, s:nerdtree_tmp) == 1
 
-  return s:open_entry_when_use_session
+  return s:open_root_when_use_session
         \|| &buftype == 'nofile'
         \|| bufname == ''
         \|| is_nerdtree_tmp
 endfunction
 
-function! s:GetProjectEntryPath()
+function! s:GetProjectRootPath()
   let path = s:project.fullpath
   " Remove the relative part './'
-  let entry = substitute(s:project_entry, '^\.\?[/\\]', '', '')
-  let path = path.'/'.entry
+  let root = substitute(s:project_root, '^\.\?[/\\]', '', '')
+  let path = path.'/'.root
   if isdirectory(path) || filereadable(path)
     return path
   else

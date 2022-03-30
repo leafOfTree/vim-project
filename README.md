@@ -100,7 +100,7 @@ You can install it just like other plugins.
 | ProjectFindInFiles         | Find given string/regexp in files        |
 | ProjectInfo                | Show project info                        |
 | ProjectQuit                | Quit project                             |
-| ProjectEntry               | Open project entry                       |
+| ProjectRoot               | Open project root                       |
 | ProjectConfig              | Open project config file `init.vim`      |
 | ProjectConfigReload        | Reload project to enable modified config |
 | ProjectAllConfig           | Open all config directory                |
@@ -175,9 +175,9 @@ let g:vim_project_config = {
       \'config_home':                   '~/.vim/vim-project-config',
       \'project_base':                  ['~'],
       \'use_session':                   0,
-      \'open_entry_when_use_session':   0,
+      \'open_root_when_use_session':   0,
       \'check_branch_when_use_session': 0,
-      \'project_entry':                 './',
+      \'project_root':                 './',
       \'auto_load_on_start':            0,
       \'search_include':                ['./'],
       \'find_in_files_include':         ['./'],
@@ -220,9 +220,9 @@ let g:vim_project_config.list_mappings = {
 | config_home                   | The directory for all config files                                            |
 | project_base                  | The base directory for relative path                                          |
 | use_session                   | Use session                                                                   |
-| open_entry_when_use_session   | When session used, always open project entry at the beginning                 |
+| open_root_when_use_session   | When session used, always open project root at the beginning                 |
 | check_branch_when_use_session | When session used, keep one for each branch                                   |
-| project_entry                 | Relative directory or file as project entry                                   |
+| project_root                 | Relative directory or file as project root                                   |
 | auto_detect                   | Auto detect projects when opening a file. <br>Choose 'always', 'ask', or 'no' |
 | auto_detect_file              | File used to detect potential projects                                        |
 | auto_load_on_start            | Auto load a project if Vim starts within its directory                        |
@@ -275,9 +275,9 @@ let g:vim_project_local_config = {
   \'search_exclude': ['.git', 'node_modules'],
   \'find_in_files_include': ['./'],
   \'find_in_files_exclude': ['.git', 'node_modules'],
-  \'project_entry': './src',
+  \'project_root': './src',
   \'use_session': 0,
-  \'open_entry_when_use_session': 0,
+  \'open_root_when_use_session': 0,
   \'check_branch_when_use_session': 0,
   \}
 ```
