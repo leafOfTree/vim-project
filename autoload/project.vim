@@ -861,7 +861,7 @@ function! s:SetupListBuffer()
   highlight link ItemSelected CursorLine
   highlight! link SignColumn Noise
 
-  call s:HighlightWithBgBasedOn('Comment', 0, 'undercurl', 'BeforeReplace')
+  call s:HighlightWithBgBasedOn('Comment', 'CursorLine', 0, 'BeforeReplace')
   call s:HighlightWithBgBasedOn('Function', 'CursorLine', 'bold', 'AfterReplace')
   highlight link InputChar Constant
 
