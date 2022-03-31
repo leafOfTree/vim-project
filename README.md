@@ -49,7 +49,7 @@ Project-wide
 
 In a list, filter and select an item by <kbd>Up</kbd> <kbd>Down</kbd>. Then press <kbd>Enter</kbd> to open it. 
 
-See [Keymaps](#config_keymaps) for others. It's recommended to install [fd][4] and [rg][5]/[ag][6] to improve performance.
+See [Keymappings](#config_keymappings) for others. It's recommended to install [fd][4] and [rg][5]/[ag][6] to improve performance.
 
 ## Installation
 
@@ -138,7 +138,7 @@ Both `Search files` and `Find in files`
 
 - Include & Exclude
 
-    Check below options in the [config](#config_keymaps) 
+    Check below options in the [config](#config_keymappings) 
 
     - `search_include`
     - `search_exclude`
@@ -161,9 +161,9 @@ Please note this feature is not fully tested. It may cause unexpected changes to
 
 When `Find in files`, you can press <kbd>c-r</kbd> to start to replace, <kbd>c-y</kbd> to confirm. <kbd>c-d</kbd> to dismiss any item on the list.
 
-<a name="config_keymaps"></a>
+<a name="config_keymappings"></a>
 
-## Config and Keymaps
+## Config and Keymappings
 
 - `g:vim_project_config` (global)
 - `g:vim_project_local_config` (project local)
@@ -190,7 +190,7 @@ let g:vim_project_config = {
       \'debug':                         0,
       \}
 
-" Keymaps for list prompt
+" Keymappings for list prompt
 let g:vim_project_config.list_mappings = {
       \'open':                 "\<cr>",
       \'open_split':           "\<c-s>",
@@ -231,7 +231,7 @@ let g:vim_project_config.list_mappings = {
 | search_exclude                | List of excluding folders for search files                                    |
 | find_in_files_include         | List of including folders for find in files                                   |
 | find_in_files_exclude         | List of excluding folders for find in files                                   |
-| file_mappings                      | Define keymaps to switch between files quickly                                |
+| file_mappings                      | Define keymappings to switch between files quickly                                |
 | project_views                 | Define project views by `[[show-pattern, hide-pattern?], ...]`                |
 | debug                         | Show debug messages                                                           |
 
