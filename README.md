@@ -2,7 +2,11 @@
 
 # vim-project
 
-A vim plugin to manage projects
+<p align="center">
+<img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-3.png" width="220" />
+</p>
+
+A vim plugin to manage projects and sessions.
 
 
 **Features**
@@ -17,7 +21,7 @@ Project-wide
 - Config
 - Session (optional)
 
-    You can save session per branch if both vim feature `job` and shell command `tail` are present
+    You can save session per branch if both vim feature `job` and shell command `tail` are present.
 
 ---
 
@@ -49,7 +53,9 @@ Project-wide
 
 In a list, filter and select an item by <kbd>Up</kbd> <kbd>Down</kbd>. Then press <kbd>Enter</kbd> to open it. 
 
-See [Keymappings](#config_keymappings) for others. It's recommended to install [fd][4] and [rg][5]/[ag][6] to improve performance.
+See [Confid and Keymappings](#config_keymappings) for details. 
+
+It's recommended to install [fd][4] and one of [rg][5]/[ag][6] to improve performance.
 
 ## Installation
 
@@ -181,8 +187,8 @@ let g:vim_project_config = {
       \'auto_load_on_start':            0,
       \'search_include':                ['./'],
       \'find_in_files_include':         ['./'],
-      \'search_exclude':                ['.git', 'node_modules'],
-      \'find_in_files_exclude':         ['.git', 'node_modules'],
+      \'search_exclude':                ['.git', 'node_modules', '.DS_Store'],
+      \'find_in_files_exclude':         ['.git', 'node_modules', '.DS_Store'],
       \'auto_detect':                   'no',
       \'auto_detect_file':              ['.git', '.svn'],
       \'project_views':                 [],
@@ -272,9 +278,9 @@ These config options can be overridden by `g:vim_project_local_config` in the pr
 ```vim
 let g:vim_project_local_config = {
   \'search_include': ['./'],
-  \'search_exclude': ['.git', 'node_modules'],
   \'find_in_files_include': ['./'],
-  \'find_in_files_exclude': ['.git', 'node_modules'],
+  \'search_exclude': ['.git', 'node_modules', '.DS_Store'],
+  \'find_in_files_exclude': ['.git', 'node_modules', '.DS_Store'],
   \'project_root': './src',
   \'use_session': 0,
   \'open_root_when_use_session': 0,
