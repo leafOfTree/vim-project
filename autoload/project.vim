@@ -861,8 +861,8 @@ function! s:SetupListBuffer()
   highlight link ItemSelected CursorLine
   highlight! link SignColumn Noise
 
-  call s:HighlightWithBgBasedOn('Comment', 'CursorLine', 0, 'BeforeReplace')
-  call s:HighlightWithBgBasedOn('Function', 'CursorLine', 'bold', 'AfterReplace')
+  call s:HighlightWithBgBasedOn('Comment', 0, 0, 'BeforeReplace')
+  call s:HighlightWithBgBasedOn('Function', 0, 'bold', 'AfterReplace')
   highlight link InputChar Constant
 
   sign define selected text=> texthl=ItemSelected linehl=ItemSelected
@@ -906,7 +906,6 @@ function! s:HighlightWithBgBasedOn(base_group, bg_group, attr, new_group)
     let highlight_cmd .= ' guibg='.guibg
   endif
 
-  echom highlight_cmd
   execute highlight_cmd
 endfunction
 
