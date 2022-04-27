@@ -84,6 +84,10 @@ You can install it just like other plugins.
 <br />
 </details>
 
+## Uninstallation
+
+You neeed to remove this plugin as well as `~/.vim/vim-project-config` or the path specified by `config_home`.
+
 ## Workflow
 
 - Add `:Project <path/to/project>`
