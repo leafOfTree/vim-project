@@ -391,7 +391,7 @@ set title titlestring=%{g:vim_project.name}\ -\ %{expand('%')}
 
 ## Credits
 
-Thanks to timsofteng for the great idea. It all started with that
+Thanks to timsofteng for the great idea. It all started with that.
 
 [1]: https://github.com/VundleVim/Vundle.vim
 [2]: https://github.com/tpope/vim-pathogen
