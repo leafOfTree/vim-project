@@ -238,8 +238,8 @@ let g:vim_project_config.list_mappings = {
 | auto_load_on_start            | Auto load a project if Vim starts within its directory                        |
 | list_mappings                 | Keymappings for list prompt                                                       |
 | search_include                | List of including folders for search files                                    |
-| search_exclude                | List of excluding folders for search files                                    |
 | find_in_files_include         | List of including folders for find in files                                   |
+| search_exclude                | List of excluding folders for search files                                    |
 | find_in_files_exclude         | List of excluding folders for find in files                                   |
 | file_mappings                 | Define keymappings to switch between files quickly                                |
 | project_views                 | Define project views by `[[show-pattern, hide-pattern?], ...]`                |
@@ -379,6 +379,14 @@ function! GetProjectInfo()
 endfunction
 
 set statusline=%<%t%m\ %y\ %=%{GetProjectInfo()}
+```
+
+### Title
+
+Or you can show project info on the window title
+
+```vim
+set title titlestring=%{g:vim_project.name}\ -\ %{expand('%')}
 ```
 
 ## Credits
