@@ -2484,7 +2484,7 @@ function! s:RemoveProject(project)
   endif
 
   if idx >= 0
-    call s:Info('Removed the record of '. target.name.'('.target.path.')')
+    call s:Info('Removed record of '. target.name.' ('.target.path.')')
     call s:SaveToPluginConfigIgnore(target.fullpath)
     call s:RemoveItemInPluginConfigAdd(target.fullpath)
   endif
