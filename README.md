@@ -120,9 +120,9 @@ You neeed to remove this plugin as well as `~/.vim/vim-project-config` or the pa
 
 ### :Project `<path>[, option]`
 
-`path`: If `path` is relative or just a project name that doesn't start with `/`, `~` or `C:`, it'll try any of `g:vim_project_config.project_base` as its base which defaults to `[~]`. You can use <kbd>Tab</kbd> to auto complete the path
+`path`: If `path` is relative or just a project name that doesn't start with `/`, `~` or `C:`, it'll try any of `g:vim_project_config.project_base` as its base which defaults to `[~]`. You can use <kbd>Tab</kbd> to auto complete the path.
 
-`note`: Description which is shown in project list (optional)
+`note`: (optional) Description which is shown on project list.
 
 Example
 ```vim
@@ -178,7 +178,7 @@ When `Find in files`, you can press <kbd>c-r</kbd> to start to replace, <kbd>c-y
 - `g:vim_project_config` (global)
 - `g:vim_project_local_config` (project local)
 
-The `g:vim_project_config` should be set at `.vimrc`. Its default value is below. You can copy it as a starting point
+The `g:vim_project_config` should be set at `.vimrc`. Its default value is below. You can copy it as a starting point.
 
 ```vim
 let g:vim_project_config = {
@@ -247,9 +247,9 @@ let g:vim_project_config.list_mappings = {
 
 ### Config files
 
-The config files are located at `~/.vim/vim-project-config/`, where `~/.vim/vim-project-config/<project-name>/` is for each project
+The config files are located at `~/.vim/vim-project-config/`, where `~/.vim/vim-project-config/<project-name>/` is for each project.
 
-`:ProjectAllConfig` and `:ProjectConfig` will open the two paths
+`:ProjectAllConfig` and `:ProjectConfig` will open the two paths.
 
 ```
 ~/.vim/vim-project-config/
@@ -296,7 +296,7 @@ For the project local `file_mappings`, see below.
 
 ### Switch between files
 
-You can define mappings to frequently changed files in the project's `init.vim`
+You can define mappings to frequently changed files in the project's `init.vim`.
 
 For example as below, you can
 
@@ -337,7 +337,7 @@ let g:vim_project_config.file_open_types = {
 
 ### Session options
 
-See `:h sessionoptions`
+See `:h sessionoptions`.
 
 ### Project views
 
@@ -359,9 +359,9 @@ let g:vim_project_config.project_views = [
 
 ## Statusline
 
-You can get current project info from `g:vim_project`. Try `echo g:vim_project` after opening a project
+You can get current project info from `g:vim_project`. Try `echo g:vim_project` after opening a project.
 
-For example, define a function called `GetProjectInfo` and add `%{GetProjectInfo()}` to `statusline` to show current project name and branch
+For example, define a function called `GetProjectInfo` and add `%{GetProjectInfo()}` to `statusline` to show current project name and branch.
 
 ```vim
 function! GetProjectInfo()
