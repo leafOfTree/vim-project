@@ -120,12 +120,13 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 
 ### :Project `<path>[, option]`
 
-`path`: If `path` is relative or a project name , it'll search with `g:vim_project_config.project_base` as path base . You can use <kbd>Tab</kbd> to auto complete the path. Relative path doesn't start with `/`, `~` or `C:/`.
+`path`: If `path` is relative or a project name , it'll search with `g:vim_project_config.project_base` as path base . You can use <kbd>Tab</kbd> to auto complete the path. 
 
+> Relative means path doesn't start with `/`, `~` or `C:/`.
 
 `option`
 
-- `note`: (optional) Description shown on project list.
+- `note`: Description shown on project list.
 
 Example
 ```vim
