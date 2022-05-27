@@ -86,7 +86,7 @@ You can install it just like other plugins.
 
 ## Uninstallation
 
-You neeed to remove this plugin as well as `~/.vim/vim-project-config` or the path specified by `config_home`.
+You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-project-config`).
 
 ## Workflow
 
@@ -120,9 +120,12 @@ You neeed to remove this plugin as well as `~/.vim/vim-project-config` or the pa
 
 ### :Project `<path>[, option]`
 
-`path`: If `path` is relative or just a project name that doesn't start with `/`, `~` or `C:`, it'll try any of `g:vim_project_config.project_base` as its base which defaults to `[~]`. You can use <kbd>Tab</kbd> to auto complete the path.
+`path`: If `path` is relative or a project name , it'll search with `g:vim_project_config.project_base` as path base . You can use <kbd>Tab</kbd> to auto complete the path. Relative path doesn't start with `/`, `~` or `C:/`.
 
-`note`: (optional) Description which is shown on project list.
+
+`option`
+
+- `note`: (optional) Description shown on project list.
 
 Example
 ```vim
