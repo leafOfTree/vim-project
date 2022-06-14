@@ -369,7 +369,7 @@ For example, define a function called `GetProjectInfo` and add `%{GetProjectInfo
 
 ```vim
 function! GetProjectInfo()
-  if exists('g:vim_project_loaded') && !empty(g:vim_project)
+  if exists('g:vim_project') && !empty(g:vim_project)
      let name = g:vim_project.name
      let branch = g:vim_project.branch
      if empty(branch)
@@ -387,10 +387,18 @@ set statusline=%<%t%m\ %y\ %=%{GetProjectInfo()}
 
 ### Title
 
-Or you can show project info on the window title
+Or you can show project info on window title
 
 ```vim
-set title titlestring=%{g:vim_project.name}\ -\ %{expand('%')}
+set title titlestring=%{GetTitle()}
+
+function! GetTitle()
+  if exists('g:vim_project') && !empty(g:vim_project)
+    return g:vim_project.name.' - '.expand('%')
+  else
+    set titlestring=
+  endif
+endfunction
 ```
 
 ## Credits
