@@ -396,7 +396,7 @@ function! GetTitle()
   if exists('g:vim_project') && !empty(g:vim_project)
     return g:vim_project.name.' - '.expand('%')
   else
-    set titlestring=
+    return expand('%:p').' - '.expand('%')
   endif
 endfunction
 ```
