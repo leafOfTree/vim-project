@@ -1354,7 +1354,7 @@ function! s:GetFilesByFd()
   let include = join(s:search_include, ' ')
 
   let search_exclude = copy(s:search_exclude)
-  let exclude = join(map(search_exclude, {_, val -> '-E '.val}), ' ')
+  let exclude = join(map(search_exclude, {_, val -> '-E '''.val.''''}), ' ')
 
   let cmd = 'fd -HI '.exclude.' . '.include
   let result = s:RunShellCmd(cmd)
