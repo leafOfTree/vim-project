@@ -1274,8 +1274,25 @@ endfunction
 
 function! s:DecorateSearchFilesDisplay(list, display)
   if s:IsListMore(a:list)
-    let a:display[0] .= '  ...more'
+    let a:display[0] .= '...more'
   endif
+
+  let recent_index = s:GetRecentIndex(a:list)
+  if recent_index != -1
+    let a:display[recent_index] .= '---'
+  endif
+endfunction
+
+function! s:GetRecentIndex(list)
+  let index = 0
+  for item in a:list
+    if has_key(item, 'recent') && item.recent
+      return index
+    endif
+    let index += 1
+  endfor
+
+  return -1
 endfunction
 
 function! s:GetSearchFilesDisplay(list)
@@ -1299,11 +1316,8 @@ function! s:GetSearchFilesByOldFiles(input)
   let oldfiles = s:GetOldFiles()
 
   call s:FilterOldFilesByPath(oldfiles)
-
   call s:MapSearchFiles(oldfiles)
-
   call s:FilterOldFilesByInput(oldfiles, a:input)
-
   call s:SortSearchFiles(oldfiles, a:input)
 
   return oldfiles
@@ -1479,7 +1493,7 @@ function! s:GetSearchFiles(input)
   let oldfiles = s:GetSearchFilesByOldFiles(a:input)
   let search_list = s:GetSearchFilesResultList(a:input)
 
-  let files = search_list
+  let files = oldfiles + search_list
 
   let max_length = s:max_height - 1
   let files = files[0:max_length*3]
@@ -1487,6 +1501,9 @@ function! s:GetSearchFiles(input)
   if len(files) > max_length
     let files = files[0:max_length]
     let files[-1].more = 1
+  endif
+  if len(oldfiles) > 0
+    let oldfiles[len(oldfiles) - 1].recent = 1
   endif
 
   call reverse(files)
@@ -1581,7 +1598,7 @@ function! s:GetGrepResult(search, full_input)
   endif
 
 
-  let result = s:GetJoinedList(list)
+  let result = s:GetGroupedList(list)
   return result
 endfunction
 
@@ -1714,13 +1731,13 @@ function! s:HasFile(list, file)
   return 0
 endfunction
 
-function! s:GetJoinedList(list)
+function! s:GetGroupedList(list)
   let joined_list = []
   let current_file = ''
 
   " Assume the list has already been ordered by file
   for item in a:list
-    if item.file != current_file
+    if current_file != item.file
       let current_file = item.file
       call add(joined_list, { 'file': item.file })
     endif
