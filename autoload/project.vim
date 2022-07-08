@@ -392,6 +392,7 @@ function! s:InitProjectConfig(project)
           \'"   \''check_branch_when_use_session'': 0,',
           \'"   \}',
           \'',
+          \'" file_mappings extend global config',
           \'" let g:vim_project_local_config.file_mappings = {',
           \'"   \''r'': ''README.md'',',
           \'"   \''l'': [''html'', ''css'']',
@@ -440,6 +441,12 @@ function! s:Warn(msg)
   echohl WarningMsg
   echom '['.s:name.'] '.a:msg
   echohl None
+endfunction
+
+function! s:DebugWarn(msg)
+  if s:debug
+    call s:Warn(a:msg)
+  endif
 endfunction
 
 function! s:GetProjectConfigPath(config_home, project)
@@ -1472,18 +1479,18 @@ function! s:GetSearchFiles(input)
   let oldfiles = s:GetSearchFilesByOldFiles(a:input)
   let search_list = s:GetSearchFilesResultList(a:input)
 
-  let list = oldfiles + search_list
+  let files = search_list
 
   let max_length = s:max_height - 1
-  let list = list[0:max_length*3]
-  call s:UniqueList(list)
-  if len(list) > max_length
-    let list = list[0:max_length]
-    let list[-1].more = 1
+  let files = files[0:max_length*3]
+  call s:UniqueList(files)
+  if len(files) > max_length
+    let files = files[0:max_length]
+    let files[-1].more = 1
   endif
 
-  call reverse(list)
-  return [list, oldfiles]
+  call reverse(files)
+  return files
 endfunction
 
 function! s:MapSearchFiles(list)
@@ -1501,12 +1508,12 @@ function! s:SortSearchFiles(list, input)
 endfunction
 
 function! s:GetSearchFilesResult(input)
-  let [list, oldfiles] = s:GetSearchFiles(a:input)
+  let files = s:GetSearchFiles(a:input)
   let min_col_width = s:max_width / 4
   let max_col_width = s:max_width / 8 * 5
-  call s:TabulateList(list, ['file', 'path'], ['path'], min_col_width, max_col_width)
-  let display = s:GetSearchFilesDisplay(list)
-  return [list, display]
+  call s:TabulateList(files, ['file', 'path'], ['path'], min_col_width, max_col_width)
+  let display = s:GetSearchFilesDisplay(files)
+  return [files, display]
 endfunction
 
 function! s:SearchFilesBufferInit(input)
@@ -1780,7 +1787,8 @@ function! s:RunShellCmd(cmd)
 
   if v:shell_error
     if !empty(output)
-      call s:Debug(a:cmd.': '.string(output))
+      call s:DebugWarn(a:cmd)
+      call s:DebugWarn(string(output))
     endif
     return []
   endif
