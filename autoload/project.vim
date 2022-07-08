@@ -422,7 +422,7 @@ function! s:Debug(msg)
   endif
 endfunction
 
-function! s:Info(msg)
+function! s:Info(msg, ...)
   echom '['.s:name.'] '.a:msg
 endfunction
 
@@ -2200,8 +2200,9 @@ function! s:RunReplaceAll(search, replace)
     redraw
     call s:InfoEcho('Replaced '.info_file.', '.info_line)
   endfor
+
   edit
-  call s:InfoEcho('Replaced '.info_file.', '.info_line)
+  call timer_start(100, function('s:Info', ['Replaced '.info_file.', '.info_line]))
 endfunction
 
 function! s:GetTotalReplaceLines()
@@ -3247,3 +3248,5 @@ function! s:Main()
   call s:InitConfig()
   call s:AdjustConfig()
 endfunction
+
+
