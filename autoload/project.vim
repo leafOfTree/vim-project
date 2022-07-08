@@ -379,7 +379,7 @@ function! s:InitProjectConfig(project)
           \'" - edit $vim_project/src/index.html',
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \'',
-          \'" Example: local config which will overwrite global config',
+          \'" Example: local config which overrides global config',
           \'" let g:vim_project_local_config = {',
           \'"   \''search_include'': [''./''],',
           \'"   \''find_in_files_include'': [''./''],',
