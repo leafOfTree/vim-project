@@ -580,6 +580,14 @@ function! s:WatchOnBufEnter()
   augroup END
 endfunction
 
+function! s:WatchOnInitFileChange()
+  autocmd BufWritePost $vim_project_config/init.vim call s:SourceInitFile()
+endfunction
+
+function! s:UnwatchOnInitFileChange()
+  autocmd! BufWritePost $vim_project_config/init.vim
+endfunction
+
 function! s:TryAutoloadOnBufEnter()
   if !v:vim_did_enter
     let buf = expand('<amatch>')
@@ -2450,6 +2458,7 @@ endfunction
 
 function! s:LoadProject()
   call s:SourceInitFile()
+  call s:WatchOnInitFileChange()
   call s:FindBranch()
   call s:LoadSession()
 endfunction
@@ -2541,6 +2550,7 @@ function! s:QuitProject()
     call s:Info('Quitted '.s:project.name)
     call s:SaveSession()
     call s:SourceQuitFile()
+    call s:UnwatchOnInitFileChange()
 
     let s:list_history = {}
     let s:project = {}

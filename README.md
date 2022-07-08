@@ -110,9 +110,8 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 | ProjectFindInFiles         | Find given string/regexp in files        |
 | ProjectInfo                | Show project info                        |
 | ProjectQuit                | Quit project                             |
-| ProjectRoot               | Open project root                       |
-| ProjectConfig              | Open project config file `init.vim`      |
-| ProjectConfigReload        | Reload project to enable modified config |
+| ProjectRoot                | Open project root                        |
+| ProjectConfig              | Open project config file `init.vim` (effective after save)|
 | ProjectAllConfig           | Open all config directory                |
 | ProjectIgnore `<path>`     | Ignore project for auto detection        |
 
@@ -284,6 +283,7 @@ Quit
 - Save session
 - Source project's `quit.vim`
 
+`init.vim` will get reloaded once you change and save it.
 
 ### Project local config
 
