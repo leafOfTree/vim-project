@@ -3043,9 +3043,9 @@ function! s:OpenFile(open_type, target)
   endif
   let expended_open_target = expand(open_target)
 
-  if !filereadable(expended_open_target)
+  if !filereadable(expended_open_target) && !isdirectory(expended_open_target)
     let display_target = s:ReplaceHomeWithTide(s:RemoveProjectPath(expended_open_target))
-    call s:Warn('File not found: '.display_target)
+    call s:Warn('File or folder not found: '.display_target)
     return
   endif
 
