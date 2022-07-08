@@ -155,11 +155,12 @@ function! s:InitConfig()
 
   " options: 'always', 'ask', 'no'
   let s:auto_detect = s:config.auto_detect
+
   let s:auto_detect_file = s:config.auto_detect_file
   let s:auto_load_on_start = s:config.auto_load_on_start
-  let s:file_mappings = s:config.file_mappings
   let s:project_views = s:config.project_views
   let s:view_index = -1
+  let s:file_mappings = s:config.file_mappings
   let s:list_mappings = s:config.list_mappings
   let s:open_types = s:config.file_open_types
   let s:debug = s:config.debug
@@ -2717,12 +2718,16 @@ function! s:ReadLocalConfig()
   if !empty(local_config)
     for key in s:local_config_keys
       if has_key(local_config, key)
+        if key == 'file_mappings'
+          let s:[key] = extend(copy(s:[key]), local_config[key])
+          continue
+        endif
+
         let s:[key] = local_config[key]
       endif
     endfor
   endif
 endfunction
-
 
 function! s:SourceQuitFile()
   call s:SourceFile(s:quit_file)
