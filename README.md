@@ -194,7 +194,7 @@ let g:vim_project_config = {
       \'config_home':                   '~/.vim/vim-project-config',
       \'project_base':                  ['~'],
       \'use_session':                   0,
-      \'open_root_when_use_session':   0,
+      \'open_root_when_use_session':    0,
       \'check_branch_when_use_session': 0,
       \'project_root':                 './',
       \'auto_load_on_start':            0,
