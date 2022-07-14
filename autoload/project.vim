@@ -1244,11 +1244,6 @@ function! s:ProjectListBufferUpdate(input)
 endfunction
 
 function! s:ProjectListBufferOpen(project, open_cmd)
-  if empty(a:project)
-    call s:Warn('No project selected')
-    return
-  endif
-
   if s:IsValidProject(a:project)
     call s:OpenProject(a:project)
   else
@@ -2390,6 +2385,12 @@ endfunction
 
 function! s:OpenTarget(cmd, Open)
   let target = s:GetTarget()
+
+  if empty(target)
+    call s:Warn('No item selected')
+    return
+  endif
+
   call a:Open(target, a:cmd)
 endfunction
 
