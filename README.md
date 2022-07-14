@@ -248,8 +248,8 @@ let g:vim_project_config.list_mappings = {
 | list_mappings                 | Keymappings for list prompt                                                       |
 | search_include                | List of including folders for search files                                    |
 | find_in_files_include         | List of including folders for find in files                                   |
-| search_exclude                | List of excluding folders for search files                                    |
-| find_in_files_exclude         | List of excluding folders for find in files                                   |
+| search_exclude                | List of excluding folders/files for search files                                    |
+| find_in_files_exclude         | List of excluding folders/files for find in files                                   |
 | file_mappings                 | Define keymappings to switch between files quickly                                |
 | project_views                 | Define project views by `[[show-pattern, hide-pattern?], ...]`                |
 | debug                         | Show debug messages                                                           |
