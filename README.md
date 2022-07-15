@@ -111,8 +111,8 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 | ProjectInfo                | Show project info                        |
 | ProjectQuit                | Quit project                             |
 | ProjectRoot                | Open project root                        |
-| ProjectConfig              | Open project config file `init.vim` (effective after save)|
-| ProjectAllConfig           | Open all config directory                |
+| ProjectConfig              | Open project config `init.vim` (effective after save) |
+| ProjectAllConfig           | Open all projects config `project.add.vim` |
 | ProjectIgnore `<path>`     | Ignore project for auto detection        |
 
 > You can try adjusting `wildmenu`, `wildmode` for enhanced command-line completion
@@ -258,7 +258,7 @@ let g:vim_project_config.list_mappings = {
 
 The config files are located at `~/.vim/vim-project-config/`, where `~/.vim/vim-project-config/<project-name>/` is for each project.
 
-`:ProjectAllConfig` and `:ProjectConfig` will open the two paths.
+`:ProjectAllConfig` and `:ProjectConfig` will open corresponding config files.
 
 ```
 ~/.vim/vim-project-config/

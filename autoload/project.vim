@@ -386,7 +386,7 @@ function! s:InitProjectConfig(project)
           \'"   \''find_in_files_include'': [''./''],',
           \'"   \''search_exclude'': [''.git'', ''node_modules'', ''.DS_Store''],',
           \'"   \''find_in_files_exclude'': [''.git'', ''node_modules'', ''.DS_Store''],',
-          \'"   \''project_root'': ''./src'',',
+          \'"   \''project_root'': ''./'',',
           \'"   \''use_session'': 0,',
           \'"   \''open_root_when_use_session'': 0,',
           \'"   \''check_branch_when_use_session'': 0,',
@@ -2565,7 +2565,7 @@ function! project#OpenProjectConfig()
 endfunction
 
 function! project#OpenAllConfig()
-  execute 'edit '.s:config_home
+  execute 'tabedit '.s:config_home.'/project.add.vim'
 endfunction
 
 function! project#QuitProject()
