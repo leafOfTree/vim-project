@@ -1274,7 +1274,7 @@ function! s:DecorateSearchFilesDisplay(list, display)
 
   let recent_index = s:GetRecentIndex(a:list)
   if recent_index != -1
-    let a:display[recent_index] .= '---'
+    let a:display[recent_index] .= ''
   endif
 endfunction
 
