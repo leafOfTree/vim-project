@@ -289,9 +289,22 @@ function! s:ReplaceBackSlash(val)
   endif
 endfunction
 
+function! s:SetSlashBasedOnOS(val)
+  if s:is_win_version
+    return substitute(a:val, '/', '\', 'g')
+  else
+    return substitute(a:val, '\', '/', 'g')
+  endif
+endfunction
+
 function! s:ReplaceHomeWithTide(path)
-  let home = s:ReplaceBackSlash(expand('~'))
-  return substitute(a:path, '^'.home, '~', '')
+  let home = escape(expand('~'), '\')
+  let home2 = s:ReplaceBackSlash(expand('~'))
+
+  let result = a:path
+  let result = substitute(result, '^'.home, '~', '')
+  let result = substitute(result, '^'.home2, '~', '')
+  return result
 endfunction
 
 function! s:RemoveProjectPath(path)
@@ -1322,38 +1335,46 @@ function! s:GetOldFiles()
   let oldfiles = copy(v:oldfiles)
 
   for buf in getbufinfo({'buflisted': 1})
-    if count(oldfiles, s:ReplaceHomeWithTide(buf.name)) == 0
-      call insert(oldfiles, buf.name)
+    let bufname = s:ReplaceHomeWithTide(buf.name)
+    if count(oldfiles, bufname) == 0
+      call insert(oldfiles, bufname)
     endif
   endfor
   return oldfiles
 endfunction
 
 function! s:FilterOldFilesByPath(oldfiles)
-  call map(a:oldfiles, {_, val -> fnamemodify(val, ':p')})
+  let project_dir = s:SetSlashBasedOnOS(s:ReplaceHomeWithTide($vim_project.'/'))
+  call filter(a:oldfiles, {_, val -> count(val, project_dir) > 0 })
 
-  let project_dir = fnamemodify($vim_project, ':p')
+  let search_exclude = copy(s:search_exclude)
+  call map(search_exclude, {_, val -> project_dir.val})
+  call filter(a:oldfiles, {_, val -> !s:IsPathStartWithAny(val, search_exclude)})
+
+  call map(a:oldfiles, {_, val -> fnamemodify(val, ':p')})
   call filter(a:oldfiles, {_, val ->
-        \ count(val, project_dir) > 0
-        \ && count(['ControlP', ''], fnamemodify(val, ':t')) == 0
+        \ count(['ControlP', ''], fnamemodify(val, ':t')) == 0
         \ && (filereadable(val) || isdirectory(val))
         \})
 
-  let search_exclude = copy(s:search_exclude)
-  call map(search_exclude, {_, val -> fnamemodify($vim_project.'/'.val, ':p')})
-  call filter(a:oldfiles, {_, val -> !s:IsPathStartWithAny(val, search_exclude)})
 
-  call map(a:oldfiles, {_, val -> substitute(val, project_dir, './', '')})
+  let project_dir_pat = escape(fnamemodify(project_dir, ':p'), '\')
+  call map(a:oldfiles, {_, val -> substitute(val, project_dir_pat, './', '')})
 endfunction
 
 function! s:IsPathStartWithAny(fullpath, starts)
   for start in a:starts
-    if match(a:fullpath, start) == 0
+
+    if s:StartWith(a:fullpath, start)
       return 1
     endif
   endfor
 
   return 0
+endfunction
+
+function! s:StartWith(string, search)
+  return a:string[0:len(a:search)-1] ==# a:search
 endfunction
 
 function! s:FilterOldFilesByInput(oldfiles, input)
