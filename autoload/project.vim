@@ -26,7 +26,7 @@ function! s:Prepare()
   let s:nerdtree_tmp = '__vim_project_nerdtree_tmp__'
   let s:is_win_version = has('win32') || has('win64')
   let s:first_column_pattern = '^\S\+\(\s\S\+\)*'
-  let s:second_column_pattern = '\s\{2,}\S*'
+  let s:second_column_pattern = '\s\{2,}\(\S\s\?\)*'
 
   let s:add_file = 'project.add.vim'
   let s:ignore_file = 'project.ignore.vim'
@@ -1366,7 +1366,7 @@ function! s:GetFilesByFind()
   let include = join(s:search_include, ' ')
 
   let search_exclude = copy(s:search_exclude)
-  let exclude_string = join(map(search_exclude, {_, val -> '-name '.val}), ' -o ')
+  let exclude_string = join(map(search_exclude, {_, val -> '-name "'.val.'"'}), ' -o ')
   let exclude = '\( '.exclude_string.' \) -prune -false -o '
 
   let filter = '-ipath "*"'
@@ -1379,7 +1379,7 @@ function! s:GetFilesByFd()
   let include = join(s:search_include, ' ')
 
   let search_exclude = copy(s:search_exclude)
-  let exclude = join(map(search_exclude, {_, val -> '-E '''.val.''''}), ' ')
+  let exclude = join(map(search_exclude, {_, val -> '-E "'.val.'"'}), ' ')
 
   let cmd = 'fd -HI '.exclude.' . '.include
   let result = s:RunShellCmd(cmd)
