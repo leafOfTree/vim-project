@@ -1509,7 +1509,7 @@ function! s:MapSearchFiles(list)
   call map(a:list, {idx, val ->
         \{
         \'file': fnamemodify(val, ':t'),
-        \'path': fnamemodify(val, ':h:s+\./\|^\.$++'),
+        \'path': fnamemodify(val, ':h:s+\./\|\.\\\|^\.$++'),
         \}})
 endfunction
 
