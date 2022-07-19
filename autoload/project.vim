@@ -25,8 +25,12 @@ function! s:Prepare()
   let s:list_buffer = '__vim_project_list__'
   let s:nerdtree_tmp = '__vim_project_nerdtree_tmp__'
   let s:is_win_version = has('win32') || has('win64')
-  let s:first_column_pattern = '^\S\+\(\s\S\+\)*'
-  let s:second_column_pattern = '\s\{2,}\(\S\s\?\)*'
+
+  let s:note_prefix = '- '
+  let s:column_pattern = '\S\+\(\s\S\+\)*'
+  let s:note_column_pattern = '\(\s\{2,}'.s:note_prefix.s:column_pattern.'\)\?'
+  let s:first_column_pattern = '^'.s:column_pattern.s:note_column_pattern
+  let s:second_column_pattern = '\s\{2,}[^- ]'.s:column_pattern
 
   let s:add_file = 'project.add.vim'
   let s:ignore_file = 'project.ignore.vim'
@@ -237,6 +241,9 @@ function! s:AddProject(path, ...)
   let name = matchstr(fullpath, '/\zs[^/]*$')
   let path = substitute(fullpath, '/[^/]*$', '', '')
   let note = get(option, 'note', '')
+  if !empty(note)
+    let note = s:note_prefix.note
+  endif
 
   " fullpath: with project name
   " path: without project name
@@ -3222,6 +3229,7 @@ function! s:GetMatchPos(lnum, input)
 
   let search = split(a:input, '\zs')
   let pos = []
+  " The start position of match
   let start = 0
 
   let first_col_str = matchstr(getline(a:lnum), s:first_column_pattern)
