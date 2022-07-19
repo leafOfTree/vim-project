@@ -1334,13 +1334,17 @@ endfunction
 function! s:GetOldFiles()
   let oldfiles = copy(v:oldfiles)
 
-  for buf in getbufinfo({'buflisted': 1})
-    let bufname = s:ReplaceHomeWithTide(buf.name)
-    if count(oldfiles, bufname) == 0
-      call insert(oldfiles, bufname)
-    endif
-  endfor
+  call s:AddCurrentBuf(oldfiles)
   return oldfiles
+endfunction
+
+function! s:AddCurrentBuf(oldfiles)
+  let bufs = getbufinfo({'buflisted': 1})
+  call sort(bufs, {buf1, buf2 -> buf1.lastused - buf2.lastused})
+  for buf in bufs
+    let bufname = s:ReplaceHomeWithTide(buf.name)
+    call insert(a:oldfiles, bufname)
+  endfor
 endfunction
 
 function! s:FilterOldFilesByPath(oldfiles)
