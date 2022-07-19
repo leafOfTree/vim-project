@@ -418,7 +418,7 @@ function! s:InitProjectConfig(project)
           \'" Variables:    $vim_project, $vim_project_config',
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \'',
-          \'" Example: local config. List types extend global config. Others override',
+          \'" Local config. Those of list types extend global config. Others override',
           \'" let g:vim_project_local_config = {',
           \'"   \''include'': [''./''],',
           \'"   \''exclude'': [''.git'', ''node_modules'', ''.DS_Store''],',
