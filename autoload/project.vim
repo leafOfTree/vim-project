@@ -45,10 +45,12 @@ function! s:Prepare()
         \'check_branch_when_use_session': 0,
         \'project_root':                 './',
         \'auto_load_on_start':            0,
-        \'search_include':                ['./'],
-        \'find_in_files_include':         ['./'],
-        \'search_exclude':                ['.git', 'node_modules', '.DS_Store'],
-        \'find_in_files_exclude':         ['.git', 'node_modules', '.DS_Store'],
+        \'include':                       ['./'],
+        \'search_include':                [],
+        \'find_in_files_include':         [],
+        \'exclude':                       ['.git', 'node_modules', '.DS_Store'],
+        \'search_exclude':                [],
+        \'find_in_files_exclude':         [],
         \'auto_detect':                   'no',
         \'auto_detect_file':              ['.git', '.svn'],
         \'project_views':                 [],
@@ -57,8 +59,10 @@ function! s:Prepare()
         \}
 
   let s:local_config_keys = [
+        \'include',
         \'search_include',
         \'find_in_files_include',
+        \'exclude',
         \'search_exclude',
         \'find_in_files_exclude',
         \'project_root',
@@ -143,7 +147,7 @@ function! s:MergeUserConfigIntoDefault(user, default)
 endfunction
 
 function! s:InitConfig()
-  let s:config = s:GetConfig('config', {})
+  let s:config = deepcopy(s:GetConfig('config', {}))
   let s:config_home = expand(s:config.config_home)
   let s:open_root_when_use_session =
         \s:config.open_root_when_use_session
@@ -152,9 +156,11 @@ function! s:InitConfig()
   let s:use_session = s:config.use_session
   let s:project_root = s:config.project_root
   let s:project_base = s:RemoveListTrailingSlash(s:config.project_base)
+  let s:include = s:config.include
   let s:search_include = s:config.search_include
-  let s:search_exclude = s:config.search_exclude
   let s:find_in_files_include = s:config.find_in_files_include
+  let s:exclude = s:config.exclude
+  let s:search_exclude = s:config.search_exclude
   let s:find_in_files_exclude = s:config.find_in_files_exclude
 
   " options: 'always', 'ask', 'no'
@@ -170,11 +176,25 @@ function! s:InitConfig()
   let s:debug = s:config.debug
 endfunction
 
+function! s:ExtendUniqueItems(list1, list2)
+  for item in a:list2
+    if count(a:list1, item) == 0
+      call add(a:list1, item)
+    endif
+  endfor
+endfunction
+
 function! s:AdjustConfig()
+  call s:ExtendUniqueItems(s:search_include, s:include)
+  call s:ExtendUniqueItems(s:find_in_files_include, s:include)
+  call s:ExtendUniqueItems(s:search_exclude, s:exclude)
+  call s:ExtendUniqueItems(s:find_in_files_exclude, s:exclude)
+
   let s:search_include = s:AdjustIncludeExcludePath(s:search_include, ['.'])
-  let s:search_exclude = s:AdjustIncludeExcludePath(s:search_exclude, [])
   let s:find_in_files_include =
-        \s:AdjustIncludeExcludePath(s:find_in_files_include, [])
+        \s:AdjustIncludeExcludePath(s:find_in_files_include, ['.'])
+
+  let s:search_exclude = s:AdjustIncludeExcludePath(s:search_exclude, [])
   let s:find_in_files_exclude =
         \s:AdjustIncludeExcludePath(s:find_in_files_exclude, [])
 endfunction
@@ -396,16 +416,12 @@ function! s:InitProjectConfig(project)
           \'" Project:      '.name,
           \'" When:         after session is loaded',
           \'" Variables:    $vim_project, $vim_project_config',
-          \'" Example:      to open `./src/index.html` on start',
-          \'" - edit $vim_project/src/index.html',
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \'',
-          \'" Example: local config which overrides global config',
+          \'" Example: local config. List types extend global config. Others override',
           \'" let g:vim_project_local_config = {',
-          \'"   \''search_include'': [''./''],',
-          \'"   \''find_in_files_include'': [''./''],',
-          \'"   \''search_exclude'': [''.git'', ''node_modules'', ''.DS_Store''],',
-          \'"   \''find_in_files_exclude'': [''.git'', ''node_modules'', ''.DS_Store''],',
+          \'"   \''include'': [''./''],',
+          \'"   \''exclude'': [''.git'', ''node_modules'', ''.DS_Store''],',
           \'"   \''project_root'': ''./'',',
           \'"   \''use_session'': 0,',
           \'"   \''open_root_when_use_session'': 0,',
@@ -609,7 +625,7 @@ function! s:WatchOnBufEnter()
 endfunction
 
 function! s:WatchOnInitFileChange()
-  autocmd BufWritePost $vim_project_config/init.vim call s:Info('Config Saved')
+  autocmd BufWritePost $vim_project_config/init.vim call s:Info('Config in effect')
   autocmd BufWritePost $vim_project_config/init.vim call s:SourceInitFile()
 endfunction
 
@@ -2640,7 +2656,21 @@ function! project#ShowProjectInfo()
     call s:Info('Path: '.s:ReplaceHomeWithTide(s:project.path))
     call s:Info('Search: '.s:TrySearchFilesProgram())
     call s:Info('Find in files: '.s:TryExternalGrepProgram())
-    call s:Info('---------- Config ----------')
+    call s:Info('Include: '.string(s:include))
+    call s:Info('Search Include: '.string(s:search_include))
+    call s:Info('Find in files Include: '.string(s:find_in_files_include))
+    call s:Info('Exclude: '.string(s:exclude))
+    call s:Info('Search Exclude: '.string(s:search_exclude))
+    call s:Info('Find in files Exclude: '.string(s:find_in_files_exclude))
+  else
+    call s:Warn('No project opened')
+  endif
+endfunction
+
+function! project#ShowProjectAllInfo()
+  if !empty(s:project)
+    call project#ShowProjectInfo()
+    call s:Info('------------ Details ------------')
     call s:ShowProjectConfig()
   else
     call s:Warn('No project opened')
@@ -2777,7 +2807,7 @@ function! s:ReadLocalConfig()
   if !empty(local_config)
     for key in s:local_config_keys
       if has_key(local_config, key)
-        if key == 'file_mappings'
+        if type(local_config[key]) == v:t_list
           let s:[key] = extend(copy(s:[key]), local_config[key])
           continue
         endif

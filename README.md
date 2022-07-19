@@ -103,16 +103,17 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 | command                    | description                              |
 |----------------------------|------------------------------------------|
 | Project `<path>[, option]` | Add project, then open it                |
-| ProjectOpen `<name>`       | Open a project by name                   |
-| ProjectRemove `<name>`     | Remove a project by name                 |
 | ProjectList                | Show all projects                        |
 | ProjectSearchFiles         | Search files by name                     |
 | ProjectFindInFiles         | Find given string/regexp in files        |
-| ProjectInfo                | Show project info                        |
-| ProjectQuit                | Quit project                             |
 | ProjectRoot                | Open project root                        |
 | ProjectConfig              | Open project config `init.vim` (effective after save) |
 | ProjectAllConfig           | Open all projects config `project.add.vim` |
+| ProjectInfo                | Show project info                        |
+| ProjectAllInfo             | Show project all info                    |
+| ProjectOpen `<name>`       | Open a project by name                   |
+| ProjectRemove `<name>`     | Remove a project by name                 |
+| ProjectQuit                | Quit project                             |
 | ProjectIgnore `<path>`     | Ignore project for auto detection        |
 
 > You can try adjusting `wildmenu`, `wildmode` for enhanced command-line completion
@@ -157,11 +158,16 @@ Both `Search files` and `Find in files`
 
 - Include & Exclude
 
-    Check below options in the [config](#config_keymappings) 
+    Check following options in the [config](#config_keymappings).
+
+    - `include`
+    - `exclude`
+
+    There are specific options to extend the basic. Like `include (global + local)` + `search_include (global + local)`.
 
     - `search_include`
-    - `search_exclude`
     - `find_in_files_include`
+    - `search_exclude`
     - `find_in_files_exclude`
 
 `Find in files`
@@ -198,10 +204,12 @@ let g:vim_project_config = {
       \'check_branch_when_use_session': 0,
       \'project_root':                 './',
       \'auto_load_on_start':            0,
-      \'search_include':                ['./'],
-      \'find_in_files_include':         ['./'],
-      \'search_exclude':                ['.git', 'node_modules', '.DS_Store'],
-      \'find_in_files_exclude':         ['.git', 'node_modules', '.DS_Store'],
+      \'include':                       ['./'],
+      \'search_include':                [],
+      \'find_in_files_include':         [],
+      \'exclude':                       ['.git', 'node_modules', '.DS_Store'],
+      \'search_exclude':                [],
+      \'find_in_files_exclude':         [],
       \'auto_detect':                   'no',
       \'auto_detect_file':              ['.git', '.svn'],
       \'project_views':                 [],
@@ -245,12 +253,14 @@ let g:vim_project_config.list_mappings = {
 | auto_detect                   | Auto detect projects when opening a file. <br>Choose 'always', 'ask', or 'no' |
 | auto_detect_file              | File used to detect potential projects                                        |
 | auto_load_on_start            | Auto load a project if Vim starts within its directory                        |
-| list_mappings                 | Keymappings for list prompt                                                       |
-| search_include                | List of including folders for search files                                    |
-| find_in_files_include         | List of including folders for find in files                                   |
-| search_exclude                | List of excluding folders/files for search files                                    |
-| find_in_files_exclude         | List of excluding folders/files for find in files                                   |
-| file_mappings                 | Define keymappings to switch between files quickly                                |
+| list_mappings                 | Keymappings for list prompt                                                   |
+| include                       | Including folders                                                     |
+| search_include                | Including folders for search files                                    |
+| find_in_files_include         | Including folders for find in files                                   |
+| exclude                       | Excluding folders/files                                                     |
+| search_exclude                | Excluding folders/files for search files                                    |
+| find_in_files_exclude         | Excluding folders/files for find in files                                   |
+| file_mappings                 | Define keymappings to switch between files quickly                          |
 | project_views                 | Define project views by `[[show-pattern, hide-pattern?], ...]`                |
 | debug                         | Show debug messages                                                           |
 
@@ -287,15 +297,13 @@ Quit
 
 ### Project local config
 
-These config options can be overridden by `g:vim_project_local_config` in the project's `init.vim`. For example
+These config options can be extended (list types) or overridden by `g:vim_project_local_config` in the project's `init.vim`. E.g. 
 
 ```vim
 let g:vim_project_local_config = {
-  \'search_include': ['./'],
-  \'find_in_files_include': ['./'],
-  \'search_exclude': ['.git', 'node_modules', '.DS_Store'],
-  \'find_in_files_exclude': ['.git', 'node_modules', '.DS_Store'],
-  \'project_root': './src',
+  \'include': ['./'],
+  \'exclude': ['.git', 'node_modules', '.DS_Store'],
+  \'project_root': './',
   \'use_session': 0,
   \'open_root_when_use_session': 0,
   \'check_branch_when_use_session': 0,
@@ -412,6 +420,7 @@ endfunction
 In case something went wrong, you can try
 
 - `:ProjectInfo`
+- `:ProjectAllInfo`
 - `:echo g:vim_project`
 - `:let g:vim_project_config.debug = 1`
 
