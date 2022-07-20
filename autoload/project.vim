@@ -27,7 +27,7 @@ function! s:Prepare()
   let s:is_win_version = has('win32') || has('win64')
 
   let s:note_prefix = '- '
-  let s:column_pattern = '\S\+\(\s\S\+\)*'
+  let s:column_pattern = '\S*\(\s\S\+\)*'
   let s:note_column_pattern = '\(\s\{2,}'.s:note_prefix.s:column_pattern.'\)\?'
   let s:first_column_pattern = '^'.s:column_pattern.s:note_column_pattern
   let s:second_column_pattern = '\s\{2,}[^- ]'.s:column_pattern
@@ -1042,10 +1042,11 @@ function! s:AddEmptyLines(current)
   endif
 endfunction
 
-function! s:FilterProjectsList(list, filter, origin_filter)
+function! s:FilterProjectsList(list, filter)
   let list = a:list
-  let filter = a:filter " The regexp filter 
-  let origin_filter = a:origin_filter
+
+  let origin_filter = a:filter
+  let filter = join(split(a:filter, '\zs'), '.*')
 
   for item in list
     let item._match_type = ''
@@ -1167,11 +1168,10 @@ function! s:FilterProjects(projects, filter)
   let projects = a:projects
   call s:FilterProjectsByView(projects)
 
-  if a:filter != ''
-    let filter = join(split(a:filter, '\zs'), '.*')
-    let projects = s:FilterProjectsList(projects, filter, a:filter)
-  else
+  if a:filter == ''
     call sort(projects, 's:SortInauguralProjectsList')
+  else
+    let projects = s:FilterProjectsList(projects, a:filter)
   endif
 
   return projects
