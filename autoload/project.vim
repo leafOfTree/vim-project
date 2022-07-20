@@ -25,6 +25,7 @@ function! s:Prepare()
   let s:list_buffer = '__vim_project_list__'
   let s:nerdtree_tmp = '__vim_project_nerdtree_tmp__'
   let s:is_win_version = has('win32') || has('win64')
+  let s:view_index = -1
 
   let s:note_prefix = '- '
   let s:column_pattern = '\S*\(\s\S\+\)*'
@@ -169,7 +170,6 @@ function! s:InitConfig()
   let s:auto_detect_file = s:config.auto_detect_file
   let s:auto_load_on_start = s:config.auto_load_on_start
   let s:project_views = s:config.project_views
-  let s:view_index = -1
   let s:file_mappings = s:config.file_mappings
   let s:list_mappings = s:config.list_mappings
   let s:open_types = s:config.file_open_types
@@ -1029,7 +1029,12 @@ function! s:AdjustHeight(length, input)
     else
       let s:initial_height = a:length
     endif
+  else
+    if s:view_index != -1
+      let s:initial_height = a:length
+    endif
   endif
+
   if winheight(0) != s:initial_height
     execute 'resize '.s:initial_height
   endif
