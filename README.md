@@ -245,7 +245,7 @@ let g:vim_project_config.list_mappings = {
 | Option                        | Description                                                                   |
 |-------------------------------|-------------------------------------------------------------------------------|
 | config_home                   | The directory for all config files                                            |
-| project_base                  | The base directory for relative path                                          |
+| project_base                  | The base directory for relative path in `:Project path`                       |
 | use_session                   | Use session                                                                   |
 | open_root_when_use_session    | When session used, always open project root at the beginning                 |
 | check_branch_when_use_session | When session used, keep one for each branch                                   |
@@ -255,12 +255,12 @@ let g:vim_project_config.list_mappings = {
 | auto_load_on_start            | Auto load a project if Vim starts within its directory                        |
 | list_mappings                 | Keymappings for list prompt                                                   |
 | include                       | Including folders                                                     |
+| exclude                       | Excluding folders/files                                                     |
 | search_include                | Including folders for search files                                    |
 | find_in_files_include         | Including folders for find in files                                   |
-| exclude                       | Excluding folders/files                                                     |
 | search_exclude                | Excluding folders/files for search files                                    |
 | find_in_files_exclude         | Excluding folders/files for find in files                                   |
-| file_mappings                 | Define keymappings to switch between files quickly                          |
+| file_mappings                 | Keymappings to switch between files quickly                          |
 | project_views                 | Define project views by `[[show-pattern, hide-pattern?], ...]`                |
 | debug                         | Show debug messages                                                           |
 
