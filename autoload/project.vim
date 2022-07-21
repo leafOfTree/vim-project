@@ -90,6 +90,7 @@ function! s:Prepare()
         \'scroll_down':          "\<c-n>",
         \'prev_view':            "\<s-tab>",
         \'next_view':            "\<tab>",
+        \'paste':                "\<c-i>",
         \'replace_prompt':       "\<c-r>",
         \'replace_dismiss_item': "\<c-d>",
         \'replace_confirm':      "\<c-y>",
@@ -2231,6 +2232,8 @@ function! s:HandleInput(input, Update)
         let s:offset = s:offset - winheight(0)/2
       elseif cmd == 'scroll_down'
         let s:offset = s:offset + winheight(0)/2
+      elseif cmd == 'paste'
+        let input .= @*
       elseif cmd == 'replace_prompt'
         let input = s:AddFindReplaceSeparator(input)
       elseif cmd == 'replace_dismiss_item'
@@ -2251,6 +2254,7 @@ function! s:HandleInput(input, Update)
     endwhile
   catch /^Vim:Interrupt$/
     call s:Debug('Interrupt')
+    let cmd = 'interrupt'
   finally
   endtry
 

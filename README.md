@@ -235,6 +235,7 @@ let g:vim_project_config.list_mappings = {
       \'scroll_down':          "\<c-n>",
       \'prev_view':            "\<s-tab>",
       \'next_view':            "\<tab>",
+      \'paste':                "\<c-i>",
       \'replace_prompt':       "\<c-r>",
       \'replace_dismiss_item': "\<c-d>",
       \'replace_confirm':      "\<c-y>",
