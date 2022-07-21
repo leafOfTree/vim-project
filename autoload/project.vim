@@ -2278,8 +2278,8 @@ function! s:RunReplaceAll(search, replace)
     else
       let index_file += 1
     endif
-    let info_line = 'line '.index_line.' of '.total_lines
-    let info_file = 'file '.index_file.' of '.total_files
+    let info_line = 'lines: '.index_line.' of '.total_lines
+    let info_file = 'files: '.index_file.' of '.total_files
     redraw
     call s:InfoEcho('Replaced '.info_file.', '.info_line)
   endfor
