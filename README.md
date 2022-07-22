@@ -105,7 +105,7 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 | Project `<path>[, option]` | Add project, then open it                |
 | ProjectList                | Show all projects                        |
 | ProjectSearchFiles         | Search files by name                     |
-| ProjectFindInFiles         | Find given string/regexp in files        |
+| ProjectFindInFiles         | Find given string/regexp (at least 2 chars) in files |
 | ProjectRoot                | Open project root                        |
 | ProjectConfig              | Open project config `init.vim` (effective after save) |
 | ProjectAllConfig           | Open all projects config `project.add.vim` |

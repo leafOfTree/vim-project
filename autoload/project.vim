@@ -30,7 +30,7 @@ function! s:Prepare()
   let s:note_prefix = '- '
   let s:column_pattern = '\S*\(\s\S\+\)*'
   let s:note_column_pattern = '\(\s\{2,}'.s:note_prefix.s:column_pattern.'\)\?'
-  let s:first_column_pattern = '^'.s:column_pattern.s:note_column_pattern
+  let s:first_column_pattern = '^'.s:column_pattern
   let s:second_column_pattern = '\s\{2,}[^- ]'.s:column_pattern
 
   let s:add_file = 'project.add.vim'
@@ -898,26 +898,26 @@ function! s:SetupListBuffer()
   setlocal nowrap
   set laststatus=0
 
-  syntax clear
-  " Allow no more than one space in FirstColumn
-  execute 'syntax match FirstColumn /'.s:first_column_pattern.'/'
-  execute 'syntax match SecondColumn /'.s:second_column_pattern.'/'
-  syntax match Special / \.\.\.more$/
-
   if s:IsFindInFilesList()
+    let s:first_column_pattern = '^'.s:column_pattern
     highlight link FirstColumn Keyword
     highlight link SecondColumn Normal
   else
+    let s:first_column_pattern = '^'.s:column_pattern.s:note_column_pattern
     highlight link FirstColumn Normal
     highlight link SecondColumn Comment
   endif
-  highlight link InfoColumn Comment
+
+  syntax clear
+  execute 'syntax match FirstColumn /'.s:first_column_pattern.'/'
+  execute 'syntax match SecondColumn /'.s:second_column_pattern.'/'
+
   highlight link ItemSelected CursorLine
   highlight! link SignColumn Noise
+  highlight link InputChar Constant
 
   call s:HighlightWithBgBasedOn('Comment', 0, 0, 'BeforeReplace')
   call s:HighlightWithBgBasedOn('Function', 0, 'bold', 'AfterReplace')
-  highlight link InputChar Constant
 
   sign define selected text=> texthl=ItemSelected linehl=ItemSelected
 endfunction
@@ -2001,8 +2001,13 @@ function! s:ShowFindInFilesResult(display, search, replace, full_input, id)
     call s:HighlightCurrentLine(len(s:list))
     call s:HighlightSearchAsPattern(a:search)
     call s:HighlightReplaceChars(a:search, a:replace)
+    call s:HighlighExtraInfo()
     call s:ShowInputLine(a:full_input)
   endif
+endfunction
+
+function! s:HighlighExtraInfo()
+  call matchadd('Special', ' \.\.\.more$')
 endfunction
 
 function! s:FindInFilesBufferUpdate(full_input, is_init, id)
