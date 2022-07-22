@@ -1364,11 +1364,11 @@ endfunction
 function! s:GetOldFiles()
   let oldfiles = copy(v:oldfiles)
 
-  call s:AddCurrentBuf(oldfiles)
+  call s:AddBuffers(oldfiles)
   return oldfiles
 endfunction
 
-function! s:AddCurrentBuf(oldfiles)
+function! s:AddBuffers(oldfiles)
   let bufs = getbufinfo({'buflisted': 1})
   call sort(bufs, {buf1, buf2 -> buf1.lastused - buf2.lastused})
   for buf in bufs
@@ -1548,6 +1548,7 @@ function! s:GetSearchFiles(input)
   let max_length = s:max_height - 1
   let files = files[0:max_length*3]
   call s:UniqueList(files)
+
   if len(files) > max_length
     let files = files[0:max_length]
     let files[-1].more = 1
