@@ -163,7 +163,7 @@ Both `Search files` and `Find in files`
     - `include`
     - `exclude`
 
-    There are specific options to extend the basic. Like `include (global + local)` + `search_include (global + local)`.
+    The following are specific options to extend the basic. The final result is like `include (global + local)` + `search_include (global + local)`.
 
     - `search_include`
     - `find_in_files_include`
