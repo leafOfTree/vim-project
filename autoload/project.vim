@@ -90,7 +90,7 @@ function! s:Prepare()
         \'scroll_down':          "\<c-n>",
         \'prev_view':            "\<s-tab>",
         \'next_view':            "\<tab>",
-        \'paste':                "\<c-i>",
+        \'paste':                "\<c-b>",
         \'replace_prompt':       "\<c-r>",
         \'replace_dismiss_item': "\<c-d>",
         \'replace_confirm':      "\<c-y>",
