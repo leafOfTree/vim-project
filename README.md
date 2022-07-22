@@ -158,12 +158,12 @@ Both `Search files` and `Find in files`
 
 - Include & Exclude
 
-    Check following options in the [config](#config_keymappings).
+    Check the following options in the [config](#config_keymappings).
 
     - `include`
     - `exclude`
 
-    The following are specific options to extend the basic. The final result is like `include (global + local)` + `search_include (global + local)`.
+    The following are specific options to extend the above. The final result is like `include (global + local)` + `search_include (global + local)`.
 
     - `search_include`
     - `find_in_files_include`
