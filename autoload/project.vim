@@ -1969,7 +1969,7 @@ function! s:GetSearchFlags(search)
 endfunction
 
 function! s:RemoveSearchFlags(search)
-  return substitute(a:search, '\\C\|\\E', '', 'g')
+  return substitute(a:search, '\\C\|\\E\|\\\@<!\\$', '', 'g')
 endfunction
 
 function! s:ParseInput(input)
@@ -3362,5 +3362,3 @@ function! s:Main()
   call s:InitConfig()
   call s:AdjustConfig()
 endfunction
-
-
