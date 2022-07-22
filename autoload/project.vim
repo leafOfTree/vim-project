@@ -25,7 +25,7 @@ function! s:Prepare()
   let s:list_buffer = '__vim_project_list__'
   let s:nerdtree_tmp = '__vim_project_nerdtree_tmp__'
   let s:is_win_version = has('win32') || has('win64')
-  let s:view_index = -1
+  let s:view_index = 0
 
   let s:note_prefix = '- '
   let s:column_pattern = '\S*\(\s\S\+\)*'
@@ -1031,9 +1031,7 @@ function! s:AdjustHeight(length, input)
       let s:initial_height = a:length
     endif
   else
-    if s:view_index != -1
-      let s:initial_height = a:length
-    endif
+    let s:initial_height = a:length
   endif
 
   if winheight(0) != s:initial_height
@@ -1144,12 +1142,12 @@ endfunction
 
 function! s:NextView()
   let max = len(s:project_views)
-  let s:view_index = s:view_index < max ? s:view_index + 1 : 0
+  let s:view_index = s:view_index < max - 1 ? s:view_index + 1 : 0
 endfunction
 
 function! s:PreviousView()
   let max = len(s:project_views)
-  let s:view_index = s:view_index > 0 ? s:view_index - 1 : max
+  let s:view_index = s:view_index > 0 ? s:view_index - 1 : max - 1
 endfunction
 
 function! s:FilterProjectsByView(projects)
