@@ -366,7 +366,8 @@ In project list, you can switch between different views with <kbd>tab</kbd> and 
 let g:vim_project_config.project_views = [
       \['vim', 'plugin'],
       \['^vue'],
-      \['^react'],
+      \['^react$'],
+      \['.*', 'archived']
       \]
 ```
 
