@@ -190,10 +190,12 @@ When `Find in files`, you can press <kbd>c-r</kbd> to start to replace, <kbd>c-y
 
 ## Config and Keymappings
 
-- `g:vim_project_config` (global)
-- `g:vim_project_local_config` (project local)
+The config consists of following two parts
 
-The `g:vim_project_config` should be set at `.vimrc`. Its default value is below. You can copy it as a starting point.
+- `g:vim_project_config` (global, in `.vimrc`)
+- `g:vim_project_local_config` (project local, in project's `init.vim`)
+
+The `g:vim_project_config` should be set in `.vimrc`. Its default value is below. You can copy it as a starting point.
 
 ```vim
 let g:vim_project_config = {
