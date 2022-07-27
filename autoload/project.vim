@@ -6,8 +6,9 @@ function! s:Prepare()
   let s:search_files_prefix = 'Search files by name:'
   let s:find_in_files_prefix = 'Find in files:'
   let s:search_replace_separator = ' => '
-  let s:find_in_files_max = 200
-  let s:find_in_files_to_stop_max = 100000
+  let s:find_in_files_show_max = 200
+  let s:find_in_files_stop_max = 100000
+  let s:search_files_sort_max = 1000
   let s:list_history = {}
   let s:laststatus_save = &laststatus
   let s:initial_height = 0
@@ -1535,7 +1536,6 @@ function! s:GetSearchFilesByFilterForFullpath(input)
     let list = filter(copy(s:list_initial_result), {_, val -> val.file =~ filter_start})
   endif
 
-  " Sort only short list for performance purpose
   if len(list) < s:max_height
     let list = filter(copy(s:list_initial_result), {_, val -> val.file =~ filter_origin})
     call s:SortSearchFilesList(list, a:input)
@@ -1603,6 +1603,11 @@ function! s:MapSearchFiles(list)
 endfunction
 
 function! s:SortSearchFilesList(list, input)
+  " For performance purpose, skip sorting if there are too many items
+  if len(a:list) > s:search_files_sort_max
+    return
+  endif
+
   if !empty(a:input) && len(a:list) > 0
     call sort(a:list, function('s:SortFilesList', [a:input]))
   endif
@@ -1771,20 +1776,19 @@ endfunction
 
 function! s:SetGrepOutputLength(input, full_input, output)
   let output = a:output
+  let output_len = len(output)
   let more = 0
 
   let replace_initially_added = s:IsReplaceInitiallyAdded(a:full_input)
-  let exceed_max_to_stop = len(output) > s:find_in_files_to_stop_max
 
   if !replace_initially_added
-    let max_length = s:find_in_files_max
-    if len(output) > max_length
-      let output = output[0:max_length]
+    if output_len > s:find_in_files_show_max
+      let output = output[0:s:find_in_files_show_max]
       let more = 1
     endif
-  elseif exceed_max_to_stop
+  elseif output_len > s:find_in_files_stop_max
     let error_msg = 'Error: :Stopped for too many matches, more than '
-          \.s:find_in_files_to_stop_max
+          \.s:find_in_files_stop_max
     let output = [error_msg]
   endif
 
@@ -2136,12 +2140,6 @@ function! s:FindInFilesBufferOpen(target, open_cmd)
 endfunction
 
 function! s:ShowInputLine(input)
-  if len(s:list) > s:find_in_files_max * 2
-    let total = '('.len(s:list).')'
-  else
-    let total = ''
-  endif
-
   redraw
 
   " Fix cursor flashing when in terminal
@@ -2149,7 +2147,7 @@ function! s:ShowInputLine(input)
     echo ''
   endif
 
-  echo s:prefix.total.' '.a:input
+  echo s:prefix.' '.a:input
 endfunction
 
 function! s:ShowInitialInputLineTimer(input)
