@@ -1354,7 +1354,7 @@ function! s:GetSearchFilesByOldFiles(input)
   call s:FilterOldFilesByPath(oldfiles)
   call s:MapSearchFiles(oldfiles)
   call s:FilterOldFilesByInput(oldfiles, a:input)
-  call s:SortSearchFiles(oldfiles, a:input)
+  call s:SortSearchFilesList(oldfiles, a:input)
 
   return oldfiles
 endfunction
@@ -1501,40 +1501,75 @@ function! s:GetSearchFilesAll()
   return list
 endfunction
 
-function! s:GetSearchFilesByFilter(input)
-  " file
-  let filter0 = a:input
+function! s:GetSearchFilesByDirectory(val, filter)
+  let path = a:val.path
+  let file = a:val.file
+  let full_path = $vim_project.'/'.path.'/'.file
+
+  return isdirectory(full_path) && file =~ a:filter
+endfunction
+
+function! s:GetSearchFilesByFilterForDirectory(input)
   let list = []
+  let filter = substitute(a:input, '/$', '', '')
+  let list = filter(copy(s:list_initial_result), {_, val -> s:GetSearchFilesByDirectory(val, filter)})
 
+  if len(list) < s:max_height
+    call s:SortSearchFilesList(list, filter)
+
+    let filter_fuzzy = join(split(filter, '\zs'), '.*')
+    let list_extra = filter(copy(s:list_initial_result), {_, val -> s:GetSearchFilesByDirectory(val, filter_fuzzy)})
+    call s:SortSearchFilesList(list_extra, filter)
+    let list += list_extra
+  endif
+
+  return list
+endfunction
+
+function! s:GetSearchFilesByFilterForFullpath(input)
+  let filter_origin = a:input
+  let list = []
+  " Match file
   if len(a:input) < 3
-    let filter1 = '^'.filter0
-    let list = filter(copy(s:list_initial_result), {_, val -> val.file =~ filter1})
+    let filter_start = '^'.filter_origin
+    let list = filter(copy(s:list_initial_result), {_, val -> val.file =~ filter_start})
+  endif
+
+  " Sort only short list for performance purpose
+  if len(list) < s:max_height
+    let list = filter(copy(s:list_initial_result), {_, val -> val.file =~ filter_origin})
+    call s:SortSearchFilesList(list, a:input)
   endif
 
   if len(list) < s:max_height
-    let list = filter(copy(s:list_initial_result), {_, val -> val.file =~ filter0})
-    " Avoid sort long list for performance
-    call s:SortSearchFiles(list, a:input)
+    let filter_fuzzy = join(split(a:input, '\zs'), '.*')
+    let list_extra = filter(copy(s:list_initial_result), {_, val -> val.file =~ filter_fuzzy})
+    call s:SortSearchFilesList(list_extra, a:input)
+    let list += list_extra
   endif
 
+  " Match path and file if list is short
   if len(list) < s:max_height
-    let filter2 = join(split(a:input, '\zs'), '.*')
-    let list2 = filter(copy(s:list_initial_result), {_, val -> val.file =~ filter2})
-    call s:SortSearchFiles(list2, a:input)
-    let list += list2
+    let list_extra = filter(copy(s:list_initial_result), {_, val -> val.path.val.file =~ filter_origin})
+    let list += list_extra
   endif
 
-  " path.file
+  " Fuzzy match path and file if list is short
   if len(list) < s:max_height
-    let list2 = filter(copy(s:list_initial_result), {_, val -> val.path.val.file =~ filter0})
-    let list += list2
-  endif
-
-  if len(list) < s:max_height
-    let list2 = filter(copy(s:list_initial_result), {_, val -> val.path.val.file =~ filter2})
-    let list += list2
+    let list_extra = filter(copy(s:list_initial_result), {_, val -> val.path.val.file =~ filter_fuzzy})
+    let list += list_extra
   endif
   return list
+endfunction
+
+function! s:GetSearchFilesByFilter(input)
+  if a:input =~ '[^\\]/$'
+    " Match directory only
+    return s:GetSearchFilesByFilterForDirectory(a:input)
+  else
+    " Match both directory and filename
+    return s:GetSearchFilesByFilterForFullpath(a:input)
+  endif
 endfunction
 
 function! s:GetSearchFiles(input)
@@ -1567,7 +1602,7 @@ function! s:MapSearchFiles(list)
         \}})
 endfunction
 
-function! s:SortSearchFiles(list, input)
+function! s:SortSearchFilesList(list, input)
   if !empty(a:input) && len(a:list) > 0
     call sort(a:list, function('s:SortFilesList', [a:input]))
   endif
@@ -2374,7 +2409,7 @@ endfunction
 
 function! s:GetTarget()
   let index = len(s:list) - 1 + s:offset
-  if index >= 0
+  if index >= 0 && index < len(s:list)
     let target = s:list[index]
     return target
   endif
