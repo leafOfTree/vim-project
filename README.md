@@ -421,7 +421,7 @@ endfunction
 
 ## Debug
 
-In case something went wrong, you can try
+If something goes wrong, you can try
 
 - `:ProjectInfo`
 - `:ProjectAllInfo`
