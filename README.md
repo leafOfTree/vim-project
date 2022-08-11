@@ -300,7 +300,7 @@ Quit
 
 ### Project local config
 
-These config options can be extended (list types) or overridden by `g:vim_project_local_config` in the project's `init.vim`. E.g. 
+These options,  **list types can be extended**,  others overridden, via `g:vim_project_local_config` in the project's `init.vim`. E.g. 
 
 ```vim
 let g:vim_project_local_config = {
