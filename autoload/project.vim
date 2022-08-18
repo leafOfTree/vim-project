@@ -627,7 +627,7 @@ function! s:WatchOnBufEnter()
 endfunction
 
 function! s:WatchOnInitFileChange()
-  autocmd BufWritePost $vim_project_config/init.vim call s:Info('Config in effect')
+  autocmd BufWritePost $vim_project_config/init.vim call s:Info('Config Reloaded')
   autocmd BufWritePost $vim_project_config/init.vim call s:SourceInitFile()
 endfunction
 
