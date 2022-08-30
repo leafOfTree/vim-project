@@ -25,8 +25,8 @@ Project-wide
 
 ---
 
-<p align="center"><b>Add / Open a project</b></p>
-<p align="center">
+<p><b>Add / Open a project</b></p>
+<p>
 <img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-1.png" width="30%" />
 ➡️
 <img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/project-2.png" width="30%" />
@@ -36,8 +36,8 @@ Project-wide
 
 ---
 
-<p align="center"><b>Search files / Find in files / Find and replace in a project</b></p>
-<p align="center">
+<p><b>Search files / Find in files / Find and replace in a project</b></p>
+<p>
 <img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/search-files.png" width="380" />
 <img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/find-in-files.png" width="380" />
 <img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/find-and-replace.png" width="380" />
