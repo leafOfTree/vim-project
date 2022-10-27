@@ -2143,9 +2143,7 @@ function! s:ShowInputLine(input)
   redraw
 
   " Fix cursor flashing when in terminal
-  if !has('gui_running')
-    echo ''
-  endif
+  echo ''
 
   echo s:prefix.' '.a:input
 endfunction
