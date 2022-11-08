@@ -657,8 +657,9 @@ function! VimProject_HandleFileManagerPlugin(timer)
   endif
 endfunction
 
-function! VimProject_DoBufRead(timer)
+function! VimProject_DoBufEvent(timer)
   doautoall BufRead
+  doautoall BufEnter
 endfunction
 
 function! s:AutoloadOnVimEnter()
@@ -677,7 +678,7 @@ function! s:AutoloadOnVimEnter()
       " Otherwise edit the current file
       execute 'edit '.s:start_buf
     endif
-    call timer_start(1, 'VimProject_DoBufRead')
+    call timer_start(1, 'VimProject_DoBufEvent')
   endif
 endfunction
 
@@ -1108,13 +1109,9 @@ function! s:AddToListBuffer(display)
 endfunction
 
 function! s:AdjustHeight(length, input)
-  if (a:input == '' && s:initial_height == 0)
-    if a:length == 0
-      let s:initial_height = s:max_height
-    else
-      let s:initial_height = a:length
-    endif
-  else
+  if a:length == 0 || a:length > s:max_height
+    let s:initial_height = s:max_height
+  elseif a:input == '' && s:initial_height == 0
     let s:initial_height = a:length
   endif
 
@@ -2222,10 +2219,6 @@ function! s:ShowInputLine(input)
   echo ''
 
   echo s:prefix.' '.a:input
-endfunction
-
-function! s:ShowInitialInputLineTimer(input)
-  call timer_start(100, function('s:ShowInitialInputLine', [a:input]))
 endfunction
 
 function! s:ShowInitialInputLine(input, ...)
