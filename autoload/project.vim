@@ -17,6 +17,7 @@ function! s:Prepare()
   let s:branch = ''
   let s:branch_default = ''
   let s:reloading_project = 0
+  let s:loading_on_vim_enter = 0
   let s:start_project = {}
   let s:start_buf = ''
   let s:dismissed_find_replace = 0
@@ -617,7 +618,7 @@ function! s:WatchOnBufEnter()
     autocmd! vim-project-enter
     if s:auto_load_on_start
       " The event order is BufEnter then VimEnter
-      autocmd BufEnter * ++once call s:TryAutoloadOnBufEnter()
+      autocmd BufEnter * ++once call s:SetStartProjectOnBufEnter()
       autocmd VimEnter * ++once call s:AutoloadOnVimEnter()
     endif
     if s:auto_detect != 'no'
@@ -635,51 +636,35 @@ function! s:UnwatchOnInitFileChange()
   autocmd! BufWritePost $vim_project_config/init.vim
 endfunction
 
-function! s:TryAutoloadOnBufEnter()
-  if !v:vim_did_enter
-    let buf = expand('<amatch>')
-    let project = s:GetProjectByPath(s:projects, buf)
-
-    if !empty(project)
-      let s:start_buf = buf
-      let s:start_project = project
-    endif
+function! s:SetStartProjectOnBufEnter()
+  if v:vim_did_enter
+    return
   endif
+
+  let buf = expand('<amatch>')
+  let project = s:GetProjectByPath(s:projects, buf)
+
+  if empty(project)
+    return
+  endif
+  let s:start_buf = buf
+  let s:start_project = project
 endfunction
 
-function! VimProject_HandleFileManagerPlugin(timer)
-  if expand('%:p') =~ 'NetrwTreeListing'
-    " For Netrw
-    Explore
-  else
-    " For Nerdtree, Fern, ...
-    silent! edit
-  endif
-endfunction
-
-function! VimProject_DoBufEvent(timer)
+function! s:DoBufEvent()
   doautoall BufRead
   doautoall BufEnter
 endfunction
 
 function! s:AutoloadOnVimEnter()
-  let project = s:start_project
-  if !empty(project)
-    let buf = expand('<amatch>')
-    " Avoid conflict with opened buffer like nerdtree
-    enew
-    execute 'ProjectOpen '.project.name
-
-    if project.fullpath is s:start_buf
-      " Follow session files if open the root path
-      " Use timer to avoid conflict with Fern.vim
-      call timer_start(1, 'VimProject_HandleFileManagerPlugin')
-    else
-      " Otherwise edit the current file
-      execute 'edit '.s:start_buf
-    endif
-    call timer_start(1, 'VimProject_DoBufEvent')
+  if empty(s:start_project)
+    return
   endif
+
+  let s:loading_on_vim_enter = 1
+  execute 'ProjectOpen '.s:start_project.name
+  let s:loading_on_vim_enter = 0
+  call s:DoBufEvent()
 endfunction
 
 function! s:AutoDetectProject()
@@ -2801,15 +2786,24 @@ function! s:ShowProjectConfig()
   endfor
 endfunction
 
-function! s:InitStartBuffer()
-  if !s:reloading_project
-    call s:OpenNewBufferOnly()
+function! s:SkipStartBuffer()
+  if s:reloading_project || s:loading_on_vim_enter
+    return 1
   endif
+
+  return 0
+endfunction
+
+function! s:InitStartBuffer()
+  if s:SkipStartBuffer()
+    return
+  endif
+  call s:OpenNewBufferOnly()
 endfunction
 
 function! s:SetStartBuffer()
-  if s:reloading_project
-    return 0
+  if s:SkipStartBuffer()
+    return
   endif
 
   let path = s:GetProjectRootPath()
