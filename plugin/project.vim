@@ -30,5 +30,6 @@ command -complete=customlist,project#ListDirs -nargs=1
 command ProjectSearchFiles call project#SearchFiles()
 command -nargs=? -range 
       \ ProjectFindInFiles call project#FindInFiles(s:TrimQuote(<q-args>), <q-range>)
+command ProjectRun call project#RunJobs()
 
 call project#begin()

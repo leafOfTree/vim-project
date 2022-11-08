@@ -823,6 +823,89 @@ function! project#FindInFiles(...)
   call s:RenderList(Init, Update, Open)
 endfunction
 
+function! project#RunJobs()
+  let s:prefix = 'Run a job:'
+  let s:list_type = 'RUN_JOBS'
+
+  call s:PrepareListBuffer()
+  let Init = function('s:RunJobsBufferInit')
+  let Update = function('s:RunJobsBufferUpdate')
+  let Open = function('s:ProjectListBufferOpen')
+  call s:RenderList(Init, Update, Open)
+endfunction
+
+function! s:RunJobsBufferInit(input)
+  let s:jobs = [{ 'name': 'start', 'run': 'npm start' }, { 'name': 'build', 'run': 'npm build' }, { 'name': 'build', 'run': 'start up' }]
+  let max_col_width = s:max_width / 2 - 10
+  call s:TabulateList(s:jobs, ['name', 'run'], [], 0, max_col_width)
+  call s:RunJobsBufferUpdate(a:input)
+endfunction
+
+function! s:GetRunJobsDisplay(list)
+  return map(copy(a:list), {key, val -> val.name.'  '.val.run})
+endfunction
+
+function! s:RunJobsBufferUpdate(input)
+  let s:list = s:FilterRunJobs(copy(s:jobs), a:input)
+  let display = s:GetRunJobsDisplay(s:list)
+  call s:ShowInListBuffer(display, a:input)
+  call s:HighlightCurrentLine(len(display))
+  call s:HighlightInputChars(a:input)
+endfunction
+
+function! s:FilterRunJobs(jobs, filter)
+  let regexp_filter = join(split(a:filter, '\zs'), '.*')
+
+  " Todo: sort by match type and index
+  for job in a:jobs
+    let job._match_type = ''
+    let job._match_index = -1
+
+    let match_index = match(job.name, regexp_filter)
+    if match_index != -1
+      " Prefer exact match. If not, add 10 to match_index
+      if len(a:filter) > 1 && count(tolower(job.name), a:filter) == 0
+        let match_index = match_index + 10
+      endif
+      let job._match_type = 'name'
+      let job._match_index = match_index
+    endif
+
+    if match_index == -1
+      let match_index = match(job.run, regexp_filter)
+      if match_index != -1
+        let job._match_type = 'run'
+        let job._match_index = match_index
+      endif
+    endif
+  endfor
+
+  let result = filter(a:jobs, { _, val -> val._match_type != '' })
+  call sort(result, 's:SortRunJobs')
+  return result
+endfunction
+
+function! s:SortRunJobs(a1, a2)
+  let type1 = a:a1._match_type
+  let type2 = a:a2._match_type
+  let index1 = a:a1._match_index
+  let index2 = a:a2._match_index
+
+  if type1 == 'name' && type2 != 'name'
+    return 1
+  endif
+
+  if type1 == type2
+    if index1 == index2
+      return len(a:a2.name) - len(a:a1.name)
+    else
+      return index2 - index1
+    endif
+  endif
+
+  return -1
+endfunction
+
 function! s:SetInitInput(args)
   if len(a:args) == 2
     let input = a:args[0]
@@ -1048,30 +1131,28 @@ function! s:AddEmptyLines(current)
 endfunction
 
 function! s:FilterProjectsList(list, filter)
-  let list = a:list
+  let regexp_filter = join(split(a:filter, '\zs'), '.*')
 
-  let origin_filter = a:filter
-  let filter = join(split(a:filter, '\zs'), '.*')
-
-  for item in list
+  for item in a:list
     let item._match_type = ''
     let item._match_index = -1
 
     " Filter by name
-    let match_index = match(item.name, filter)
+    let match_index = match(item.name, regexp_filter)
     if match_index != -1
-      " Prefer continous match. If not, add 10 to match_index
-      if len(origin_filter) > 1 && count(tolower(item.name), origin_filter) == 0
+      " Prefer exact match. If not, add 10 to match_index
+      if len(a:filter) > 1 && count(tolower(item.name), a:filter) == 0
         let match_index = match_index + 10
       endif
+
       let item._match_type = 'name'
       let item._match_index = match_index
     endif
 
     " Filter by note
-    if item._match_type != 'name'
+    if match_index == -1
       if has_key(item.option, 'note')
-        let match_index = match(item.option.note, filter)
+        let match_index = match(item.option.note, regexp_filter)
         if match_index != -1
           let item._match_type = 'note'
           let item._match_index = match_index
@@ -1080,8 +1161,8 @@ function! s:FilterProjectsList(list, filter)
     endif
 
     " Filter by path
-    if item._match_type == ''
-      let match_index = match(item.path, filter)
+    if match_index == -1
+      let match_index = match(item.path, regexp_filter)
       if match_index != -1
         let item._match_type = 'path'
         let item._match_index = match_index
@@ -1089,8 +1170,8 @@ function! s:FilterProjectsList(list, filter)
     endif
 
     " Filter by path+name
-    if item._match_type == ''
-      let match_index = match(item.path.item.name, filter)
+    if match_index == -1
+      let match_index = match(item.path.item.name, regexp_filter)
       if match_index != -1
         let item._match_type = 'path_name'
         let item._match_index = match_index
@@ -1098,9 +1179,10 @@ function! s:FilterProjectsList(list, filter)
     endif
   endfor
 
-  let result = filter(copy(list), { _, value -> value._match_type == 'name' || value._match_type == 'note' })
+  " Try matching name and note. If none, then match path, etc.
+  let result = filter(copy(a:list), { _, val -> val._match_type == 'name' || val._match_type == 'note' })
   if len(result) == 0
-    let result = filter(list, { _, value -> value._match_type != '' })
+    let result = filter(a:list, { _, val -> val._match_type != '' })
   endif
   call sort(result, 's:SortProjectsList')
   return result
@@ -1271,16 +1353,13 @@ endfunction
 function! s:ProjectListBufferInit(input)
   let max_col_width = s:max_width / 2 - 10
   call s:TabulateList(s:projects, ['name', 'path', 'note'], ['note'], 0, max_col_width)
-  return s:ProjectListBufferUpdate(a:input)
+  call s:ProjectListBufferUpdate(a:input)
 endfunction
 
 function! s:ProjectListBufferUpdate(input)
-  let list = s:FilterProjects(copy(s:projects), a:input)
-  let s:list = list
-
-  let display = s:GetProjectsDisplay(list)
+  let s:list = s:FilterProjects(copy(s:projects), a:input)
+  let display = s:GetProjectsDisplay(s:list)
   call s:ShowInListBuffer(display, a:input)
-
   call s:HighlightCurrentLine(len(display))
   call s:HighlightInputChars(a:input)
 endfunction
@@ -1627,14 +1706,11 @@ function! s:SearchFilesBufferInit(input)
 endfunction
 
 function! s:SearchFilesBufferUpdate(input)
-  if a:input != s:input
-    let [list, display] = s:GetSearchFilesResult(a:input)
-    call s:ShowInListBuffer(display, a:input)
-    let s:input = a:input
-    let s:list = list
-  endif
-
-  call s:HighlightCurrentLine(len(s:list))
+  let [list, display] = s:GetSearchFilesResult(a:input)
+  let s:input = a:input
+  let s:list = list
+  call s:ShowInListBuffer(display, a:input)
+  call s:HighlightCurrentLine(len(display))
   call s:HighlightInputChars(a:input)
 endfunction
 
@@ -2035,7 +2111,7 @@ endfunction
 function! s:ShowFindInFilesResult(display, search, replace, full_input, id)
   if exists('s:list')
     call s:ShowInListBuffer(a:display, a:search)
-    call s:HighlightCurrentLine(len(s:list))
+    call s:HighlightCurrentLine(len(a:display))
     call s:HighlightSearchAsPattern(a:search)
     call s:HighlightReplaceChars(a:search, a:replace)
     call s:HighlighExtraInfo()
@@ -2734,7 +2810,7 @@ endfunction
 
 function! s:InitStartBuffer()
   if !s:reloading_project
-    call s:OpenNewBufOnly()
+    call s:OpenNewBufferOnly()
   endif
 endfunction
 
@@ -2765,7 +2841,7 @@ function! s:DeleteNerdtreeBuf()
   call s:Debug('Opened root from buffer '.bufname)
 endfunction
 
-function! s:OpenNewBufOnly()
+function! s:OpenNewBufferOnly()
   enew
   silent only
 endfunction
@@ -2790,7 +2866,7 @@ function! s:OpenRoot(path)
   call s:DeleteNerdtreeBuf()
 
   if empty(a:path)
-    call s:OpenNewBufOnly()
+    call s:OpenNewBufferOnly()
     return
   endif
 
