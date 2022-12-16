@@ -24,10 +24,11 @@ function! s:Prepare()
   let s:update_timer = 0
   let s:sourcing_file = 0
   let s:init_input = ''
-  let s:list_buffer = '__vim_project_list__'
-  let s:nerdtree_tmp = '__vim_project_nerdtree_tmp__'
+  let s:list_buffer = 'vim_project_list'
+  let s:nerdtree_tmp = 'vim_project_nerdtree_tmp'
   let s:is_win_version = has('win32') || has('win64')
   let s:view_index = 0
+  let s:run_jobs_output_rows = 10
 
   let s:note_prefix = '- '
   let s:column_pattern = '\S*\(\s\S\+\)*'
@@ -815,28 +816,153 @@ function! project#RunJobs()
 
   call s:PrepareListBuffer()
   let Init = function('s:RunJobsBufferInit')
-  let Update = function('s:RunJobsBufferUpdate')
-  let Open = function('s:ProjectListBufferOpen')
+  let Update = function('s:RunJobsBufferUpdateTimerManager')
+  let Open = function('s:RunJobsBufferOpen')
   call s:RenderList(Init, Update, Open)
 endfunction
 
+let s:jobs = [{ 
+      \'name': 'start', 
+      \'cmd': 'npm start', 
+        \}, 
+        \{
+        \'name': 'quickfix',
+        \'cmd': 'qf',
+        \},
+      \{ 'name': 'build', 'cmd': 'npm build' }, { 'name': 'run', 'cmd': 'mvn spring-boot:run' }]
+
 function! s:RunJobsBufferInit(input)
-  let s:jobs = [{ 'name': 'start', 'run': 'npm start' }, { 'name': 'build', 'run': 'npm build' }, { 'name': 'build', 'run': 'start up' }]
   let max_col_width = s:max_width / 2 - 10
-  call s:TabulateList(s:jobs, ['name', 'run'], [], 0, max_col_width)
+  call s:TabulateList(s:jobs, ['name', 'cmd'], [], 0, max_col_width)
+  call s:RunJobsBufferUpdateTimerManager(a:input)
+endfunction
+
+function! s:RunJobsBufferUpdateTimerManager(input)
+  call s:StopRunJobsTimer()
+  call s:RunJobsBufferUpdate(a:input)
+  let s:run_jobs_timer = timer_start(500, function('s:RunJobsBufferUpdateTimer', [a:input]),
+        \{'repeat': -1})
+endfunction
+
+function! s:StopRunJobsTimer()
+  if !s:IsRunJobsList() || !exists('s:run_jobs_timer')
+    return
+  endif
+  call timer_stop(s:run_jobs_timer)
+endfunction
+
+function! s:RunJobsBufferUpdateTimer(input, id)
   call s:RunJobsBufferUpdate(a:input)
 endfunction
 
-function! s:GetRunJobsDisplay(list)
-  return map(copy(a:list), {key, val -> val.name.'  '.val.run})
+function! s:GetRunJobsDisplay(jobs)
+  let display = []
+  let list = []
+
+  for job in a:jobs
+    if has_key(job, '__name')
+      let job_row = job.__name.'  '.job.__cmd
+      call add(display, job_row)
+      call add(list, job)
+    endif
+
+    if has_key(job, 'bufnr') && job.bufnr > 0
+      let status = term_getstatus(job.bufnr)
+      if status == ''
+        continue
+      endif
+
+      let [row, col, dict] = term_getcursor(job.bufnr)
+      let [rows, cols] = term_getsize(job.bufnr)
+
+      let output = '  ['.status.']'
+      call add(display, output)
+      call add(list, {'name': job.name, 'output': output})
+      for idx in range(s:run_jobs_output_rows, 1, -1)
+        let line = term_getline(job.bufnr, row - idx)
+        let output = '  '.line
+        call add(display, output)
+        call add(list, {'name': job.name, 'output': output})
+      endfor
+    endif
+  endfor
+  return [display, list]
+endfunction
+
+function! s:GetRunJobsDisplayRow(job)
 endfunction
 
 function! s:RunJobsBufferUpdate(input)
-  let s:list = s:FilterRunJobs(copy(s:jobs), a:input)
-  let display = s:GetRunJobsDisplay(s:list)
+  let jobs = s:FilterRunJobs(copy(s:jobs), a:input)
+  let [display, list] = s:GetRunJobsDisplay(jobs)
+  let s:list = list
   call s:ShowInListBuffer(display, a:input)
   call s:HighlightCurrentLine(len(display))
   call s:HighlightInputChars(a:input)
+  call s:HighlightRunJobsCmdOutput()
+  redraw
+endfunction
+
+function! s:HighlightRunJobsCmdOutput()
+  silent! match InfoRow /^\s\{2,}.*/
+endfunction
+
+" @return:
+"   1: keey current window,
+"   0: exit current window
+function! s:RunJobsBufferOpen(job, open_cmd, input)
+  let is_output = has_key(a:job, 'output')
+  let is_running = has_key(a:job, 'bufnr') && match(term_getstatus(a:job.bufnr), 'running') != -1
+  let open_job_buffer = is_output || is_running
+  if open_job_buffer
+    if a:open_cmd == ''
+      return 0
+    endif
+
+    call s:OpenJobBuffer(a:job)
+    return 0
+  endif
+
+  call s:StartTerminalToRunJob(a:job)
+  return 1
+endfunction
+
+function! s:OpenJobBuffer(job)
+  let from_job = s:FindJobByName(a:job.name)
+  execute 'sbuffer '.from_job.bufnr
+endfunction
+
+function! s:FindJobByName(name)
+  for job in s:jobs
+    if job.name == a:name
+      return job
+    endif
+  endfor
+endfunction
+
+function! s:StartTerminalToRunJob(job)
+  let index = s:GetCurrentIndex()
+  let options = { 
+        \'cwd': $vim_project,
+        \'term_name': a:job.name,
+        \'term_rows': s:run_jobs_output_rows,
+        \'hidden': 1,
+        \}
+  let has_prev_buf = has_key(a:job, 'bufnr') && term_getstatus(a:job.bufnr) != ''
+  let a:job.bufnr = term_start(a:job.cmd, options)
+
+  if !has_prev_buf
+    call s:UpdateOffsetByIndex(index - (s:run_jobs_output_rows + 1))
+  endif
+endfunction
+
+function! VimProjectUpdateOffset(index, input, ...)
+  if !s:IsRunJobsList()
+    return
+  endif
+
+  call s:RunJobsBufferUpdate(a:input)
+  call s:UpdateOffsetByIndex(a:index)
 endfunction
 
 function! s:FilterRunJobs(jobs, filter)
@@ -858,9 +984,9 @@ function! s:FilterRunJobs(jobs, filter)
     endif
 
     if match_index == -1
-      let match_index = match(job.run, regexp_filter)
+      let match_index = match(job.cmd, regexp_filter)
       if match_index != -1
-        let job._match_type = 'run'
+        let job._match_type = 'cmd'
         let job._match_index = match_index
       endif
     endif
@@ -940,6 +1066,8 @@ function! s:OpenListBuffer()
 endfunction
 
 function! s:CloseListBuffer(cmd)
+  call s:StopRunJobsTimer()
+
   let &g:laststatus = s:laststatus_save
 
   if !s:IsCurrentListBuffer() || a:cmd == 'switch_to_list'
@@ -970,10 +1098,23 @@ function! s:SetupListBuffer()
 
   if s:IsFindInFilesList()
     let s:first_column_pattern = '^'.s:column_pattern
+    let s:second_column_pattern = '\s\{2,}[^- ]'.s:column_pattern
     highlight link FirstColumn Keyword
     highlight link SecondColumn Normal
+  elseif s:IsRunJobsList()
+    let s:first_column_pattern = '^'.s:column_pattern
+    let s:second_column_pattern = '\s\{2,}[^- ]'.s:column_pattern
+    highlight link FirstColumn Keyword
+    highlight link SecondColumn Comment
+    " Linking InfoRow to Normal does not work when overriding other syntax
+    let normal_hl = hlget('Normal')
+    let normal_hl[0].name = 'InfoRow'
+    call hlset(normal_hl)
+    call s:HighlightRunJobsCmdOutput()
   else
     let s:first_column_pattern = '^'.s:column_pattern.s:note_column_pattern
+    let s:second_column_pattern = '\s\{2,}[^- ]'.s:column_pattern
+
     highlight link FirstColumn Normal
     highlight link SecondColumn Comment
   endif
@@ -981,6 +1122,7 @@ function! s:SetupListBuffer()
   syntax clear
   execute 'syntax match FirstColumn /'.s:first_column_pattern.'/'
   execute 'syntax match SecondColumn /'.s:second_column_pattern.'/'
+  execute 'syntax match InfoRow /^\s\{2,}.*/'
 
   highlight link ItemSelected CursorLine
   highlight! link SignColumn Noise
@@ -1094,9 +1236,11 @@ function! s:AddToListBuffer(display)
 endfunction
 
 function! s:AdjustHeight(length, input)
-  if a:length == 0 || a:length > s:max_height
+  if (a:length == 0 && a:input == '') || a:length > s:max_height
     let s:initial_height = s:max_height
   elseif a:input == '' && s:initial_height == 0
+    let s:initial_height = a:length
+  elseif a:length > s:initial_height && a:length < s:max_height
     let s:initial_height = a:length
   endif
 
@@ -1346,7 +1490,7 @@ function! s:ProjectListBufferUpdate(input)
   call s:HighlightInputChars(a:input)
 endfunction
 
-function! s:ProjectListBufferOpen(project, open_cmd)
+function! s:ProjectListBufferOpen(project, open_cmd, input)
   if s:IsValidProject(a:project)
     call s:OpenProject(a:project)
   else
@@ -1696,7 +1840,7 @@ function! s:SearchFilesBufferUpdate(input)
   call s:HighlightInputChars(a:input)
 endfunction
 
-function! s:SearchFilesBufferOpen(target, open_cmd)
+function! s:SearchFilesBufferOpen(target, open_cmd, input)
   let cmd = substitute(a:open_cmd, 'open_\?', '', '')
   let cmd = cmd == '' ? 'edit' : cmd
   let file = $vim_project.'/'.a:target.path.'/'.a:target.file
@@ -2186,7 +2330,7 @@ function! s:HighlightReplaceChars(search, replace)
   execute 'silent! 1match FirstColumn /'.s:first_column_pattern.'/'
 endfunction
 
-function! s:FindInFilesBufferOpen(target, open_cmd)
+function! s:FindInFilesBufferOpen(target, open_cmd, input)
   let open_type = substitute(a:open_cmd, 'open_\?', '', '')
   if open_type == ''
     let open_type = 'edit'
@@ -2214,11 +2358,11 @@ function! s:RenderList(Init, Update, Open)
   let input = s:InitListVariables(a:Init)
   call s:ShowInitialInputLine(input)
 
-  let [cmd, input] = s:HandleInput(input, a:Update)
+  let [cmd, input] = s:HandleInput(input, a:Update, a:Open)
 
   call s:CloseListBuffer(cmd)
   if s:IsOpenCmd(cmd)
-    call s:OpenTarget(cmd, a:Open)
+    call s:OpenTarget(cmd, input, a:Open)
   endif
   call s:SaveListVariables(input)
   call s:ResetListVariables()
@@ -2290,7 +2434,7 @@ function! s:AddFindReplaceSeparator(input)
   return input
 endfunction
 
-function! s:HandleInput(input, Update)
+function! s:HandleInput(input, Update, Open)
   let input = a:input
 
   try
@@ -2333,7 +2477,14 @@ function! s:HandleInput(input, Update)
       elseif cmd == 'switch_to_list'
         break
       elseif s:IsOpenCmd(cmd)
-        break
+        if s:IsRunJobsList()
+          let keep_window = s:OpenTarget('', input, a:Open)
+          if !keep_window
+            break
+          endif
+        else
+          break
+        endif
       else
         let input = input.char
       endif
@@ -2426,6 +2577,10 @@ function! s:IsSearchFilesList()
   return s:list_type == 'SEARCH_FILES'
 endfunction
 
+function! s:IsRunJobsList()
+  return s:list_type == 'RUN_JOBS'
+endfunction
+
 function! s:SaveListVariables(input)
   if !s:IsFindInFilesList()
     return
@@ -2459,6 +2614,7 @@ endfunction
 
 function! s:GetTarget()
   let index = len(s:list) - 1 + s:offset
+
   if index >= 0 && index < len(s:list)
     let target = s:list[index]
     return target
@@ -2513,10 +2669,10 @@ function! s:RemoveFile()
   let index = s:GetCurrentIndex()
   let next_file_index = s:GetNextFileIndex(index)
   call s:RemoveRange(index, next_file_index - 1)
-  call s:UpdateOffsetAfterRemoveFile(index)
+  call s:UpdateOffsetByIndex(index)
 endfunction
 
-function! s:UpdateOffsetAfterRemoveFile(index)
+function! s:UpdateOffsetByIndex(index, ...)
   if a:index < len(s:list) - 2
     let s:offset = s:GetCurrentOffset(a:index)
   else
@@ -2530,7 +2686,7 @@ function! s:RemoveRange(start, end)
   endif
 endfunction
 
-function! s:OpenTarget(cmd, Open)
+function! s:OpenTarget(cmd, input, Open)
   let target = s:GetTarget()
 
   if empty(target)
@@ -2538,7 +2694,14 @@ function! s:OpenTarget(cmd, Open)
     return
   endif
 
-  call a:Open(target, a:cmd)
+  call s:NewBufferIfInTermial()
+  return a:Open(target, a:cmd, a:input)
+endfunction
+
+function! s:NewBufferIfInTermial()
+  if term_getstatus('%') != ''
+    new
+  endif
 endfunction
 
 function! s:IsValidProject(project)
@@ -2829,7 +2992,17 @@ function! s:DeleteNerdtreeBuf()
 endfunction
 
 function! s:OpenNewBufferOnly()
-  enew
+  if &buftype == 'terminal'
+    " Abandon terminal buffer
+    enew!
+  else
+    if &modified
+      " Leave it to uers if it's a modified normal buffer
+      new
+    else
+      enew
+    endif
+  endif
   silent only
 endfunction
 
@@ -3031,7 +3204,7 @@ function! s:WatchHeadFileVim(cmd)
     call job_stop(s:head_file_job)
   endif
   let s:head_file_job = job_start(a:cmd,
-        \ { 'callback': 'ReloadSession' })
+        \ { 'callback': 'VimProjectReloadSession' })
 endfunction
 
 function! s:WatchHeadFileNeoVim(cmd)
@@ -3039,7 +3212,7 @@ function! s:WatchHeadFileNeoVim(cmd)
     call jobstop(s:head_file_job)
   endif
   let s:head_file_job = jobstart(a:cmd,
-        \ { 'on_stdout': 'ReloadSession' })
+        \ { 'on_stdout': 'VimProjectReloadSession' })
 endfunction
 
 function! s:SaveSession()
@@ -3132,7 +3305,7 @@ function! s:AfterReloadSession()
   call s:handleFloatermAfter()
 endfunction
 
-function! ReloadSession(channel, msg, ...)
+function! VimProjectReloadSession(channel, msg, ...)
   if type(a:msg) == v:t_list
     let msg = join(a:msg)
   else
