@@ -28,7 +28,7 @@ function! s:Prepare()
   let s:nerdtree_tmp = 'vim_project_nerdtree_tmp'
   let s:is_win_version = has('win32') || has('win64')
   let s:view_index = 0
-  let s:run_jobs_output_rows = 10
+  let s:run_tasks_output_rows = 10
 
   let s:note_prefix = '- '
   let s:column_pattern = '\S*\(\s\S\+\)*'
@@ -810,18 +810,18 @@ function! project#FindInFiles(...)
   call s:RenderList(Init, Update, Open)
 endfunction
 
-function! project#RunJobs()
-  let s:prefix = 'Run a job:'
-  let s:list_type = 'RUN_JOBS'
+function! project#RunTasks()
+  let s:prefix = 'Run a task:'
+  let s:list_type = 'RUN_TASKS'
 
   call s:PrepareListBuffer()
-  let Init = function('s:RunJobsBufferInit')
-  let Update = function('s:RunJobsBufferUpdateTimerManager')
-  let Open = function('s:RunJobsBufferOpen')
+  let Init = function('s:RunTasksBufferInit')
+  let Update = function('s:RunTasksBufferUpdateTimerManager')
+  let Open = function('s:RunTasksBufferOpen')
   call s:RenderList(Init, Update, Open)
 endfunction
 
-let s:jobs = [{ 
+let s:tasks = [{ 
       \'name': 'start', 
       \'cmd': 'npm start', 
         \}, 
@@ -831,173 +831,170 @@ let s:jobs = [{
         \},
       \{ 'name': 'build', 'cmd': 'npm build' }, { 'name': 'run', 'cmd': 'mvn spring-boot:run' }]
 
-function! s:RunJobsBufferInit(input)
+function! s:RunTasksBufferInit(input)
   let max_col_width = s:max_width / 2 - 10
-  call s:TabulateList(s:jobs, ['name', 'cmd'], [], 0, max_col_width)
-  call s:RunJobsBufferUpdateTimerManager(a:input)
+  call s:TabulateList(s:tasks, ['name', 'cmd'], [], 0, max_col_width)
+  call s:RunTasksBufferUpdateTimerManager(a:input)
 endfunction
 
-function! s:RunJobsBufferUpdateTimerManager(input)
-  call s:StopRunJobsTimer()
-  call s:RunJobsBufferUpdate(a:input)
-  let s:run_jobs_timer = timer_start(500, function('s:RunJobsBufferUpdateTimer', [a:input]),
+function! s:RunTasksBufferUpdateTimerManager(input)
+  call s:StopRunTasksTimer()
+  call s:RunTasksBufferUpdate(a:input)
+  let s:run_tasks_timer = timer_start(500, function('s:RunTasksBufferUpdateTimer', [a:input]),
         \{'repeat': -1})
 endfunction
 
-function! s:StopRunJobsTimer()
-  if !s:IsRunJobsList() || !exists('s:run_jobs_timer')
+function! s:StopRunTasksTimer()
+  if !s:IsRunTasksList() || !exists('s:run_tasks_timer')
     return
   endif
-  call timer_stop(s:run_jobs_timer)
+  call timer_stop(s:run_tasks_timer)
 endfunction
 
-function! s:RunJobsBufferUpdateTimer(input, id)
-  call s:RunJobsBufferUpdate(a:input)
+function! s:RunTasksBufferUpdateTimer(input, id)
+  call s:RunTasksBufferUpdate(a:input)
 endfunction
 
-function! s:GetRunJobsDisplay(jobs)
+function! s:GetRunTasksDisplay(tasks)
   let display = []
   let list = []
 
-  for job in a:jobs
-    if has_key(job, '__name')
-      let job_row = job.__name.'  '.job.__cmd
-      call add(display, job_row)
-      call add(list, job)
+  for task in a:tasks
+    if has_key(task, '__name')
+      let task_row = task.__name.'  '.task.__cmd
+      call add(display, task_row)
+      call add(list, task)
     endif
 
-    if has_key(job, 'bufnr') && job.bufnr > 0
-      let status = term_getstatus(job.bufnr)
+    if has_key(task, 'bufnr') && task.bufnr > 0
+      let status = substitute(term_getstatus(task.bufnr), ',normal', '', '')
       if status == ''
         continue
       endif
 
-      let [row, col, dict] = term_getcursor(job.bufnr)
-      let [rows, cols] = term_getsize(job.bufnr)
+      let [row, col, dict] = term_getcursor(task.bufnr)
+      let [rows, cols] = term_getsize(task.bufnr)
 
       let output = '  ['.status.']'
       call add(display, output)
-      call add(list, {'name': job.name, 'output': output})
-      for idx in range(s:run_jobs_output_rows, 1, -1)
-        let line = term_getline(job.bufnr, row - idx)
+      call add(list, {'name': task.name, 'output': output})
+      for idx in range(s:run_tasks_output_rows, 1, -1)
+        let line = term_getline(task.bufnr, row - idx)
         let output = '  '.line
         call add(display, output)
-        call add(list, {'name': job.name, 'output': output})
+        call add(list, {'name': task.name, 'output': output})
       endfor
     endif
   endfor
   return [display, list]
 endfunction
 
-function! s:GetRunJobsDisplayRow(job)
-endfunction
-
-function! s:RunJobsBufferUpdate(input)
-  let jobs = s:FilterRunJobs(copy(s:jobs), a:input)
-  let [display, list] = s:GetRunJobsDisplay(jobs)
+function! s:RunTasksBufferUpdate(input)
+  let tasks = s:FilterRunTasks(copy(s:tasks), a:input)
+  let [display, list] = s:GetRunTasksDisplay(tasks)
   let s:list = list
   call s:ShowInListBuffer(display, a:input)
   call s:HighlightCurrentLine(len(display))
   call s:HighlightInputChars(a:input)
-  call s:HighlightRunJobsCmdOutput()
+  call s:HighlightRunTasksCmdOutput()
   redraw
 endfunction
 
-function! s:HighlightRunJobsCmdOutput()
+function! s:HighlightRunTasksCmdOutput()
   silent! match InfoRow /^\s\{2,}.*/
 endfunction
 
 " @return:
 "   1: keey current window,
 "   0: exit current window
-function! s:RunJobsBufferOpen(job, open_cmd, input)
-  let is_output = has_key(a:job, 'output')
-  let is_running = has_key(a:job, 'bufnr') && match(term_getstatus(a:job.bufnr), 'running') != -1
-  let open_job_buffer = is_output || is_running
-  if open_job_buffer
+function! s:RunTasksBufferOpen(task, open_cmd, input)
+  let is_output = has_key(a:task, 'output')
+  let is_running = has_key(a:task, 'bufnr') && match(term_getstatus(a:task.bufnr), 'running') != -1
+  let open_task_buffer = is_output || is_running
+  if open_task_buffer
     if a:open_cmd == ''
       return 0
     endif
 
-    call s:OpenJobBuffer(a:job)
+    call s:OpenTaskBuffer(a:task)
     return 0
   endif
 
-  call s:StartTerminalToRunJob(a:job)
+  call s:StartTerminalToRunTask(a:task)
   return 1
 endfunction
 
-function! s:OpenJobBuffer(job)
-  let from_job = s:FindJobByName(a:job.name)
-  execute 'sbuffer '.from_job.bufnr
+function! s:OpenTaskBuffer(task)
+  let from_task = s:FindTaskByName(a:task.name)
+  execute 'sbuffer '.from_task.bufnr
 endfunction
 
-function! s:FindJobByName(name)
-  for job in s:jobs
-    if job.name == a:name
-      return job
+function! s:FindTaskByName(name)
+  for task in s:tasks
+    if task.name == a:name
+      return task
     endif
   endfor
 endfunction
 
-function! s:StartTerminalToRunJob(job)
+function! s:StartTerminalToRunTask(task)
   let index = s:GetCurrentIndex()
   let options = { 
         \'cwd': $vim_project,
-        \'term_name': a:job.name,
-        \'term_rows': s:run_jobs_output_rows,
+        \'term_name': a:task.name,
+        \'term_rows': s:run_tasks_output_rows,
         \'hidden': 1,
         \}
-  let has_prev_buf = has_key(a:job, 'bufnr') && term_getstatus(a:job.bufnr) != ''
-  let a:job.bufnr = term_start(a:job.cmd, options)
+  let has_prev_buf = has_key(a:task, 'bufnr') && term_getstatus(a:task.bufnr) != ''
+  let a:task.bufnr = term_start(a:task.cmd, options)
 
   if !has_prev_buf
-    call s:UpdateOffsetByIndex(index - (s:run_jobs_output_rows + 1))
+    call s:UpdateOffsetByIndex(index - (s:run_tasks_output_rows + 1))
   endif
 endfunction
 
 function! VimProjectUpdateOffset(index, input, ...)
-  if !s:IsRunJobsList()
+  if !s:IsRunTasksList()
     return
   endif
 
-  call s:RunJobsBufferUpdate(a:input)
+  call s:RunTasksBufferUpdate(a:input)
   call s:UpdateOffsetByIndex(a:index)
 endfunction
 
-function! s:FilterRunJobs(jobs, filter)
+function! s:FilterRunTasks(tasks, filter)
   let regexp_filter = join(split(a:filter, '\zs'), '.*')
 
   " Todo: sort by match type and index
-  for job in a:jobs
-    let job._match_type = ''
-    let job._match_index = -1
+  for task in a:tasks
+    let task._match_type = ''
+    let task._match_index = -1
 
-    let match_index = match(job.name, regexp_filter)
+    let match_index = match(task.name, regexp_filter)
     if match_index != -1
       " Prefer exact match. If not, add 10 to match_index
-      if len(a:filter) > 1 && count(tolower(job.name), a:filter) == 0
+      if len(a:filter) > 1 && count(tolower(task.name), a:filter) == 0
         let match_index = match_index + 10
       endif
-      let job._match_type = 'name'
-      let job._match_index = match_index
+      let task._match_type = 'name'
+      let task._match_index = match_index
     endif
 
     if match_index == -1
-      let match_index = match(job.cmd, regexp_filter)
+      let match_index = match(task.cmd, regexp_filter)
       if match_index != -1
-        let job._match_type = 'cmd'
-        let job._match_index = match_index
+        let task._match_type = 'cmd'
+        let task._match_index = match_index
       endif
     endif
   endfor
 
-  let result = filter(a:jobs, { _, val -> val._match_type != '' })
-  call sort(result, 's:SortRunJobs')
+  let result = filter(a:tasks, { _, val -> val._match_type != '' })
+  call sort(result, 's:SortRunTasks')
   return result
 endfunction
 
-function! s:SortRunJobs(a1, a2)
+function! s:SortRunTasks(a1, a2)
   let type1 = a:a1._match_type
   let type2 = a:a2._match_type
   let index1 = a:a1._match_index
@@ -1066,7 +1063,7 @@ function! s:OpenListBuffer()
 endfunction
 
 function! s:CloseListBuffer(cmd)
-  call s:StopRunJobsTimer()
+  call s:StopRunTasksTimer()
 
   let &g:laststatus = s:laststatus_save
 
@@ -1101,7 +1098,7 @@ function! s:SetupListBuffer()
     let s:second_column_pattern = '\s\{2,}[^- ]'.s:column_pattern
     highlight link FirstColumn Keyword
     highlight link SecondColumn Normal
-  elseif s:IsRunJobsList()
+  elseif s:IsRunTasksList()
     let s:first_column_pattern = '^'.s:column_pattern
     let s:second_column_pattern = '\s\{2,}[^- ]'.s:column_pattern
     highlight link FirstColumn Keyword
@@ -1110,7 +1107,7 @@ function! s:SetupListBuffer()
     let normal_hl = hlget('Normal')
     let normal_hl[0].name = 'InfoRow'
     call hlset(normal_hl)
-    call s:HighlightRunJobsCmdOutput()
+    call s:HighlightRunTasksCmdOutput()
   else
     let s:first_column_pattern = '^'.s:column_pattern.s:note_column_pattern
     let s:second_column_pattern = '\s\{2,}[^- ]'.s:column_pattern
@@ -2477,7 +2474,7 @@ function! s:HandleInput(input, Update, Open)
       elseif cmd == 'switch_to_list'
         break
       elseif s:IsOpenCmd(cmd)
-        if s:IsRunJobsList()
+        if s:IsRunTasksList()
           let keep_window = s:OpenTarget('', input, a:Open)
           if !keep_window
             break
@@ -2577,8 +2574,8 @@ function! s:IsSearchFilesList()
   return s:list_type == 'SEARCH_FILES'
 endfunction
 
-function! s:IsRunJobsList()
-  return s:list_type == 'RUN_JOBS'
+function! s:IsRunTasksList()
+  return s:list_type == 'RUN_TASKS'
 endfunction
 
 function! s:SaveListVariables(input)
