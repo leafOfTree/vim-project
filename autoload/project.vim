@@ -59,6 +59,7 @@ function! s:Prepare()
         \'auto_detect_file':              ['.git', '.svn'],
         \'project_views':                 [],
         \'file_mappings':                 {},
+        \'tasks':                         [],
         \'debug':                         0,
         \}
 
@@ -71,6 +72,7 @@ function! s:Prepare()
         \'find_in_files_exclude',
         \'project_root',
         \'file_mappings',
+        \'tasks',
         \'use_session',
         \'open_root_when_use_session',
         \'check_branch_when_use_session',
@@ -177,6 +179,7 @@ function! s:InitConfig()
   let s:file_mappings = s:config.file_mappings
   let s:list_mappings = s:config.list_mappings
   let s:open_types = s:config.file_open_types
+  let s:tasks = s:config.tasks
   let s:debug = s:config.debug
 endfunction
 
@@ -821,16 +824,6 @@ function! project#RunTasks()
   call s:RenderList(Init, Update, Open)
 endfunction
 
-let s:tasks = [{ 
-      \'name': 'start', 
-      \'cmd': 'npm start', 
-        \}, 
-        \{
-        \'name': 'quickfix',
-        \'cmd': 'qf',
-        \},
-      \{ 'name': 'build', 'cmd': 'npm build' }, { 'name': 'run', 'cmd': 'mvn spring-boot:run' }]
-
 function! s:RunTasksBufferInit(input)
   let max_col_width = s:max_width / 2 - 10
   call s:TabulateList(s:tasks, ['name', 'cmd'], [], 0, max_col_width)
@@ -908,10 +901,7 @@ endfunction
 "   1: keey current window,
 "   0: exit current window
 function! s:RunTasksBufferOpen(task, open_cmd, input)
-  let is_output = has_key(a:task, 'output')
-  let is_running = has_key(a:task, 'bufnr') && match(term_getstatus(a:task.bufnr), 'running') != -1
-  let open_task_buffer = is_output || is_running
-  if open_task_buffer
+  if s:ShouldOpenTaskBuffer(a:task)
     if a:open_cmd == ''
       return 0
     endif
@@ -920,8 +910,29 @@ function! s:RunTasksBufferOpen(task, open_cmd, input)
     return 0
   endif
 
+  if s:IsEmptyCmd(a:task)
+    if a:open_cmd == ''
+      return 0
+    endif
+
+    terminal
+    call term_sendkeys(bufnr('%'), "cd $vim_project\<CR>")
+    return 0
+  endif
+
   call s:StartTerminalToRunTask(a:task)
   return 1
+endfunction
+
+function! s:ShouldOpenTaskBuffer(task)
+  let is_output = has_key(a:task, 'output')
+  let is_running = has_key(a:task, 'bufnr') && match(term_getstatus(a:task.bufnr), 'running') != -1
+  let open_task_buffer = is_output || is_running
+  return open_task_buffer
+endfunction
+
+function! s:IsEmptyCmd(task)
+  return !has_key(a:task, 'cmd') || a:task.cmd == ''
 endfunction
 
 function! s:OpenTaskBuffer(task)
