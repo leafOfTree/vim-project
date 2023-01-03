@@ -926,8 +926,8 @@ endfunction
 
 function! s:ShouldOpenTaskBuffer(task)
   let is_output = has_key(a:task, 'output')
-  let is_running = has_key(a:task, 'bufnr') && match(term_getstatus(a:task.bufnr), 'running') != -1
-  let open_task_buffer = is_output || is_running
+  " let is_running = has_key(a:task, 'bufnr') && match(term_getstatus(a:task.bufnr), 'running') != -1
+  let open_task_buffer = is_output " || is_running
   return open_task_buffer
 endfunction
 
@@ -950,13 +950,18 @@ endfunction
 
 function! s:StartTerminalToRunTask(task)
   let index = s:GetCurrentIndex()
+  let has_prev_buf = has_key(a:task, 'bufnr') && term_getstatus(a:task.bufnr) != ''
+  let is_prev_running = has_key(a:task, 'bufnr') && match(term_getstatus(a:task.bufnr), 'running') != -1
+  if is_prev_running
+    execute 'bdelete! '.a:task.bufnr
+  endif
+
   let options = { 
         \'cwd': $vim_project,
         \'term_name': a:task.name,
         \'term_rows': s:run_tasks_output_rows,
         \'hidden': 1,
         \}
-  let has_prev_buf = has_key(a:task, 'bufnr') && term_getstatus(a:task.bufnr) != ''
   let a:task.bufnr = term_start(a:task.cmd, options)
 
   if !has_prev_buf
