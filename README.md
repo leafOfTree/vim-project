@@ -106,6 +106,7 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 | ProjectList                | Show all projects                        |
 | ProjectSearchFiles         | Search files by name                     |
 | ProjectFindInFiles         | Find given string/regexp (at least 2 chars) in files |
+| ProjectRun                 | Run a task defined by `tasks` config     |
 | ProjectRoot                | Open project root                        |
 | ProjectConfig              | Open project config `init.vim` (effective after save) |
 | ProjectAllConfig           | Open all projects config `project.add.vim` |
@@ -188,6 +189,35 @@ When `Find in files`, you can press <kbd>c-r</kbd> to start to replace, <kbd>c-y
 
 <a name="config_keymappings"></a>
 
+### Run tasks
+
+`:ProjectRun` run a task defined by `tasks`. A task contains
+
+- `name`: task name
+- `cmd`: command to run in terminal
+
+For example, with below local config
+
+```vim
+let g:vim_project_local_config = {
+    \'tasks': [
+      \{ 
+        \'name': 'start', 
+        \'cmd': 'npm start' 
+      \},
+      \{ 
+        \'name': 'build', 
+        \'cmd': 'npm build' 
+      \}, 
+    \],
+\}
+```
+
+You can press <kbd>Enter</kbd> on
+
+- task name to run/rerun the task. 
+- task output to open the corresponding terminal buffer.
+
 ## Config and Keymappings
 
 The config consists of following two parts
@@ -216,6 +246,7 @@ let g:vim_project_config = {
       \'auto_detect_file':              ['.git', '.svn'],
       \'project_views':                 [],
       \'file_mappings':                 {},
+      \'tasks':                         [],
       \'debug':                         0,
       \}
 
@@ -250,20 +281,21 @@ let g:vim_project_config.list_mappings = {
 | config_home                   | The directory for all config files                                            |
 | project_base                  | The base directory for relative path in `:Project path`                       |
 | use_session                   | Use session                                                                   |
-| open_root_when_use_session    | When session used, always open project root at the beginning                 |
+| open_root_when_use_session    | When session used, always open project root at the beginning                  |
 | check_branch_when_use_session | When session used, keep one for each branch                                   |
-| project_root                  | Relative directory or file as project root                                   |
+| project_root                  | Relative directory or file as project root                                    |
 | auto_detect                   | Auto detect projects when opening a file. <br>Choose 'always', 'ask', or 'no' |
 | auto_detect_file              | File used to detect potential projects                                        |
 | auto_load_on_start            | Auto load a project if Vim starts within its directory                        |
 | list_mappings                 | Keymappings for list prompt                                                   |
-| include                       | Including folders                                                     |
-| exclude                       | Excluding folders/files                                                     |
-| search_include                | Including folders for search files                                    |
-| find_in_files_include         | Including folders for find in files                                   |
-| search_exclude                | Excluding folders/files for search files                                    |
-| find_in_files_exclude         | Excluding folders/files for find in files                                   |
-| file_mappings                 | Keymappings to switch between files quickly                          |
+| include                       | Including folders                                                             |
+| exclude                       | Excluding folders/files                                                       |
+| search_include                | Including folders for search files                                            |
+| find_in_files_include         | Including folders for find in files                                           |
+| search_exclude                | Excluding folders/files for search files                                      |
+| find_in_files_exclude         | Excluding folders/files for find in files                                     |
+| file_mappings                 | Keymappings to switch between files quickly                                   |
+| tasks                         | tasks to run using vim 'terminal' feature                                     |
 | project_views                 | Define project views by `[[show-pattern, hide-pattern?], ...]`                |
 | debug                         | Show debug messages                                                           |
 
