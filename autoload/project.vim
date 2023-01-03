@@ -894,7 +894,8 @@ function! s:RunTasksBufferUpdate(input)
 endfunction
 
 function! s:HighlightRunTasksCmdOutput()
-  silent! match InfoRow /^\s\{2,}.*/
+  2match InfoRow /^\s\{2,}.*/
+  match Status '\[running.*\]'
 endfunction
 
 " @return:
@@ -926,8 +927,7 @@ endfunction
 
 function! s:ShouldOpenTaskBuffer(task)
   let is_output = has_key(a:task, 'output')
-  " let is_running = has_key(a:task, 'bufnr') && match(term_getstatus(a:task.bufnr), 'running') != -1
-  let open_task_buffer = is_output " || is_running
+  let open_task_buffer = is_output
   return open_task_buffer
 endfunction
 
@@ -1119,6 +1119,7 @@ function! s:SetupListBuffer()
     let s:second_column_pattern = '\s\{2,}[^- ]'.s:column_pattern
     highlight link FirstColumn Keyword
     highlight link SecondColumn Comment
+    highlight link Status Constant
     " Linking InfoRow to Normal does not work when overriding other syntax
     let normal_hl = hlget('Normal')
     let normal_hl[0].name = 'InfoRow'
