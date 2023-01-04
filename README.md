@@ -215,8 +215,8 @@ let g:vim_project_local_config = {
 
 You can press <kbd>Enter</kbd> on
 
-- task name to run/rerun the task. 
-- task output to open the corresponding terminal buffer.
+- task name to run/rerun the task
+- task output to open the corresponding terminal buffer (not work for nvim)
 
 ## Config and Keymappings
 

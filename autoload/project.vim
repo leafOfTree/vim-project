@@ -870,17 +870,20 @@ function! s:GetRunTasksDisplay(tasks)
     endif
 
     if has_key(task, 'bufnr') && task.bufnr > 0
-      let status = substitute(term_getstatus(task.bufnr), ',normal', '', '')
+      let status = s:GetTaskStatus(task)
       if status == ''
         continue
       endif
 
-      let [row, col, dict] = term_getcursor(task.bufnr)
-      let [rows, cols] = term_getsize(task.bufnr)
-
       let output = '  ['.status.']'
       call add(display, output)
       call add(list, {'name': task.name, 'output': output})
+
+      if has('nvim')
+        continue
+      endif
+
+      let [row, col, dict] = term_getcursor(task.bufnr)
       for idx in range(s:run_tasks_output_rows, 1, -1)
         let line = term_getline(task.bufnr, row - idx)
         let output = '  '.line
@@ -900,7 +903,7 @@ function! s:RunTasksBufferUpdate(input)
   call s:HighlightCurrentLine(len(display))
   call s:HighlightInputChars(a:input)
   call s:HighlightRunTasksCmdOutput()
-  redraw
+  call s:ShowInputLine(a:input)
 endfunction
 
 function! s:HighlightRunTasksCmdOutput()
@@ -927,13 +930,14 @@ function! s:RunTasksBufferOpen(task, open_cmd, input)
     endif
 
     terminal
-    call term_sendkeys(bufnr('%'), "cd $vim_project\<CR>")
-    call term_sendkeys(bufnr('%'), "clear\<CR>")
+    if !has('nvim')
+      call term_sendkeys(bufnr('%'), "cd $vim_project\<CR>")
+      call term_sendkeys(bufnr('%'), "clear\<CR>")
+    endif
     return 0
   endif
 
-  call s:StartTerminalToRunTask(a:task)
-  return 1
+  return s:StartTerminalToRunTask(a:task)
 endfunction
 
 function! s:ShouldOpenTaskBuffer(task)
@@ -947,6 +951,10 @@ function! s:IsEmptyCmd(task)
 endfunction
 
 function! s:OpenTaskBuffer(task)
+  if has('nvim')
+    return
+  endif
+
   let from_task = s:FindTaskByName(a:task.name)
   execute 'sbuffer '.from_task.bufnr
 endfunction
@@ -959,25 +967,55 @@ function! s:FindTaskByName(name)
   endfor
 endfunction
 
-function! s:StartTerminalToRunTask(task)
-  let index = s:GetCurrentIndex()
-  let has_prev_buf = has_key(a:task, 'bufnr') && term_getstatus(a:task.bufnr) != ''
-  let is_prev_running = has_key(a:task, 'bufnr') && match(term_getstatus(a:task.bufnr), 'running') != -1
-  if is_prev_running
-    execute 'bdelete! '.a:task.bufnr
+function! s:GetTaskStatus(task)
+  if !has_key(a:task, 'bufnr')
+    return ''
   endif
 
+  if has('nvim')
+    let status_code = jobwait([a:task.bufnr], 0)[0]
+    if status_code == -1
+      return 'running'
+    else
+      return 'finished'
+    endif
+  else
+    return substitute(term_getstatus(a:task.bufnr), ',normal', '', '')
+  endif
+endfunction
+
+function! s:StartTerminalToRunTask(task)
   let options = { 
         \'cwd': $vim_project,
         \'term_name': a:task.name,
         \'term_rows': s:run_tasks_output_rows,
         \'hidden': 1,
         \}
+  let has_prev_buf = s:GetTaskStatus(a:task) != ''
+  let is_prev_running = s:GetTaskStatus(a:task) == 'running'
+
+  if has('nvim')
+    if is_prev_running
+      call jobstop(a:task.bufnr)
+    endif
+
+    enew
+    set winheight=20
+    let a:task.bufnr = termopen(a:task.cmd, options)
+    return 0
+  endif
+
+  let index = s:GetCurrentIndex()
+  if is_prev_running
+    execute 'bdelete! '.a:task.bufnr
+  endif
+
   let a:task.bufnr = term_start(a:task.cmd, options)
 
   if !has_prev_buf
     call s:UpdateOffsetByIndex(index - (s:run_tasks_output_rows + 1))
   endif
+  return 1
 endfunction
 
 function! VimProjectUpdateOffset(index, input, ...)
@@ -1132,9 +1170,13 @@ function! s:SetupListBuffer()
     highlight link SecondColumn Comment
     highlight link Status Constant
     " Linking InfoRow to Normal does not work when overriding other syntax
-    let normal_hl = hlget('Normal')
-    let normal_hl[0].name = 'InfoRow'
-    call hlset(normal_hl)
+    if has('nvim')
+      highlight link InfoRow Normal
+    else
+      let normal_hl = hlget('Normal')
+      let normal_hl[0].name = 'InfoRow'
+      call hlset(normal_hl)
+    endif
     call s:HighlightRunTasksCmdOutput()
   else
     let s:first_column_pattern = '^'.s:column_pattern.s:note_column_pattern
