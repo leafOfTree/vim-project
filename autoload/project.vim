@@ -229,7 +229,7 @@ endfunction
 function! s:GetAddArgs(args)
   let args = split(a:args, ',\s*\ze{')
   let path = args[0]
-  let option = len(args) > 1 ? js_decode(args[1]) : {}
+  let option = len(args) > 1 ? json_decode(args[1]) : {}
   return [path, option]
 endfunction
 
@@ -243,7 +243,11 @@ function! project#AddProject(args)
   call s:OpenProject(project)
 
   let save_path = s:ReplaceHomeWithTide(s:GetFullPath(path))
-  call s:SaveToAddFile(save_path)
+  if !empty(option)
+    call s:SaveToAddFile(save_path.', '.json_encode(option))
+  else
+    call s:SaveToAddFile(save_path)
+  endif
   redraw
   let message = 'Added '.path
         \.'. Config created at '.s:ReplaceHomeWithTide(s:config_home)

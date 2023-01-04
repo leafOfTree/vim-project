@@ -131,7 +131,7 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 
 Example
 ```vim
-Project /path/to/demo, { note: 'A demo' }
+Project /path/to/demo, { "note": "A demo" }
 
 " When g:vim_project_config.project_base is set to ['/path/to']
 Project demo
