@@ -924,6 +924,7 @@ function! s:RunTasksBufferOpen(task, open_cmd, input)
 
     terminal
     call term_sendkeys(bufnr('%'), "cd $vim_project\<CR>")
+    call term_sendkeys(bufnr('%'), "clear\<CR>")
     return 0
   endif
 
