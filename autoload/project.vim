@@ -2719,14 +2719,7 @@ function! s:OpenTarget(cmd, input, Open)
     return
   endif
 
-  call s:NewBufferIfInTermial()
   return a:Open(target, a:cmd, a:input)
-endfunction
-
-function! s:NewBufferIfInTermial()
-  if term_getstatus('%') != ''
-    new
-  endif
 endfunction
 
 function! s:IsValidProject(project)
