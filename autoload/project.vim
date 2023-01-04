@@ -1030,7 +1030,6 @@ endfunction
 function! s:FilterRunTasks(tasks, filter)
   let regexp_filter = join(split(a:filter, '\zs'), '.*')
 
-  " Todo: sort by match type and index
   for task in a:tasks
     let task._match_type = ''
     let task._match_index = -1
@@ -1070,11 +1069,7 @@ function! s:SortRunTasks(a1, a2)
   endif
 
   if type1 == type2
-    if index1 == index2
-      return len(a:a2.name) - len(a:a1.name)
-    else
-      return index2 - index1
-    endif
+    return index2 - index1
   endif
 
   return -1
