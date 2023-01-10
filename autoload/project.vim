@@ -1044,6 +1044,7 @@ function! s:StopTaskHandler(input)
   let task = s:GetTarget()
   call s:StopTask(task)
   call s:RunTasksBufferUpdate(a:input)
+
   call s:UpdateOffsetByIndex(index)
 endfunction
 

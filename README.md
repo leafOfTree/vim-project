@@ -220,6 +220,8 @@ You can press <kbd>Enter</kbd> on
 - task name to run/rerun the task
 - task output to open the corresponding terminal buffer (not work for nvim)
 
+Press <kbd><c-q></kbd> on task name to stop the task.
+
 ## Config and Keymappings
 
 The config consists of following two parts
