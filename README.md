@@ -274,6 +274,7 @@ let g:vim_project_config.list_mappings = {
       \'replace_prompt':       "\<c-r>",
       \'replace_dismiss_item': "\<c-d>",
       \'replace_confirm':      "\<c-y>",
+      \'stop_task':            "\<c-q>",
       \'switch_to_list':       "\<c-o>",
       \}
 ```
