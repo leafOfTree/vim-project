@@ -99,6 +99,7 @@ function! s:Prepare()
         \'replace_prompt':       "\<c-r>",
         \'replace_dismiss_item': "\<c-d>",
         \'replace_confirm':      "\<c-y>",
+        \'stop_task':            "\<c-q>",
         \'switch_to_list':       "\<c-o>",
         \}
   let s:default.file_open_types = {
@@ -917,7 +918,7 @@ function! s:HighlightRunTasksCmdOutput()
 endfunction
 
 " @return:
-"   1: keey current window,
+"   1: keep current window,
 "   0: exit current window
 function! s:RunTasksBufferOpen(task, open_cmd, input)
   if s:ShouldOpenTaskBuffer(a:task)
@@ -942,7 +943,7 @@ function! s:RunTasksBufferOpen(task, open_cmd, input)
     return 0
   endif
 
-  return s:StartTerminalToRunTask(a:task)
+  return s:RunTask(a:task)
 endfunction
 
 function! s:ShouldOpenTaskBuffer(task)
@@ -989,7 +990,10 @@ function! s:GetTaskStatus(task)
   endif
 endfunction
 
-function! s:StartTerminalToRunTask(task)
+" @return:
+"   1: keep current window,
+"   0: exit current window
+function! s:RunTask(task)
   let cwd = $vim_project
   if has_key(a:task, 'cd')
     let cwd .= '/'.a:task.cd
@@ -1002,13 +1006,9 @@ function! s:StartTerminalToRunTask(task)
         \'hidden': 1,
         \}
   let has_prev_buf = s:GetTaskStatus(a:task) != ''
-  let is_prev_running = s:GetTaskStatus(a:task) == 'running'
+  call s:StopTask(a:task)
 
   if has('nvim')
-    if is_prev_running
-      call jobstop(a:task.bufnr)
-    endif
-
     enew
     set winheight=20
     let a:task.bufnr = termopen(a:task.cmd, options)
@@ -1016,10 +1016,6 @@ function! s:StartTerminalToRunTask(task)
   endif
 
   let index = s:GetCurrentIndex()
-  if is_prev_running
-    execute 'bdelete! '.a:task.bufnr
-  endif
-
   let a:task.bufnr = term_start(a:task.cmd, options)
 
   if !has_prev_buf
@@ -1028,13 +1024,27 @@ function! s:StartTerminalToRunTask(task)
   return 1
 endfunction
 
-function! VimProjectUpdateOffset(index, input, ...)
-  if !s:IsRunTasksList()
+function! s:StopTask(task)
+  let is_prev_running = s:GetTaskStatus(a:task) == 'running'
+  if !is_prev_running
     return
   endif
 
+  if has('nvim')
+    call jobstop(a:task.bufnr)
+  else
+    execute 'bdelete! '.a:task.bufnr
+  endif
+  unlet a:task.bufnr
+endfunction
+
+function! s:StopTaskHandler(input)
+  let index = s:GetCurrentIndex()
+
+  let task = s:GetTarget()
+  call s:StopTask(task)
   call s:RunTasksBufferUpdate(a:input)
-  call s:UpdateOffsetByIndex(a:index)
+  call s:UpdateOffsetByIndex(index)
 endfunction
 
 function! s:FilterRunTasks(tasks, filter)
@@ -2557,6 +2567,8 @@ function! s:HandleInput(input, Update, Open)
         else
           break
         endif
+      elseif cmd == 'stop_task'
+        call s:StopTaskHandler(input)
       else
         let input = input.char
       endif
@@ -2744,8 +2756,8 @@ function! s:RemoveFile()
   call s:UpdateOffsetByIndex(index)
 endfunction
 
-function! s:UpdateOffsetByIndex(index, ...)
-  if a:index < len(s:list) - 2
+function! s:UpdateOffsetByIndex(index)
+  if a:index < len(s:list) - 1
     let s:offset = s:GetCurrentOffset(a:index)
   else
     let s:offset = 0
