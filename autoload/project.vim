@@ -156,10 +156,8 @@ endfunction
 function! s:InitConfig()
   let s:config = deepcopy(s:GetConfig('config', {}))
   let s:config_home = expand(s:config.config_home)
-  let s:open_root_when_use_session =
-        \s:config.open_root_when_use_session
-  let s:check_branch_when_use_session =
-        \s:config.check_branch_when_use_session
+  let s:open_root_when_use_session = s:config.open_root_when_use_session
+  let s:check_branch_when_use_session = s:config.check_branch_when_use_session
   let s:use_session = s:config.use_session
   let s:project_root = s:config.project_root
   let s:project_base = s:RemoveListTrailingSlash(s:config.project_base)
@@ -865,6 +863,9 @@ function! s:GetRunTasksDisplay(tasks)
   for task in a:tasks
     if has_key(task, '__name')
       let task_row = task.__name.'  '.task.__cmd
+      if has_key(task, 'cd')
+        let task_row .= '  ('.task.cd.')'
+      endif
       call add(display, task_row)
       call add(list, task)
     endif
@@ -903,7 +904,11 @@ function! s:RunTasksBufferUpdate(input)
   call s:HighlightCurrentLine(len(display))
   call s:HighlightInputChars(a:input)
   call s:HighlightRunTasksCmdOutput()
-  call s:ShowInputLine(a:input)
+  if a:input == ''
+    redraw
+  else
+    call s:ShowInputLine(a:input)
+  endif
 endfunction
 
 function! s:HighlightRunTasksCmdOutput()
@@ -985,8 +990,13 @@ function! s:GetTaskStatus(task)
 endfunction
 
 function! s:StartTerminalToRunTask(task)
+  let cwd = $vim_project
+  if has_key(a:task, 'cd')
+    let cwd .= '/'.a:task.cd
+  endif
+
   let options = { 
-        \'cwd': $vim_project,
+        \'cwd': cwd,
         \'term_name': a:task.name,
         \'term_rows': s:run_tasks_output_rows,
         \'hidden': 1,

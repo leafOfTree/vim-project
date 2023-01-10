@@ -195,19 +195,21 @@ When `Find in files`, you can press <kbd>c-r</kbd> to start to replace, <kbd>c-y
 
 - `name`: task name
 - `cmd`: command to run in terminal
+- `cd`: change directory to current project relatively
 
 For example, with below local config
 
 ```vim
 let g:vim_project_local_config = {
     \'tasks': [
-      \{ 
-        \'name': 'start', 
-        \'cmd': 'npm start' 
+      \{
+        \'name': 'dev',
+        \'cmd' : 'npm run dev',
+        \'cd'  : 'webapp'
       \},
       \{ 
         \'name': 'build', 
-        \'cmd': 'npm build' 
+        \'cmd': 'npm build'
       \}, 
     \],
 \}
