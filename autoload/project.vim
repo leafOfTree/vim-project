@@ -617,7 +617,7 @@ function! s:RenamePathInProjectAddConfig(path, new_fullpath)
   let adds = readfile(file)
 
   let target = s:ReplaceHomeWithTide(a:path)
-  let target_pat = '\s'.escape(target, '~\/')
+  let target_pat = '\s'.escape(target, '~\/').'\($\|\/\)'
   let idx = 0
   for line in adds
     if s:Include(line, target_pat)
@@ -2965,6 +2965,11 @@ function! s:RenameProject(project, new_name)
   let new_fullpath = a:project.path.'/'.a:new_name
   call rename(a:project.fullpath, new_fullpath)
   call s:RenamePathInProjectAddConfig(a:project.fullpath, s:ReplaceHomeWithTide(new_fullpath))
+
+  let config_path = s:GetProjectConfigPath(s:config_home, a:project)
+  let a:project.name = a:new_name
+  let new_config_path = s:GetProjectConfigPath(s:config_home, a:project)
+  call rename(config_path, new_config_path)
 endfunction
 
 function! s:SetEnvVariables()
