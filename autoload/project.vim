@@ -113,8 +113,8 @@ function! s:Prepare()
   let g:vim_project = {}
 
   let s:projects = []
-  let s:projects_ignore = []
   let s:projects_error = []
+  let s:projects_ignore = []
 endfunction
 
 
@@ -602,22 +602,44 @@ function! s:SaveToAddFile(path)
   call writefile([cmd], file, 'a')
 endfunction
 
-function! s:RemoveItemInPluginConfigAdd(path)
-  let target = s:ReplaceHomeWithTide(a:path)
-  let target_pat = '\s'.escape(target, '~\/').'[\/]\?$'
+function! s:RemoveItemInProjectAddConfig(path)
   let file = s:config_home.'/'.s:add_file
   let adds = readfile(file)
+  let idx = s:GetItemIndexInProjectAddConfig(adds, a:path)
+  if idx < len(adds)
+    call remove(adds, idx)
+    call writefile(adds, file)
+  endif
+endfunction
+
+function! s:RenamePathInProjectAddConfig(path, new_fullpath)
+  let file = s:config_home.'/'.s:add_file
+  let adds = readfile(file)
+
+  let target = s:ReplaceHomeWithTide(a:path)
+  let target_pat = '\s'.escape(target, '~\/')
   let idx = 0
   for line in adds
+    if s:Include(line, target_pat)
+      let adds[idx] = substitute(line, target_pat, ' '.a:new_fullpath, '')
+    endif
+    let idx += 1
+  endfor
+  call writefile(adds, file)
+endfunction
+
+function! s:GetItemIndexInProjectAddConfig(adds, path)
+  let target = s:ReplaceHomeWithTide(a:path)
+  let target_pat = '\s'.escape(target, '~\/').',\?'
+  let idx = 0
+  for line in a:adds
     if s:Include(line, target_pat)
       break
     endif
     let idx += 1
   endfor
-  if idx < len(adds)
-    call remove(adds, idx)
-    call writefile(adds, file)
-  endif
+
+  return idx
 endfunction
 
 function! s:SaveToPluginConfigIgnore(path)
@@ -2820,8 +2842,28 @@ function! s:RemoveProjectByName(name, is_recursive)
   endif
 endfunction
 
+function! s:RenameProjectByName(name, new_name)
+  let project = s:GetProjectByName(a:name, s:projects)
+  if empty(project)
+    let project = s:GetProjectByName(a:name, s:projects_error)
+  endif
+
+  if !empty(project)
+    call s:RenameProject(project, a:new_name)
+
+    let s:projects = []
+    let s:projects_error = []
+    call s:SourcePluginConfigFiles()
+  endif
+endfunction
+
 function! project#RemoveProjectByName(name)
   call s:RemoveProjectByName(a:name, 0)
+endfunction
+
+function! project#RenameProjectByName(names)
+  let [name, new_name] = split(a:names, ' ')
+  call s:RenameProjectByName(name, new_name)
 endfunction
 
 function! project#ReloadProject()
@@ -2893,26 +2935,36 @@ function! s:ClearCurrentProject(current)
 endfunction
 
 function! s:RemoveProject(project)
-  let target = a:project
-  if target == s:project
+  if a:project == s:project
     call s:QuitProject()
   endif
 
-  let idx = index(s:projects, target)
+  let idx = index(s:projects, a:project)
   if idx >= 0
     call remove(s:projects, idx)
   else
-    let idx = index(s:projects_error, target)
+    let idx = index(s:projects_error, a:project)
     if idx >= 0
       call remove(s:projects_error, idx)
     endif
   endif
 
   if idx >= 0
-    call s:Info('Removed record of '. target.name.' ('.target.path.')')
-    call s:SaveToPluginConfigIgnore(target.fullpath)
-    call s:RemoveItemInPluginConfigAdd(target.fullpath)
+    call s:Info('Removed record of '. a:project.name.' ('.a:project.path.')')
+    call s:SaveToPluginConfigIgnore(a:project.fullpath)
+    call s:RemoveItemInProjectAddConfig(a:project.fullpath)
   endif
+endfunction
+
+function! s:RenameProject(project, new_name)
+  if a:project == s:project
+    call s:QuitProject()
+  endif
+
+  call s:Info('Rename '.a:project.name.' to '.a:new_name.' ('.a:project.path.')')
+  let new_fullpath = a:project.path.'/'.a:new_name
+  call rename(a:project.fullpath, new_fullpath)
+  call s:RenamePathInProjectAddConfig(a:project.fullpath, s:ReplaceHomeWithTide(new_fullpath))
 endfunction
 
 function! s:SetEnvVariables()

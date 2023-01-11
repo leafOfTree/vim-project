@@ -110,10 +110,11 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 | ProjectRoot                | Open project root                        |
 | ProjectConfig              | Open project config `init.vim` (effective after save) |
 | ProjectAllConfig           | Open all projects config `project.add.vim` |
-| ProjectInfo                | Show project info                        |
+| ProjectInfo                | Show project brief info                  |
 | ProjectAllInfo             | Show project all info                    |
 | ProjectOpen `<name>`       | Open a project by name                   |
 | ProjectRemove `<name>`     | Remove a project by name                 |
+| ProjectRename `<name>` `<new_name>`     | Rename a project of `name` to `new_name`. Its folder's name is renamed, too |
 | ProjectQuit                | Quit project                             |
 | ProjectIgnore `<path>`     | Ignore project for auto detection        |
 
