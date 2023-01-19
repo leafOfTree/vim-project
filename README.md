@@ -212,16 +212,25 @@ let g:vim_project_local_config = {
         \'name': 'build', 
         \'cmd': 'npm build'
       \}, 
+      \{ 
+        \'name': 'terminal', 
+        \'cmd': ''
+      \}, 
     \],
 \}
 ```
 
+**Run/Rerun**
 You can press <kbd>Enter</kbd> on
 
 - task name to run/rerun the task
 - task output to open the corresponding terminal buffer (not work for nvim)
 
-Press <kbd><c-q></kbd> on task name to stop the task.
+**Stop**
+You can press <kbd>c-q</kbd> on task (name or output), to stop the task and remove its output.
+
+**Vim terminal**
+If you set `cmd` to empty string `''`, it'll call `:terminal` to open a new Vim terminal window.
 
 ## Config and Keymappings
 

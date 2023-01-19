@@ -900,8 +900,9 @@ function! s:GetRunTasksDisplay(tasks)
       endif
 
       let output = '  ['.status.']'
+      let item = {'name': task.name, 'cmd': task.cmd, 'output': output, 'lnum': 0}
       call add(display, output)
-      call add(list, {'name': task.name, 'output': output})
+      call add(list, item)
 
       if has('nvim')
         continue
@@ -911,8 +912,10 @@ function! s:GetRunTasksDisplay(tasks)
       for idx in range(s:run_tasks_output_rows, 1, -1)
         let line = term_getline(task.bufnr, row - idx)
         let output = '  '.line
+        let lnum = s:run_tasks_output_rows - idx + 1
+        let item = {'name': task.name, 'cmd': task.cmd, 'output': output, 'lnum': lnum}
         call add(display, output)
-        call add(list, {'name': task.name, 'output': output})
+        call add(list, item)
       endfor
     endif
   endfor
@@ -983,13 +986,13 @@ function! s:OpenTaskBuffer(task)
     return
   endif
 
-  let from_task = s:FindTaskByName(a:task.name)
+  let from_task = s:FindOriginalTask(a:task)
   execute 'sbuffer '.from_task.bufnr
 endfunction
 
-function! s:FindTaskByName(name)
+function! s:FindOriginalTask(task)
   for task in s:tasks
-    if task.name == a:name
+    if task.name == a:task.name && task.cmd == a:task.cmd
       return task
     endif
   endfor
@@ -1049,6 +1052,9 @@ endfunction
 function! s:StopTask(task)
   let is_prev_running = s:GetTaskStatus(a:task) == 'running'
   if !is_prev_running
+    if has_key(a:task, 'bufnr')
+      unlet a:task.bufnr
+    endif
     return
   endif
 
@@ -1063,11 +1069,18 @@ endfunction
 function! s:StopTaskHandler(input)
   let index = s:GetCurrentIndex()
 
-  let task = s:GetTarget()
+  let current_task = s:GetTarget()
+  if s:IsTaskOutput(current_task)
+    let index = index - current_task.lnum - 1
+  endif
+  let task = s:FindOriginalTask(current_task)
   call s:StopTask(task)
   call s:RunTasksBufferUpdate(a:input)
-
   call s:UpdateOffsetByIndex(index)
+endfunction
+
+function! s:IsTaskOutput(task)
+  return has_key(a:task, 'lnum')
 endfunction
 
 function! s:FilterRunTasks(tasks, filter)
