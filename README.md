@@ -123,7 +123,7 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 
 ### :Project `<path>[, option]`
 
-`path`: If `path` is relative or a project name , it'll search with current working directory and `g:vim_project_config.project_base` as path base . In addition, you can use <kbd>Tab</kbd> to auto complete the path. 
+`path`: If `path` is relative or a project name , it'll search with both current working directory and `g:vim_project_config.project_base` as path base . In addition, you can use <kbd>Tab</kbd> to auto complete the path.
 
 > Relative means path doesn't start with `/`, `~` or `C:/`.
 
@@ -135,7 +135,11 @@ Example
 ```vim
 Project /path/to/demo, { "note": "A demo" }
 
-" When g:vim_project_config.project_base is set to ['/path/to']
+" Current working directory (:pwd) is /path/to
+Project demo
+Project ../to
+
+" g:vim_project_config.project_base is set to ['/path/to']
 Project demo
 ```
 
@@ -153,7 +157,7 @@ To enable `:ProjectFindInFiles` on visually selected word, use `noremap` as foll
 noremap <c-f> :ProjectFindInFiles<cr>
 ```
 
-#### Config
+#### Config for search / find
 
 For consistency, the behaviors are controlled as below no matter which engine is used.
 
