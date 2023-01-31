@@ -239,8 +239,6 @@ function! project#AddProject(args)
     return 
   endif
 
-  call s:OpenProject(project)
-
   let save_path = s:ReplaceHomeWithTide(s:GetFullPath(path))
   if !empty(option)
     call s:SaveToAddFile(save_path.', '.json_encode(option))
@@ -248,9 +246,10 @@ function! project#AddProject(args)
     call s:SaveToAddFile(save_path)
   endif
   redraw
-  let message = 'Added '.path
-        \.'. Config created at '.s:ReplaceHomeWithTide(s:config_home)
+  let message = 'Added ['.path.']'
+        \.'. Config at ('.s:ReplaceHomeWithTide(s:config_home).')'
   call s:Info(message)
+  call s:OpenProject(project)
 endfunction
 
 function! s:AddProject(path, ...)
@@ -263,7 +262,7 @@ function! s:AddProject(path, ...)
         \)
   if hasProject
     if !s:sourcing_file
-      call s:Info('Already has '.a:path)
+      call s:Info('Already has ['.a:path.']')
     endif
     return [1, v:null]
   endif
@@ -2922,7 +2921,7 @@ function! s:OpenProject(project)
     call s:PostLoadProject()
 
     redraw
-    call s:Info('Opened '.new.name)
+    call s:Info('Opened ['.new.name.']')
   else
     call s:Info('Already opened')
   endif
@@ -2970,7 +2969,7 @@ function! s:RemoveProject(project)
   endif
 
   if idx >= 0
-    call s:Info('Removed record of '. a:project.name.' ('.a:project.path.')')
+    call s:Info('Removed record of ['. a:project.name.'] at ('.a:project.path.')')
     call s:SaveToPluginConfigIgnore(a:project.fullpath)
     call s:RemoveItemInProjectAddConfig(a:project.fullpath)
   endif
@@ -2981,7 +2980,7 @@ function! s:RenameProject(project, new_name)
     call s:QuitProject()
   endif
 
-  call s:Info('Rename '.a:project.name.' to '.a:new_name.' ('.a:project.path.')')
+  call s:Info('Renamed '.a:project.name.' to '.a:new_name.' ('.a:project.path.')')
   let new_fullpath = a:project.path.'/'.a:new_name
   call rename(a:project.fullpath, new_fullpath)
   call s:RenamePathInProjectAddConfig(a:project.fullpath, s:ReplaceHomeWithTide(new_fullpath))
@@ -3039,7 +3038,7 @@ endfunction
 
 function! s:QuitProject()
   if s:ProjectExists()
-    call s:Info('Quitted '.s:project.name)
+    call s:Info('Quitted ['.s:project.name.']')
     call s:SaveSession()
     call s:SourceQuitFile()
     call s:UnwatchOnInitFileChange()
