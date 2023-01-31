@@ -18,6 +18,7 @@ Project-wide
 - Search files by name
 - Find in files
 - Find and replace (**experimental**)
+- Run tasks
 - Config
 - Session (optional)
 
@@ -122,7 +123,7 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 
 ### :Project `<path>[, option]`
 
-`path`: If `path` is relative or a project name , it'll search with `g:vim_project_config.project_base` as path base . You can use <kbd>Tab</kbd> to auto complete the path. 
+`path`: If `path` is relative or a project name , it'll search with current working directory and `g:vim_project_config.project_base` as path base . In addition, you can use <kbd>Tab</kbd> to auto complete the path. 
 
 > Relative means path doesn't start with `/`, `~` or `C:/`.
 

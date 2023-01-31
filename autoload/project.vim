@@ -401,7 +401,8 @@ endfunction
 function! s:GetAbsolutePath(path)
   let path = a:path
   if s:IsRelativePath(path)
-    for base in s:project_base
+    let base_list = s:GetProjectBase()
+    for base in base_list
       let full_path = base.'/'.path
       if isdirectory(expand(full_path))
         return full_path
@@ -409,6 +410,10 @@ function! s:GetAbsolutePath(path)
     endfor
   endif
   return path
+endfunction
+
+function! s:GetProjectBase()
+  return insert(copy(s:project_base), getcwd())
 endfunction
 
 function! s:InitProjectConfig(project)
@@ -526,7 +531,8 @@ endfunction
 function! project#ListDirs(path, L, P)
   let head = s:GetPathHead(a:path)
   if s:IsRelativePath(a:path)
-    let head = join(s:project_base, ',').'/'.head
+    let base_list = s:GetProjectBase()
+    let head = join(base_list, ',').'/'.head
     let tail = a:path
   else
     let tail = s:GetPathTail(a:path)
