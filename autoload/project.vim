@@ -403,8 +403,8 @@ function! s:GetAbsolutePath(path)
   if s:IsRelativePath(path)
     let base_list = s:GetProjectBase()
     for base in base_list
-      let full_path = base.'/'.path
-      if isdirectory(expand(full_path))
+      let full_path = expand(fnamemodify(base.'/'.path, ':p:h'))
+      if isdirectory(full_path)
         return full_path
       endif
     endfor
