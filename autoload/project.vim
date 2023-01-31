@@ -388,6 +388,7 @@ function! s:GetFullPath(path)
   let path = s:RemovePathTrailingSlash(path)
   let path = s:GetAbsolutePath(path)
   let path = substitute(expand(path), '\', '\/', 'g')
+  call s:Debug('The full path is '.path)
   return path
 endfunction
 
@@ -403,7 +404,7 @@ function! s:GetAbsolutePath(path)
   if s:IsRelativePath(path)
     let base_list = s:GetProjectBase()
     for base in base_list
-      let full_path = expand(fnamemodify(base.'/'.path, ':p:h'))
+      let full_path = s:RemovePathTrailingSlash(expand(fnamemodify(base.'/'.path, ':p')))
       if isdirectory(full_path)
         return full_path
       endif
