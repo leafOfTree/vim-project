@@ -530,13 +530,12 @@ endfunction
 
 function! project#ListDirs(path, L, P)
   let head = s:GetPathHead(a:path)
+  let tail = s:GetPathTail(a:path)
   if s:IsRelativePath(a:path)
     let base_list = s:GetProjectBase()
-    let head = join(base_list, ',').'/'.head
-    let tail = a:path
-  else
-    let tail = s:GetPathTail(a:path)
+    let head = join(map(base_list, {_, val -> fnamemodify(val.'/'.head, ':p')}), ',')
   endif
+
   let dirs = split(globpath(head, '*'), "\n")
   call map(dirs,
         \{_, val -> s:ReplaceBackSlash(val)})
@@ -548,7 +547,7 @@ function! project#ListDirs(path, L, P)
   call map(dirs,
         \{_, val -> s:ReplaceHomeWithTide(val)})
 
-  " If only one found, append a '/' to its end to show difference
+  " If only one found, append a '/' to differentiate it from user input
   if len(dirs) == 1 && isdirectory(expand(dirs[0]))
     let dirs[0] = dirs[0].'/'
   endif
@@ -561,7 +560,11 @@ function! s:GetPathHead(path)
 endfunction
 
 function! s:GetPathTail(path)
-  return matchstr(a:path, '.*/\zs[^/]*$')
+  let tail = matchstr(a:path, '^[^/]*$')
+  if empty(tail)
+    let tail = matchstr(a:path, '.*/\zs[^/]*$')
+  endif
+  return tail
 endfunction
 
 " Call this entry function first
