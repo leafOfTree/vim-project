@@ -893,7 +893,7 @@ function! s:GetRunTasksDisplay(tasks)
     if has_key(task, '__name')
       let task_row = task.__name.'  '.task.__cmd
       if has_key(task, 'cd')
-        let task_row .= '  ('.task.cd.')'
+        let task_row .= '  (cd '.task.cd.')'
       endif
       call add(display, task_row)
       call add(list, task)
@@ -3242,11 +3242,15 @@ function! s:ReadLocalConfig()
     for key in s:local_config_keys
       if has_key(local_config, key)
         if type(local_config[key]) == v:t_list
-          let s:[key] = extend(copy(s:[key]), local_config[key])
-          continue
+          " Change the order for tasks so common tasks come first
+          if key == 'tasks'
+            let s:[key] = extend(local_config[key], copy(s:[key]))
+          else
+            let s:[key] = extend(copy(s:[key]), local_config[key])
+          endif
+        else
+          let s:[key] = local_config[key]
         endif
-
-        let s:[key] = local_config[key]
       endif
     endfor
   endif
