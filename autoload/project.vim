@@ -2843,7 +2843,7 @@ function! project#OpenProjectByName(name)
   if !empty(project)
     call s:OpenProject(project)
   else
-    call s:Warn('Project not found: '.a:name)
+    call s:Warn('Project not found: ['.a:name.']')
   endif
 endfunction
 
@@ -2857,7 +2857,7 @@ function! s:RemoveProjectByName(name, is_recursive)
     call s:RemoveProject(project)
     call s:RemoveProjectByName(a:name, 1)
   elseif !a:is_recursive
-    call s:Warn('Project not found: '.a:name)
+    call s:Warn('Project not found: ['.a:name.']')
   endif
 endfunction
 
@@ -2969,7 +2969,7 @@ function! s:RemoveProject(project)
   endif
 
   if idx >= 0
-    call s:Info('Removed record of ['. a:project.name.'] at ('.a:project.path.')')
+    call s:Info('Removed the record of ['. a:project.name.'] from ('.a:project.path.')')
     call s:SaveToPluginConfigIgnore(a:project.fullpath)
     call s:RemoveItemInProjectAddConfig(a:project.fullpath)
   endif
