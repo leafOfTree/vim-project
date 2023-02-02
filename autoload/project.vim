@@ -692,7 +692,7 @@ function! s:SetStartProjectOnBufEnter()
   let s:start_project = project
 endfunction
 
-function! s:DoBufEvent()
+function! s:DoBufEventOnVimEnter()
   doautoall BufRead
   doautoall BufEnter
 endfunction
@@ -705,7 +705,7 @@ function! s:AutoloadOnVimEnter()
   let s:loading_on_vim_enter = 1
   execute 'ProjectOpen '.s:start_project.name
   let s:loading_on_vim_enter = 0
-  call s:DoBufEvent()
+  call s:DoBufEventOnVimEnter()
 endfunction
 
 function! s:AutoDetectProject()
