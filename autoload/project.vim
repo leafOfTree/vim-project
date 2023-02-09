@@ -888,6 +888,11 @@ function! s:RunTasksBufferUpdateTimer(input, id)
   call s:RunTasksBufferUpdate(a:input)
 endfunction
 
+function! s:GetTaskStatusLine(status)
+  let icon = a:status == 'finished' ? '🏁' : '🏃'
+  return '  ['.a:status.'] '.icon
+endfunction
+
 function! s:GetRunTasksDisplay(tasks)
   let display = []
   let list = []
@@ -908,7 +913,7 @@ function! s:GetRunTasksDisplay(tasks)
         continue
       endif
 
-      let output = '  ['.status.']'
+      let output = s:GetTaskStatusLine(status)
       let item = {'name': task.name, 'cmd': task.cmd, 'output': output, 'lnum': 0}
       call add(display, output)
       call add(list, item)
@@ -2605,9 +2610,11 @@ function! s:HandleInput(input, Update, Open)
         break
       elseif s:IsOpenCmd(cmd)
         if s:IsRunTasksList()
-          let keep_window = s:OpenTarget('', input, a:Open)
-          if !keep_window
-            break
+          if cmd == 'open'
+            let keep_window = s:OpenTarget('', input, a:Open)
+            if !keep_window
+              break
+            endif
           endif
         else
           break
