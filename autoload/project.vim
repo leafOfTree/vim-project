@@ -24,6 +24,7 @@ function! s:Prepare()
   let s:update_timer = 0
   let s:sourcing_file = 0
   let s:init_input = ''
+  let s:user_input = ''
   let s:list_buffer = 'vim_project_list'
   let s:nerdtree_tmp = 'vim_project_nerdtree_tmp'
   let s:is_win_version = has('win32') || has('win64')
@@ -945,11 +946,7 @@ function! s:RunTasksBufferUpdate(input)
   call s:HighlightInputChars(a:input)
   call s:HighlightRunTasksCmdOutput()
   call s:HighlightNoResults()
-  if a:input == ''
-    redraw
-  else
-    call s:ShowInputLine(a:input)
-  endif
+  call s:RedrawInputLine()
 endfunction
 
 function! s:HighlightRunTasksCmdOutput()
@@ -1367,7 +1364,7 @@ function! s:AddToListBuffer(display, input)
     call append(0, a:display)
   else
     if len(a:input) > 1
-      call append(0, '- No results for '.a:input)
+      call append(0, '- No results for: '.a:input)
     endif
   endif
 endfunction
@@ -2311,7 +2308,7 @@ function! s:FindInFilesBufferUpdateTimer(input)
   if !s:ShouldRunFindInFiles(a:input) || empty(a:input)
     call s:FindInFilesBufferUpdate(a:input, 0, 0)
   else
-    let s:update_timer = timer_start(350,
+    let s:update_timer = timer_start(200,
           \function('s:FindInFilesBufferUpdate', [a:input, 0]))
   endif
 endfunction
@@ -2381,12 +2378,12 @@ function! s:ShowFindInFilesResult(display, search, replace, full_input, id)
     call s:HighlightReplaceChars(a:search, a:replace)
     call s:HighlighExtraInfo()
     call s:HighlightNoResults()
-    call s:ShowInputLine(a:full_input)
+    call s:RedrawInputLine()
   endif
 endfunction
 
 function! s:HighlightNoResults()
-  call matchadd('Comment', '- No results for.*')
+  call matchadd('Comment', '- No results for:.*')
 endfunction
 
 function! s:HighlighExtraInfo()
@@ -2487,14 +2484,14 @@ endfunction
 
 function! s:ShowInputLine(input)
   redraw
-
   " Fix cursor flashing when in terminal
   echo ''
-
-  " Workaround to fix cursor rebound
-  " by using U+00A0 NO-BREAK SPACE in place of SPACE at the end
   let input = substitute(a:input, ' $', ' ', '')
   echo s:prefix.' '.input
+endfunction
+
+function! s:RedrawInputLine()
+  call s:ShowInputLine(s:user_input)
 endfunction
 
 function! s:ShowInitialInputLine(input, ...)
@@ -2641,6 +2638,7 @@ function! s:HandleInput(input, Update, Open)
       endif
 
       call a:Update(input)
+      let s:user_input = input
       call s:ShowInputLine(input)
     endwhile
   catch /^Vim:Interrupt$/
