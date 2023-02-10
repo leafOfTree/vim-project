@@ -944,6 +944,7 @@ function! s:RunTasksBufferUpdate(input)
   call s:HighlightCurrentLine(len(display))
   call s:HighlightInputChars(a:input)
   call s:HighlightRunTasksCmdOutput()
+  call s:HighlightNoResults()
   if a:input == ''
     redraw
   else
@@ -1347,7 +1348,7 @@ function! s:ShowInListBuffer(display, input)
     return
   endif
 
-  call s:AddToListBuffer(a:display)
+  call s:AddToListBuffer(a:display, a:input)
   let length = len(a:display)
   call s:AdjustHeight(length, a:input)
   call s:AddEmptyLines(length)
@@ -1360,10 +1361,14 @@ function! s:RemoveExtraBlankLineAtBottom()
   normal! G
 endfunction
 
-function! s:AddToListBuffer(display)
+function! s:AddToListBuffer(display, input)
   normal! gg"_dG
   if len(a:display) > 0
     call append(0, a:display)
+  else
+    if len(a:input) > 1
+      call append(0, '- No results for '.a:input)
+    endif
   endif
 endfunction
 
@@ -1620,6 +1625,7 @@ function! s:ProjectListBufferUpdate(input)
   call s:ShowInListBuffer(display, a:input)
   call s:HighlightCurrentLine(len(display))
   call s:HighlightInputChars(a:input)
+  call s:HighlightNoResults()
 endfunction
 
 function! s:ProjectListBufferOpen(project, open_cmd, input)
@@ -1970,6 +1976,7 @@ function! s:SearchFilesBufferUpdate(input)
   call s:ShowInListBuffer(display, a:input)
   call s:HighlightCurrentLine(len(display))
   call s:HighlightInputChars(a:input)
+  call s:HighlightNoResults()
 endfunction
 
 function! s:SearchFilesBufferOpen(target, open_cmd, input)
@@ -2301,7 +2308,7 @@ endfunction
 
 function! s:FindInFilesBufferUpdateTimer(input)
   call timer_stop(s:update_timer)
-  if !s:ShouldRunFindInFiles(a:input)
+  if !s:ShouldRunFindInFiles(a:input) || empty(a:input)
     call s:FindInFilesBufferUpdate(a:input, 0, 0)
   else
     let s:update_timer = timer_start(350,
@@ -2373,8 +2380,13 @@ function! s:ShowFindInFilesResult(display, search, replace, full_input, id)
     call s:HighlightSearchAsPattern(a:search)
     call s:HighlightReplaceChars(a:search, a:replace)
     call s:HighlighExtraInfo()
+    call s:HighlightNoResults()
     call s:ShowInputLine(a:full_input)
   endif
+endfunction
+
+function! s:HighlightNoResults()
+  call matchadd('Comment', '- No results for.*')
 endfunction
 
 function! s:HighlighExtraInfo()
@@ -2479,7 +2491,10 @@ function! s:ShowInputLine(input)
   " Fix cursor flashing when in terminal
   echo ''
 
-  echo s:prefix.' '.a:input
+  " Workaround to fix cursor rebound
+  " by using U+00A0 NO-BREAK SPACE in place of SPACE at the end
+  let input = substitute(a:input, ' $', ' ', '')
+  echo s:prefix.' '.input
 endfunction
 
 function! s:ShowInitialInputLine(input, ...)
