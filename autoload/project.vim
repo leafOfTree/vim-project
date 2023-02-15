@@ -946,7 +946,11 @@ function! s:RunTasksBufferUpdate(input)
   call s:HighlightInputChars(a:input)
   call s:HighlightRunTasksCmdOutput()
   call s:HighlightNoResults()
-  call s:RedrawInputLine()
+  if empty(a:input)
+    call s:ShowInputLine('')
+  else
+    call s:RedrawInputLine()
+  endif
 endfunction
 
 function! s:HighlightRunTasksCmdOutput()
@@ -2487,7 +2491,7 @@ function! s:ShowInputLine(input)
   " Fix cursor flashing when in terminal
   echo ''
   let input = substitute(a:input, ' $', ' ', '')
-  echo s:prefix.' '.input
+  echo s:prefix.' '.input
 endfunction
 
 function! s:RedrawInputLine()
