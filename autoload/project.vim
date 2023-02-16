@@ -29,7 +29,7 @@ function! s:Prepare()
   let s:nerdtree_tmp = 'vim_project_nerdtree_tmp'
   let s:is_win_version = has('win32') || has('win64')
   let s:view_index = 0
-  let s:run_tasks_output_rows = 10
+  let s:run_tasks_output_rows = 15
 
   let s:note_prefix = '- '
   let s:column_pattern = '\S*\(\s\S\+\)*'
@@ -81,9 +81,6 @@ function! s:Prepare()
 
   let s:default.list_mappings = {
         \'open':                 "\<cr>",
-        \'open_split':           "\<c-s>",
-        \'open_vsplit':          "\<c-v>",
-        \'open_tabedit':         "\<c-t>",
         \'close_list':           "\<esc>",
         \'clear_char':           ["\<bs>", "\<c-a>"],
         \'clear_word':           "\<c-w>",
@@ -94,14 +91,30 @@ function! s:Prepare()
         \'last_item':            ["\<c-l>", "\<right>"],
         \'scroll_up':            "\<c-p>",
         \'scroll_down':          "\<c-n>",
+        \'paste':                "\<c-b>",
+        \'switch_to_list':       "\<c-o>",
+        \}
+  let s:default.list_mappings_projects = {
         \'prev_view':            "\<s-tab>",
         \'next_view':            "\<tab>",
-        \'paste':                "\<c-b>",
+        \}
+  let s:default.list_mappings_search_files = {
+        \'open_split':           "\<c-s>",
+        \'open_vsplit':          "\<c-v>",
+        \'open_tabedit':         "\<c-t>",
+        \}
+  let s:default.list_mappings_find_in_files = {
+        \'open_split':           "\<c-s>",
+        \'open_vsplit':          "\<c-v>",
+        \'open_tabedit':         "\<c-t>",
         \'replace_prompt':       "\<c-r>",
         \'replace_dismiss_item': "\<c-d>",
         \'replace_confirm':      "\<c-y>",
-        \'stop_task':            "\<c-q>",
-        \'switch_to_list':       "\<c-o>",
+        \}
+  let s:default.list_mappings_run_tasks = {
+        \'run_task':              "\<cr>",
+        \'stop_task':             "\<c-q>",
+        \'open_task_terminal':    "\<c-o>",
         \}
   let s:default.file_open_types = {
         \'':  'edit',
@@ -134,17 +147,20 @@ function! s:MergeUserConfigIntoDefault(user, default)
   let user = a:user
   let default = a:default
 
-  if has_key(user, 'file_open_types')
-    let user.file_open_types = s:MergeUserConfigIntoDefault(
-          \user.file_open_types,
-          \default.file_open_types)
-  endif
+  let merge_keys = [
+        \'file_open_types',
+        \'list_mappings',
+        \'list_mappings_projects',
+        \'list_mappings_search_files'
+        \'list_mappings_find_in_files'
+        \'list_mappings_run_tasks',
+        \]
 
-  if has_key(user, 'list_mappings')
-    let user.list_mappings = s:MergeUserConfigIntoDefault(
-          \user.list_mappings,
-          \default.list_mappings)
-  endif
+  for key in merge_keys
+    if has_key(user, key)
+      let user[key] = s:MergeUserConfigIntoDefault(user[key], default[key])
+    endif
+  endfor
 
   for key in keys(default)
     if has_key(user, key)
@@ -178,6 +194,10 @@ function! s:InitConfig()
   let s:project_views = s:config.project_views
   let s:file_mappings = s:config.file_mappings
   let s:list_mappings = s:config.list_mappings
+  let s:list_mappings_projects = s:config.list_mappings_projects
+  let s:list_mappings_search_files = s:config.list_mappings_search_files
+  let s:list_mappings_find_in_files = s:config.list_mappings_find_in_files
+  let s:list_mappings_run_tasks = s:config.list_mappings_run_tasks
   let s:open_types = s:config.file_open_types
   let s:tasks = s:config.tasks
   let s:debug = s:config.debug
@@ -675,8 +695,8 @@ endfunction
 function! s:WatchOnInitFileChange()
   augroup vim-project-init-file-change
     autocmd! vim-project-init-file-change
-    autocmd BufLeave $vim_project_config/init.vim call s:Info('Config Reloaded')
-    autocmd BufLeave $vim_project_config/init.vim call s:SourceInitFile()
+    autocmd BufWritePost $vim_project_config/init.vim call s:Info('Config Reloaded')
+    autocmd BufWritePost $vim_project_config/init.vim call s:SourceInitFile()
   augroup END
 endfunction
 
@@ -965,17 +985,13 @@ endfunction
 "   1: keep current window,
 "   0: exit current window
 function! s:RunTasksBufferOpen(task, open_cmd, input)
-  if s:ShouldOpenTaskBuffer(a:task)
-    if a:open_cmd == ''
-      return 0
-    endif
-
-    call s:OpenTaskBuffer(a:task)
-    return 0
+  if a:open_cmd == 'open_task_terminal'
+    return s:OpenTaskTerminal(a:task)
   endif
 
-  if s:IsEmptyCmd(a:task)
-    if a:open_cmd == ''
+  " Open vim terminal if the task has empty cmd
+  if s:hasEmptyTaskCmd(a:task)
+    if a:open_cmd == '@pass'
       return 0
     endif
 
@@ -990,31 +1006,16 @@ function! s:RunTasksBufferOpen(task, open_cmd, input)
   return s:RunTask(a:task)
 endfunction
 
-function! s:ShouldOpenTaskBuffer(task)
-  let is_output = has_key(a:task, 'output')
-  let open_task_buffer = is_output
-  return open_task_buffer
-endfunction
-
-function! s:IsEmptyCmd(task)
+function! s:hasEmptyTaskCmd(task)
   return !has_key(a:task, 'cmd') || a:task.cmd == ''
 endfunction
 
-function! s:OpenTaskBuffer(task)
+function! s:OpenTaskTerminal(task)
   if has('nvim')
     return
   endif
 
-  let from_task = s:FindOriginalTask(a:task)
-  execute 'sbuffer '.from_task.bufnr
-endfunction
-
-function! s:FindOriginalTask(task)
-  for task in s:tasks
-    if task.name == a:task.name && task.cmd == a:task.cmd
-      return task
-    endif
-  endfor
+  execute 'sbuffer '.a:task.bufnr
 endfunction
 
 function! s:GetTaskStatus(task)
@@ -1087,12 +1088,7 @@ endfunction
 
 function! s:StopTaskHandler(input)
   let index = s:GetCurrentIndex()
-
-  let current_task = s:GetTarget()
-  if s:IsTaskOutput(current_task)
-    let index = index - current_task.lnum - 1
-  endif
-  let task = s:FindOriginalTask(current_task)
+  let task = s:GetTarget()
   call s:StopTask(task)
   call s:RunTasksBufferUpdate(a:input)
   call s:UpdateOffsetByIndex(index)
@@ -1602,19 +1598,33 @@ function! s:TabulateList(list, keys, no_limit_keys, min_col_width, max_col_width
 endfunction
 
 function! s:GetListCommand(char)
-  let command = ''
-  for [key, value] in items(s:list_mappings)
-    if type(value) == v:t_string
-      let match = value == a:char
-    else
-      let match = count(value, a:char) > 0
-    endif
-    if match
-      let command = key
-      break
-    endif
+  let mappings = {}
+  if s:list_type == 'PROJECTC'
+    let mappings = s:list_mappings_projects
+  elseif s:list_type == 'SEARCH_FILES'
+    let mappings = s:list_mappings_search_files
+  elseif s:list_type == 'FIND_IN_FILES'
+    let mappings = s:list_mappings_find_in_files
+  elseif s:list_type == 'RUN_TASKS'
+    let mappings = s:list_mappings_run_tasks
+  endif
+  " the first takes effect
+  let list_mappings = [mappings, s:list_mappings]
+
+  for mappings in list_mappings
+    for [command, value] in items(mappings)
+      if type(value) == v:t_string
+        let match = value == a:char
+      else
+        let match = count(value, a:char) > 0
+      endif
+
+      if match
+        return command
+      endif
+    endfor
   endfor
-  return command
+  return ''
 endfunction
 
 function! s:ProjectListBufferInit(input)
@@ -2508,10 +2518,9 @@ endfunction
 function! s:RenderList(Init, Update, Open)
   let input = s:InitListVariables(a:Init)
   call s:ShowInitialInputLine(input)
-
   let [cmd, input] = s:HandleInput(input, a:Update, a:Open)
-
   call s:CloseListBuffer(cmd)
+
   if s:IsOpenCmd(cmd)
     call s:OpenTarget(cmd, input, a:Open)
   endif
@@ -2627,17 +2636,15 @@ function! s:HandleInput(input, Update, Open)
         break
       elseif cmd == 'switch_to_list'
         break
-      elseif s:IsOpenCmd(cmd)
-        if s:IsRunTasksList()
-          if cmd == 'open'
-            let keep_window = s:OpenTarget('', input, a:Open)
-            if !keep_window
-              break
-            endif
-          endif
-        else
+      elseif cmd == 'open_task_terminal'
+        break
+      elseif cmd == 'run_task'
+        let keep_window = s:OpenTarget('@pass', input, a:Open)
+        if !keep_window
           break
         endif
+      elseif s:IsOpenCmd(cmd)
+        break
       elseif cmd == 'stop_task'
         call s:StopTaskHandler(input)
       else
@@ -2659,7 +2666,7 @@ endfunction
 
 function! s:MoveToPrevItem()
   if s:IsRunTasksList()
-    let current_line = s:GetCurrentIndex() + 1
+    let current_line = s:GetCurrentLineNumber()
     call cursor(current_line, 0)
     let prev_task_line = search('^\w', 'bnW')
     let s:offset -= current_line - prev_task_line
@@ -2670,7 +2677,7 @@ endfunction
 
 function! s:MoveToNextItem()
   if s:IsRunTasksList()
-    let current_line = s:GetCurrentIndex() + 1
+    let current_line = s:GetCurrentLineNumber()
     call cursor(current_line, 0)
     let next_task_line = search('^\w', 'nW')
     if next_task_line > current_line
@@ -2679,6 +2686,10 @@ function! s:MoveToNextItem()
   else
     let s:offset += 1
   endif
+endfunction
+
+function! s:GetCurrentLineNumber()
+  return winheight(0) - len(s:list) + s:GetCurrentIndex() + 1
 endfunction
 
 function! s:ConfirmFindReplace(input)
@@ -2745,7 +2756,7 @@ function! s:DismissFindReplaceItem()
 endfunction
 
 function! s:IsOpenCmd(cmd)
-  let open_cmds = ['open', 'open_split', 'open_vsplit', 'open_tabedit']
+  let open_cmds = ['open', 'open_split', 'open_vsplit', 'open_tabedit', 'run_task', 'open_task_terminal']
   return count(open_cmds, a:cmd) > 0
 endfunction
 
