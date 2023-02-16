@@ -673,12 +673,15 @@ function! s:WatchOnBufEnter()
 endfunction
 
 function! s:WatchOnInitFileChange()
-  autocmd BufWritePost $vim_project_config/init.vim call s:Info('Config Reloaded')
-  autocmd BufWritePost $vim_project_config/init.vim call s:SourceInitFile()
+  augroup vim-project-init-file-change
+    autocmd! vim-project-init-file-change
+    autocmd BufLeave $vim_project_config/init.vim call s:Info('Config Reloaded')
+    autocmd BufLeave $vim_project_config/init.vim call s:SourceInitFile()
+  augroup END
 endfunction
 
 function! s:UnwatchOnInitFileChange()
-  autocmd! BufWritePost $vim_project_config/init.vim
+  autocmd! vim-project-init-file-change
 endfunction
 
 function! s:SetStartProjectOnBufEnter()
@@ -2598,9 +2601,9 @@ function! s:HandleInput(input, Update, Open)
       elseif cmd == 'clear_all'
         let input = ''
       elseif cmd == 'prev_item'
-        let s:offset -= 1
+        call s:MoveToPrevItem()
       elseif cmd == 'next_item'
-        let s:offset += 1
+        call s:MoveToNextItem()
       elseif cmd == 'first_item'
         let s:offset = 1 - len(s:list)
       elseif cmd == 'last_item'
@@ -2652,6 +2655,30 @@ function! s:HandleInput(input, Update, Open)
   endtry
 
   return [cmd, input]
+endfunction
+
+function! s:MoveToPrevItem()
+  if s:IsRunTasksList()
+    let current_line = s:GetCurrentIndex() + 1
+    call cursor(current_line, 0)
+    let prev_task_line = search('^\w', 'bnW')
+    let s:offset -= current_line - prev_task_line
+  else
+    let s:offset -= 1
+  endif
+endfunction
+
+function! s:MoveToNextItem()
+  if s:IsRunTasksList()
+    let current_line = s:GetCurrentIndex() + 1
+    call cursor(current_line, 0)
+    let next_task_line = search('^\w', 'nW')
+    if next_task_line > current_line
+      let s:offset += next_task_line - current_line
+    endif
+  else
+    let s:offset += 1
+  endif
 endfunction
 
 function! s:ConfirmFindReplace(input)
