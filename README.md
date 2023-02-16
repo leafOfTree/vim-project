@@ -52,7 +52,7 @@ Project-wide
 - `:ProjectSearchFiles`
 - `:ProjectFindInFiles`
 
-In a list, filter and select an item by <kbd>Up</kbd> <kbd>Down</kbd>. Then press <kbd>Enter</kbd> to open it. 
+In a list, filter by typing. Select an item by <kbd>c-j</kbd>, <kbd>c-k</kbd> or the arrow keys. Then press <kbd>Enter</kbd> to open it. 
 
 See [Config and Keymappings](#config_keymappings) for details. 
 
@@ -225,16 +225,14 @@ let g:vim_project_local_config = {
 \}
 ```
 
-**Run/Rerun**
-You can press <kbd>Enter</kbd> on
+**Run, Rerun, Stop**: 
+You can press 
 
-- task name to run/rerun the task
-- task output to open the corresponding terminal buffer (not work for nvim)
+- <kbd>Enter</kbd> to run/rerun the task
+- <kbd>c-q</kbd> to stop the task and remove its output.
+- <kbd>c-o</kbd> to open the corresponding terminal buffer (not work for nvim)
 
-**Stop**
-You can press <kbd>c-q</kbd> on task (name or output), to stop the task and remove its output.
-
-**Vim terminal**
+**Vim terminal**: 
 If you set `cmd` to empty string `''`, it'll call `:terminal` to open a new Vim terminal window.
 
 ## Config and Keymappings
@@ -270,30 +268,43 @@ let g:vim_project_config = {
       \}
 
 " Keymappings for list prompt
-let g:vim_project_config.list_mappings = {
-      \'open':                 "\<cr>",
-      \'open_split':           "\<c-s>",
-      \'open_vsplit':          "\<c-v>",
-      \'open_tabedit':         "\<c-t>",
-      \'close_list':           "\<esc>",
-      \'clear_char':           ["\<bs>", "\<c-a>"],
-      \'clear_word':           "\<c-w>",
-      \'clear_all':            "\<c-u>",
-      \'prev_item':            ["\<c-k>", "\<up>"],
-      \'next_item':            ["\<c-j>", "\<down>"],
-      \'first_item':           ["\<c-h>", "\<left>"],
-      \'last_item':            ["\<c-l>", "\<right>"],
-      \'scroll_up':            "\<c-p>",
-      \'scroll_down':          "\<c-n>",
-      \'prev_view':            "\<s-tab>",
-      \'next_view':            "\<tab>",
-      \'paste':                "\<c-b>",
-      \'replace_prompt':       "\<c-r>",
-      \'replace_dismiss_item': "\<c-d>",
-      \'replace_confirm':      "\<c-y>",
-      \'stop_task':            "\<c-q>",
-      \'switch_to_list':       "\<c-o>",
-      \}
+  let s:default.list_mappings = {
+        \'open':                 "\<cr>",
+        \'close_list':           "\<esc>",
+        \'clear_char':           ["\<bs>", "\<c-a>"],
+        \'clear_word':           "\<c-w>",
+        \'clear_all':            "\<c-u>",
+        \'prev_item':            ["\<c-k>", "\<up>"],
+        \'next_item':            ["\<c-j>", "\<down>"],
+        \'first_item':           ["\<c-h>", "\<left>"],
+        \'last_item':            ["\<c-l>", "\<right>"],
+        \'scroll_up':            "\<c-p>",
+        \'scroll_down':          "\<c-n>",
+        \'paste':                "\<c-b>",
+        \'switch_to_list':       "\<c-o>",
+        \}
+  let s:default.list_mappings_projects = {
+        \'prev_view':            "\<s-tab>",
+        \'next_view':            "\<tab>",
+        \}
+  let s:default.list_mappings_search_files = {
+        \'open_split':           "\<c-s>",
+        \'open_vsplit':          "\<c-v>",
+        \'open_tabedit':         "\<c-t>",
+        \}
+  let s:default.list_mappings_find_in_files = {
+        \'open_split':           "\<c-s>",
+        \'open_vsplit':          "\<c-v>",
+        \'open_tabedit':         "\<c-t>",
+        \'replace_prompt':       "\<c-r>",
+        \'replace_dismiss_item': "\<c-d>",
+        \'replace_confirm':      "\<c-y>",
+        \}
+  let s:default.list_mappings_run_tasks = {
+        \'run_task':              "\<cr>",
+        \'stop_task':             "\<c-q>",
+        \'open_task_terminal':    "\<c-o>",
+        \}
 ```
 
 | Option                        | Description                                                                   |
