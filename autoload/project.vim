@@ -982,8 +982,9 @@ function! s:RunTasksBufferUpdate(input)
 endfunction
 
 function! s:HighlightRunTasksCmdOutput()
-  2match InfoRow /^\s\{2,}.*/
-  match Status '\[running.*\]'
+  match InfoRow /^\s\{2,}.*/
+  2match Status '\[running.*\]'
+  3match Special '\[finished.*\]'
 endfunction
 
 " @return:
