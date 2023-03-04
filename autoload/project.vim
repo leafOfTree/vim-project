@@ -937,8 +937,9 @@ function! s:GetRunTasksDisplay(tasks)
         continue
       endif
 
+      " Add task status
       let output = s:GetTaskStatusLine(status)
-      let item = {'name': task.name, 'cmd': task.cmd, 'output': output, 'lnum': 0}
+      let item = {'name': task.name, 'cmd': task.cmd, 'output': output}
       call add(display, output)
       call add(list, item)
 
@@ -946,12 +947,16 @@ function! s:GetRunTasksDisplay(tasks)
         continue
       endif
 
+      " Add task output
       let [row, col, dict] = term_getcursor(task.bufnr)
-      for idx in range(s:run_tasks_output_rows, 1, -1)
-        let line = term_getline(task.bufnr, row - idx)
-        let output = '  '.line
-        let lnum = s:run_tasks_output_rows - idx + 1
-        let item = {'name': task.name, 'cmd': task.cmd, 'output': output, 'lnum': lnum}
+      for idx in range(1, s:run_tasks_output_rows, 1)
+        if row - idx < 0
+          let output = '  '
+        else
+          let line = term_getline(task.bufnr, idx)
+          let output = '  '.line
+        endif
+        let item = {'name': task.name, 'cmd': task.cmd, 'output': output}
         call add(display, output)
         call add(list, item)
       endfor
@@ -1092,10 +1097,6 @@ function! s:StopTaskHandler(input)
   call s:StopTask(task)
   call s:RunTasksBufferUpdate(a:input)
   call s:UpdateOffsetByIndex(index)
-endfunction
-
-function! s:IsTaskOutput(task)
-  return has_key(a:task, 'lnum')
 endfunction
 
 function! s:FilterRunTasks(tasks, filter)
@@ -2689,7 +2690,11 @@ function! s:MoveToNextItem()
 endfunction
 
 function! s:GetCurrentLineNumber()
-  return winheight(0) - len(s:list) + s:GetCurrentIndex() + 1
+  if winheight(0) > len(s:list)
+    return winheight(0) - len(s:list) + s:GetCurrentIndex() + 1
+  endif
+
+  return s:GetCurrentIndex() + 1
 endfunction
 
 function! s:ConfirmFindReplace(input)
