@@ -10,7 +10,8 @@ function! s:TrimQuote(args)
   return args
 endfunction
 
-command ProjectList call project#ListProjects()
+" command ProjectList call project#ListProjects()
+command ProjectList call project#list_projects#init()
 command ProjectQuit call project#QuitProject()
 command ProjectConfigReload call project#ReloadProject()
 command ProjectInfo call project#ShowProjectInfo()
@@ -18,7 +19,7 @@ command ProjectAllInfo call project#ShowProjectAllInfo()
 command ProjectRoot call project#OpenProjectRoot()
 command ProjectConfig call project#OpenProjectConfig()
 command ProjectAllConfig call project#OpenAllConfig()
-command -nargs=? ProjectOutput call project#OutputProjects(<q-args>)
+command -nargs=? ProjectOutput call project#list_projects#OutputProjects(<q-args>)
 
 command -complete=customlist,project#ListProjectNames -nargs=1
       \ ProjectOpen call project#OpenProjectByName(s:TrimQuote(<q-args>))

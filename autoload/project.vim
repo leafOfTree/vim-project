@@ -2,9 +2,6 @@ if exists('g:vim_project_loaded') | finish | endif
 
 function! s:Prepare()
   let s:name = 'vim-project'
-  let s:project_list_prefix = 'Open a project:'
-  let s:search_files_prefix = 'Search files by name:'
-  let s:find_in_files_prefix = 'Find in files:'
   let s:search_replace_separator = ' => '
   let s:find_in_files_show_max = 200
   let s:find_in_files_stop_max = 100000
@@ -130,7 +127,6 @@ function! s:Prepare()
   let s:projects_error = []
   let s:projects_ignore = []
 endfunction
-
 
 function! s:GetConfig(name, default)
   let name = 'g:vim_project_'.a:name
@@ -260,7 +256,7 @@ function! project#AddProject(args)
     return 
   endif
 
-  let save_path = s:ReplaceHomeWithTide(s:GetFullPath(path))
+  let save_path = project#ReplaceHomeWithTide(s:GetFullPath(path))
   if !empty(option)
     call s:SaveToAddFile(save_path.', '.json_encode(option))
   else
@@ -268,9 +264,9 @@ function! project#AddProject(args)
   endif
   redraw
   let message = 'Added ['.path.']'
-        \.'. Config at ('.s:ReplaceHomeWithTide(s:config_home).')'
+        \.'. Config at ('.project#ReplaceHomeWithTide(s:config_home).')'
   call s:Info(message)
-  call s:OpenProject(project)
+  call project#OpenProject(project)
 endfunction
 
 function! s:AddProject(path, ...)
@@ -307,7 +303,7 @@ function! s:AddProject(path, ...)
 
   if !isdirectory(fullpath)
     if !s:sourcing_file
-      call s:Warn('Directory not found: '.s:ReplaceHomeWithTide(fullpath))
+      call s:Warn('Directory not found: '.project#ReplaceHomeWithTide(fullpath))
     endif
     call insert(s:projects_error, project)
     return [1, v:null]
@@ -329,7 +325,7 @@ function! s:ProjectExistsWithSameFullPath(fullpath, projects)
 endfunction
 
 function! project#IgnoreProject(path)
-  let path = s:ReplaceHomeWithTide(a:path)
+  let path = project#ReplaceHomeWithTide(a:path)
   let error = s:IgnoreProject(path)
   if !error && !s:sourcing_file
     call s:SaveToPluginConfigIgnore(path)
@@ -354,7 +350,7 @@ function! s:SetSlashBasedOnOS(val)
   endif
 endfunction
 
-function! s:ReplaceHomeWithTide(path)
+function! project#ReplaceHomeWithTide(path)
   let home = escape(expand('~'), '\')
   let home2 = s:ReplaceBackSlash(expand('~'))
 
@@ -529,7 +525,7 @@ endfunction
 
 function! s:GetProjectConfigPath(config_home, project)
   let id = a:project.path
-  let id = s:ReplaceHomeWithTide(id)
+  let id = project#ReplaceHomeWithTide(id)
   let id = substitute(id, '[/:]', '_', 'g')
   let project_folder = a:project.name.'___@'.id
   return a:config_home.'/'.project_folder
@@ -566,7 +562,7 @@ function! project#ListDirs(path, L, P)
   call filter(dirs,
         \{_, val -> isdirectory(expand(val))})
   call map(dirs,
-        \{_, val -> s:ReplaceHomeWithTide(val)})
+        \{_, val -> project#ReplaceHomeWithTide(val)})
 
   " If only one found, append a '/' to differentiate it from user input
   if len(dirs) == 1 && isdirectory(expand(dirs[0]))
@@ -646,7 +642,7 @@ function! s:RenamePathInProjectAddConfig(path, new_fullpath)
   let file = s:config_home.'/'.s:add_file
   let adds = readfile(file)
 
-  let target = s:ReplaceHomeWithTide(a:path)
+  let target = project#ReplaceHomeWithTide(a:path)
   let target_pat = '\s'.escape(target, '~\/').'\($\|\/\)'
   let idx = 0
   for line in adds
@@ -659,7 +655,7 @@ function! s:RenamePathInProjectAddConfig(path, new_fullpath)
 endfunction
 
 function! s:GetItemIndexInProjectAddConfig(adds, path)
-  let target = s:ReplaceHomeWithTide(a:path)
+  let target = project#ReplaceHomeWithTide(a:path)
   let target_pat = '\s'.escape(target, '~\/').',\?'
   let idx = 0
   for line in a:adds
@@ -744,7 +740,7 @@ function! s:AutoDetectProject()
       let ignore = s:GetProjectByFullpath(s:projects_ignore, path)
 
       if empty(project) && empty(ignore)
-        let path = s:ReplaceHomeWithTide(path)
+        let path = project#ReplaceHomeWithTide(path)
         if s:auto_detect == 'always'
           call s:AutoAddProject(path)
         else
@@ -834,30 +830,18 @@ function! s:GetProjectByPath(projects, path)
   return {}
 endfunction
 
-function! project#ListProjects()
-  let s:prefix = s:project_list_prefix
-  let s:list_type = 'PROJECTS'
-  call s:PrepareListBuffer()
-  let Init = function('s:ProjectListBufferInit')
-  let Update = function('s:ProjectListBufferUpdate')
-  let Open = function('s:ProjectListBufferOpen')
-  call s:RenderList(Init, Update, Open)
-endfunction
-
 function! project#SearchFiles()
   if !s:ProjectExists()
     call s:Warn('No project opened')
     return
   endif
 
-  let s:prefix = s:search_files_prefix
-  let s:list_type = 'SEARCH_FILES'
-  call s:PrepareListBuffer()
+  call project#PrepareListBuffer('Search files by name:', 'SEARCH_FILES')
 
   let Init = function('s:SearchFilesBufferInit')
   let Update = function('s:SearchFilesBufferUpdate')
   let Open = function('s:SearchFilesBufferOpen')
-  call s:RenderList(Init, Update, Open)
+  call project#RenderList(Init, Update, Open)
 endfunction
 
 function! project#FindInFiles(...)
@@ -866,31 +850,26 @@ function! project#FindInFiles(...)
     return
   endif
 
-  let s:prefix = s:find_in_files_prefix
-  let s:list_type = 'FIND_IN_FILES'
   call s:SetInitInput(a:000)
-  call s:PrepareListBuffer()
+  call project#PrepareListBuffer('Find in files:', 'FIND_IN_FILES')
 
   let Init = function('s:FindInFilesBufferInit')
   let Update = function('s:FindInFilesBufferUpdateTimer')
   let Open = function('s:FindInFilesBufferOpen')
-  call s:RenderList(Init, Update, Open)
+  call project#RenderList(Init, Update, Open)
 endfunction
 
 function! project#RunTasks()
-  let s:prefix = 'Run a task:'
-  let s:list_type = 'RUN_TASKS'
-
-  call s:PrepareListBuffer()
+  call project#PrepareListBuffer('Run a task:', 'RUN_TASKS')
   let Init = function('s:RunTasksBufferInit')
   let Update = function('s:RunTasksBufferUpdateTimerManager')
   let Open = function('s:RunTasksBufferOpen')
-  call s:RenderList(Init, Update, Open)
+  call project#RenderList(Init, Update, Open)
 endfunction
 
 function! s:RunTasksBufferInit(input)
   let max_col_width = s:max_width / 2 - 10
-  call s:TabulateList(s:tasks, ['name', 'cmd'], [], 0, max_col_width)
+  call project#TabulateList(s:tasks, ['name', 'cmd'], [], 0, max_col_width)
   call s:RunTasksBufferUpdateTimerManager(a:input)
 endfunction
 
@@ -969,11 +948,11 @@ function! s:RunTasksBufferUpdate(input)
   let tasks = s:FilterRunTasks(copy(s:tasks), a:input)
   let [display, list] = s:GetRunTasksDisplay(tasks)
   let s:list = list
-  call s:ShowInListBuffer(display, a:input)
-  call s:HighlightCurrentLine(len(display))
-  call s:HighlightInputChars(a:input)
+  call project#ShowInListBuffer(display, a:input)
+  call project#HighlightCurrentLine(len(display))
+  call project#HighlightInputChars(a:input)
   call s:HighlightRunTasksCmdOutput()
-  call s:HighlightNoResults()
+  call project#HighlightNoResults()
   if empty(a:input)
     call s:ShowInputLine('')
   else
@@ -1168,7 +1147,9 @@ function! s:SetInitInput(args)
   endif
 endfunction
 
-function! s:PrepareListBuffer()
+function! project#PrepareListBuffer(prefix, list_type)
+  let s:prefix = a:prefix
+  let s:list_type = a:list_type
   " Manually trigger some events first
   doautocmd BufLeave
   doautocmd FocusLost
@@ -1318,7 +1299,7 @@ function! s:IsCurrentListBuffer()
   return expand('%') == s:list_buffer
 endfunction
 
-function! s:HighlightCurrentLine(list_length)
+function! project#HighlightCurrentLine(list_length)
   let length = a:list_length
   sign unplace 9
   if length > 0
@@ -1344,7 +1325,7 @@ function! s:HighlightCurrentLine(list_length)
   endif
 endfunction
 
-function! s:ShowInListBuffer(display, input)
+function! project#ShowInListBuffer(display, input)
   " Avoid clearing other files by mistake
   if !s:IsCurrentListBuffer()
     return
@@ -1395,99 +1376,6 @@ function! s:AddEmptyLines(current)
   endif
 endfunction
 
-function! s:FilterProjectsList(list, filter)
-  let regexp_filter = join(split(a:filter, '\zs'), '.*')
-
-  for item in a:list
-    let item._match_type = ''
-    let item._match_index = -1
-
-    " Filter by name
-    let match_index = match(item.name, regexp_filter)
-    if match_index != -1
-      " Prefer exact match. If not, add 10 to match_index
-      if len(a:filter) > 1 && count(tolower(item.name), a:filter) == 0
-        let match_index = match_index + 10
-      endif
-
-      let item._match_type = 'name'
-      let item._match_index = match_index
-    endif
-
-    " Filter by note
-    if match_index == -1
-      if has_key(item.option, 'note')
-        let match_index = match(item.option.note, regexp_filter)
-        if match_index != -1
-          let item._match_type = 'note'
-          let item._match_index = match_index
-        endif
-      endif
-    endif
-
-    " Filter by path
-    if match_index == -1
-      let match_index = match(item.path, regexp_filter)
-      if match_index != -1
-        let item._match_type = 'path'
-        let item._match_index = match_index
-      endif
-    endif
-
-    " Filter by path+name
-    if match_index == -1
-      let match_index = match(item.path.item.name, regexp_filter)
-      if match_index != -1
-        let item._match_type = 'path_name'
-        let item._match_index = match_index
-      endif
-    endif
-  endfor
-
-  " Try matching name and note. If none, then match path, etc.
-  let result = filter(copy(a:list), { _, val -> val._match_type == 'name' || val._match_type == 'note' })
-  if len(result) == 0
-    let result = filter(a:list, { _, val -> val._match_type != '' })
-  endif
-  call sort(result, 's:SortProjectsList')
-  return result
-endfunction
-
-function! s:SortProjectsList(a1, a2)
-  let type1 = a:a1._match_type
-  let type2 = a:a2._match_type
-  let index1 = a:a1._match_index
-  let index2 = a:a2._match_index
-
-  " name > path_name > note > path
-  if type1 == 'name' && type2 != 'name'
-    return 1
-  endif
-  if type1 == 'path_name' && type2 != 'name' && type2 != 'path_name'
-    return 1
-  endif
-  if type1 == 'note' && type2 == 'path'
-    return 1
-  endif
-  if type1 == type2
-    if index1 == index2
-      return len(a:a2.name) - len(a:a1.name)
-    else
-      return index2 - index1
-    endif
-  endif
-  return -1
-endfunction
-
-function! s:FilterProjectsListName(list, filter, reverse)
-  let list = a:list
-  let filter = a:filter
-  call filter(list, { _, value -> empty(filter) ||
-        \(!a:reverse  ? value.name =~ filter : value.name !~ filter)
-        \})
-  return list
-endfunction
-
 function! s:NextView()
   let max = len(s:project_views)
   let s:view_index = s:view_index < max - 1 ? s:view_index + 1 : 0
@@ -1498,41 +1386,6 @@ function! s:PreviousView()
   let s:view_index = s:view_index > 0 ? s:view_index - 1 : max - 1
 endfunction
 
-function! s:FilterProjectsByView(projects)
-  let max = len(s:project_views)
-  if s:view_index >= 0 && s:view_index < max
-    let view = s:project_views[s:view_index]
-    if len(view) == 2
-      let [show, hide] = view
-    elseif len(view) == 1
-      let show = view[0]
-      let hide = ''
-    else
-      let show = ''
-      let hide = ''
-    endif
-    call s:FilterProjectsListName(a:projects, show, 0)
-    call s:FilterProjectsListName(a:projects, hide, 1)
-  endif
-endfunction
-
-function! s:FilterProjects(projects, filter)
-  let projects = a:projects
-  call s:FilterProjectsByView(projects)
-
-  if a:filter == ''
-    call sort(projects, 's:SortInauguralProjectsList')
-  else
-    let projects = s:FilterProjectsList(projects, a:filter)
-  endif
-
-  return projects
-endfunction
-
-function! s:SortInauguralProjectsList(a1, a2)
-  return a:a1.name < a:a2.name ? 1 : -1
-endfunction
-
 function! s:AddRightPadding(string, length)
   let string = a:string
   let padding = repeat(' ', a:length - len(string) + 1)
@@ -1540,14 +1393,7 @@ function! s:AddRightPadding(string, length)
   return string
 endfunction
 
-function! project#OutputProjects(...)
-  let filter = a:0>0 ? a:1 : ''
-  let projects = s:projects
-  let projects = s:FilterProjects(projects, filter)
-  echo projects
-endfunction
-
-function! s:TabulateList(list, keys, no_limit_keys, min_col_width, max_col_width)
+function! project#TabulateList(list, keys, no_limit_keys, min_col_width, max_col_width)
   " Init max width of each column
   let max = {}
 
@@ -1555,7 +1401,7 @@ function! s:TabulateList(list, keys, no_limit_keys, min_col_width, max_col_width
   for item in a:list
     for key in a:keys
       if has_key(item, key)
-        let value = s:ReplaceHomeWithTide(item[key])
+        let value = project#ReplaceHomeWithTide(item[key])
         let item['__'.key] = value
 
         if !has_key(max, key) || len(value) > max[key]
@@ -1601,7 +1447,7 @@ endfunction
 
 function! s:GetListCommand(char)
   let mappings = {}
-  if s:list_type == 'PROJECTC'
+  if s:list_type == 'PROJECTS'
     let mappings = s:list_mappings_projects
   elseif s:list_type == 'SEARCH_FILES'
     let mappings = s:list_mappings_search_files
@@ -1627,29 +1473,6 @@ function! s:GetListCommand(char)
     endfor
   endfor
   return ''
-endfunction
-
-function! s:ProjectListBufferInit(input)
-  let max_col_width = s:max_width / 2 - 10
-  call s:TabulateList(s:projects, ['name', 'path', 'note'], ['note'], 0, max_col_width)
-  call s:ProjectListBufferUpdate(a:input)
-endfunction
-
-function! s:ProjectListBufferUpdate(input)
-  let s:list = s:FilterProjects(copy(s:projects), a:input)
-  let display = s:GetProjectsDisplay(s:list)
-  call s:ShowInListBuffer(display, a:input)
-  call s:HighlightCurrentLine(len(display))
-  call s:HighlightInputChars(a:input)
-  call s:HighlightNoResults()
-endfunction
-
-function! s:ProjectListBufferOpen(project, open_cmd, input)
-  if s:IsValidProject(a:project)
-    call s:OpenProject(a:project)
-  else
-    call s:Warn('Not accessible path: '.a:project.fullpath)
-  endif
 endfunction
 
 function! s:SortFilesList(input, a1, a2)
@@ -1730,13 +1553,13 @@ function! s:AddBuffers(oldfiles)
   let bufs = getbufinfo({'buflisted': 1})
   call sort(bufs, {buf1, buf2 -> buf1.lastused - buf2.lastused})
   for buf in bufs
-    let bufname = s:ReplaceHomeWithTide(buf.name)
+    let bufname = project#ReplaceHomeWithTide(buf.name)
     call insert(a:oldfiles, bufname)
   endfor
 endfunction
 
 function! s:FilterOldFilesByPath(oldfiles)
-  let project_dir = s:SetSlashBasedOnOS(s:ReplaceHomeWithTide($vim_project.'/'))
+  let project_dir = s:SetSlashBasedOnOS(project#ReplaceHomeWithTide($vim_project.'/'))
   call filter(a:oldfiles, {_, val -> count(val, project_dir) > 0 })
 
   let search_exclude = copy(s:search_exclude)
@@ -1976,7 +1799,7 @@ function! s:GetSearchFilesResult(input)
   let files = s:GetSearchFiles(a:input)
   let min_col_width = s:max_width / 4
   let max_col_width = s:max_width / 8 * 5
-  call s:TabulateList(files, ['file', 'path'], ['path'], min_col_width, max_col_width)
+  call project#TabulateList(files, ['file', 'path'], ['path'], min_col_width, max_col_width)
   let display = s:GetSearchFilesDisplay(files)
   return [files, display]
 endfunction
@@ -1989,10 +1812,10 @@ function! s:SearchFilesBufferUpdate(input)
   let [list, display] = s:GetSearchFilesResult(a:input)
   let s:input = a:input
   let s:list = list
-  call s:ShowInListBuffer(display, a:input)
-  call s:HighlightCurrentLine(len(display))
-  call s:HighlightInputChars(a:input)
-  call s:HighlightNoResults()
+  call project#ShowInListBuffer(display, a:input)
+  call project#HighlightCurrentLine(len(display))
+  call project#HighlightInputChars(a:input)
+  call project#HighlightNoResults()
 endfunction
 
 function! s:SearchFilesBufferOpen(target, open_cmd, input)
@@ -2391,17 +2214,17 @@ endfunction
 " 
 function! s:ShowFindInFilesResult(display, search, replace, full_input, id)
   if exists('s:list')
-    call s:ShowInListBuffer(a:display, a:search)
-    call s:HighlightCurrentLine(len(a:display))
+    call project#ShowInListBuffer(a:display, a:search)
+    call project#HighlightCurrentLine(len(a:display))
     call s:HighlightSearchAsPattern(a:search)
     call s:HighlightReplaceChars(a:search, a:replace)
     call s:HighlighExtraInfo()
-    call s:HighlightNoResults()
+    call project#HighlightNoResults()
     call s:RedrawInputLine()
   endif
 endfunction
 
-function! s:HighlightNoResults()
+function! project#HighlightNoResults()
   call matchadd('Comment', '- No results for:.*')
 endfunction
 
@@ -2517,7 +2340,7 @@ function! s:ShowInitialInputLine(input, ...)
   call s:ShowInputLine(a:input)
 endfunction
 
-function! s:RenderList(Init, Update, Open)
+function! project#RenderList(Init, Update, Open)
   let input = s:InitListVariables(a:Init)
   call s:ShowInitialInputLine(input)
   let [cmd, input] = s:HandleInput(input, a:Update, a:Open)
@@ -2894,11 +2717,6 @@ function! s:OpenTarget(cmd, input, Open)
   return a:Open(target, a:cmd, a:input)
 endfunction
 
-function! s:IsValidProject(project)
-  let fullpath = a:project.fullpath
-  return isdirectory(fullpath) || filereadable(fullpath)
-endfunction
-
 function! s:GetProjectByName(name, projects)
   for project in a:projects
     if project.name == a:name
@@ -2912,7 +2730,7 @@ endfunction
 function! project#OpenProjectByName(name)
   let project = s:GetProjectByName(a:name, s:projects)
   if !empty(project)
-    call s:OpenProject(project)
+    call project#OpenProject(project)
   else
     call s:Warn('Project not found: ['.a:name.']')
   endif
@@ -2967,7 +2785,7 @@ function! s:ReloadProject()
 
     let project = s:project
     call s:QuitProject()
-    call s:OpenProject(project)
+    call project#OpenProject(project)
 
     redraw
     call s:Info('Reloaded')
@@ -2979,7 +2797,7 @@ function! s:SaveAllBuffers()
   wa
 endfunction
 
-function! s:OpenProject(project)
+function! project#OpenProject(project)
   let current = s:project
   let new = a:project
 
@@ -3054,7 +2872,7 @@ function! s:RenameProject(project, new_name)
   call s:Info('Renamed '.a:project.name.' to '.a:new_name.' ('.a:project.path.')')
   let new_fullpath = a:project.path.'/'.a:new_name
   call rename(a:project.fullpath, new_fullpath)
-  call s:RenamePathInProjectAddConfig(a:project.fullpath, s:ReplaceHomeWithTide(new_fullpath))
+  call s:RenamePathInProjectAddConfig(a:project.fullpath, project#ReplaceHomeWithTide(new_fullpath))
 
   let config_path = s:GetProjectConfigPath(s:config_home, a:project)
   let a:project.name = a:new_name
@@ -3139,7 +2957,7 @@ endfunction
 function! project#ShowProjectInfo()
   if !empty(s:project)
     call s:Info('Name: '.s:project.name)
-    call s:Info('Path: '.s:ReplaceHomeWithTide(s:project.path))
+    call s:Info('Path: '.project#ReplaceHomeWithTide(s:project.path))
     call s:Info('Search: '.s:TrySearchFilesProgram())
     call s:Info('Find in files: '.s:TryExternalGrepProgram())
     call s:Info('Include: '.string(s:include))
@@ -3563,17 +3381,6 @@ function! VimProjectReloadSession(channel, msg, ...)
   endif
 endfunction
 
-function! s:GetProjectsDisplay(list)
-  return map(copy(a:list), function('s:GetProjectsDisplayRow'))
-endfunction
-
-function! s:GetProjectsDisplayRow(key, value)
-  let value = a:value
-  return value.__name.'  '
-        \.value.__note.'  '
-        \.s:ReplaceHomeWithTide(value.__path)
-endfunction
-
 function! s:MapFile()
   let config = s:file_mappings
 
@@ -3658,7 +3465,7 @@ function! s:OpenFile(open_type, target)
   let expended_open_target = expand(open_target)
 
   if !filereadable(expended_open_target) && !isdirectory(expended_open_target)
-    let display_target = s:ReplaceHomeWithTide(s:RemoveProjectPath(expended_open_target))
+    let display_target = project#ReplaceHomeWithTide(s:RemoveProjectPath(expended_open_target))
     call s:Warn('File or folder not found: '.display_target)
     return
   endif
@@ -3749,7 +3556,7 @@ function! s:ReplaceEscapedChar(chars, idx, char, from, to)
   endif
 endfunction
 
-function! s:HighlightInputChars(input)
+function! project#HighlightInputChars(input)
   call clearmatches()
   for lnum in range(1, line('$'))
     let pos = s:GetMatchPos(lnum, a:input)
@@ -3855,6 +3662,14 @@ function! s:UniqueListByFile(list, idx, val)
     endif
   endfor
   return 1
+endfunction
+
+function! project#GetVariable(name)
+  return s:[a:name]
+endfunction
+
+function! project#SetVariable(name, value)
+  let s:[a:name] = a:value
 endfunction
 
 function! s:Main()
