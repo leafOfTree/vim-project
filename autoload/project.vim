@@ -3131,12 +3131,7 @@ function! s:ReadLocalConfig()
     for key in s:local_config_keys
       if has_key(local_config, key)
         if type(local_config[key]) == v:t_list
-          " Change the order for tasks so common tasks come first
-          if key == 'tasks'
-            let s:[key] = extend(local_config[key], copy(s:[key]))
-          else
-            let s:[key] = extend(copy(s:[key]), local_config[key])
-          endif
+          let s:[key] = extend(copy(s:[key]), local_config[key])
         else
           let s:[key] = local_config[key]
         endif
