@@ -2492,7 +2492,7 @@ endfunction
 function! s:MoveToPrevItem()
   if s:IsRunTasksList()
     let current_line = s:GetCurrentLineNumber()
-    call cursor(current_line, 0)
+    call cursor(current_line, 1)
     let prev_task_line = search('^\w', 'bnW')
     let s:offset -= current_line - prev_task_line
   else
@@ -2503,7 +2503,7 @@ endfunction
 function! s:MoveToNextItem()
   if s:IsRunTasksList()
     let current_line = s:GetCurrentLineNumber()
-    call cursor(current_line, 0)
+    call cursor(current_line, 1)
     let next_task_line = search('^\w', 'nW')
     if next_task_line > current_line
       let s:offset += next_task_line - current_line
