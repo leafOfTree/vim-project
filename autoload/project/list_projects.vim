@@ -1,4 +1,4 @@
-function! project#list_projects#init()
+function! project#list_projects#run()
   call project#PrepareListBuffer('Open a project:', 'PROJECTS')
   let Init = function('s:Init')
   let Update = function('s:Update')
@@ -35,7 +35,7 @@ function! s:Open(project, open_cmd, input)
   if s:IsValidProject(a:project)
     call project#OpenProject(a:project)
   else
-    call s:Warn('Not accessible path: '.a:project.fullpath)
+    call project#Warn('Not accessible path: '.a:project.fullpath)
   endif
 endfunction
 

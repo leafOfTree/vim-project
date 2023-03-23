@@ -11,7 +11,7 @@ function! s:TrimQuote(args)
 endfunction
 
 " command ProjectList call project#ListProjects()
-command ProjectList call project#list_projects#init()
+command ProjectList call project#list_projects#run()
 command ProjectQuit call project#QuitProject()
 command ProjectConfigReload call project#ReloadProject()
 command ProjectInfo call project#ShowProjectInfo()
@@ -36,10 +36,10 @@ command -complete=customlist,project#ListDirs -nargs=+
 command -complete=customlist,project#ListDirs -nargs=1
       \ ProjectIgnore call project#IgnoreProject(s:TrimQuote(<q-args>))
 
-command ProjectSearchFiles call project#SearchFiles()
+command ProjectSearchFiles call project#search_files#run()
 
 command -nargs=? -range 
-      \ ProjectFindInFiles call project#FindInFiles(s:TrimQuote(<q-args>), <q-range>)
+      \ ProjectFindInFiles call project#find_in_files#run(s:TrimQuote(<q-args>), <q-range>)
 
 command ProjectRun call project#RunTasks()
 

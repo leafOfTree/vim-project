@@ -2,10 +2,6 @@ if exists('g:vim_project_loaded') | finish | endif
 
 function! s:Prepare()
   let s:name = 'vim-project'
-  let s:search_replace_separator = ' => '
-  let s:find_in_files_show_max = 200
-  let s:find_in_files_stop_max = 100000
-  let s:search_files_sort_max = 1000
   let s:list_history = {}
   let s:laststatus_save = &laststatus
   let s:initial_height = 0
@@ -18,7 +14,6 @@ function! s:Prepare()
   let s:start_project = {}
   let s:start_buf = ''
   let s:dismissed_find_replace = 0
-  let s:update_timer = 0
   let s:sourcing_file = 0
   let s:init_input = ''
   let s:user_input = ''
@@ -273,7 +268,7 @@ function! s:AddProject(path, ...)
   let fullpath = s:GetFullPath(a:path)
   let option = a:0 > 0 ? a:1 : {}
 
-  let hasProject = s:ProjectExistsWithSameFullPath(
+  let hasProject = project#ProjectExistWithSameFullPath(
         \fullpath,
         \s:projects
         \)
@@ -303,7 +298,7 @@ function! s:AddProject(path, ...)
 
   if !isdirectory(fullpath)
     if !s:sourcing_file
-      call s:Warn('Directory not found: '.project#ReplaceHomeWithTide(fullpath))
+      call project#Warn('Directory not found: '.project#ReplaceHomeWithTide(fullpath))
     endif
     call insert(s:projects_error, project)
     return [1, v:null]
@@ -314,7 +309,7 @@ function! s:AddProject(path, ...)
   return [0, project]
 endfunction
 
-function! s:ProjectExistsWithSameFullPath(fullpath, projects)
+function! project#ProjectExistWithSameFullPath(fullpath, projects)
   let result = 0
   for project in a:projects
     if project.fullpath == a:fullpath
@@ -342,14 +337,6 @@ function! s:ReplaceBackSlash(val)
   endif
 endfunction
 
-function! s:SetSlashBasedOnOS(val)
-  if s:is_win_version
-    return substitute(a:val, '/', '\', 'g')
-  else
-    return substitute(a:val, '\', '/', 'g')
-  endif
-endfunction
-
 function! project#ReplaceHomeWithTide(path)
   let home = escape(expand('~'), '\')
   let home2 = s:ReplaceBackSlash(expand('~'))
@@ -371,7 +358,7 @@ endfunction
 " Ignore path for auto adding
 function! s:IgnoreProject(path)
   let fullpath = s:GetFullPath(a:path)
-  let hasProject = s:ProjectExistsWithSameFullPath(
+  let hasProject = project#ProjectExistWithSameFullPath(
         \fullpath,
         \s:projects
         \)
@@ -510,7 +497,7 @@ function! s:InfoHl(msg)
   echohl Type | echom '['.s:name.'] '.a:msg | echohl None
 endfunction
 
-function! s:Warn(msg)
+function! project#Warn(msg)
   redraw
   echohl WarningMsg
   echom '['.s:name.'] '.a:msg
@@ -519,7 +506,7 @@ endfunction
 
 function! s:DebugWarn(msg)
   if s:debug
-    call s:Warn(a:msg)
+    call project#Warn(a:msg)
   endif
 endfunction
 
@@ -646,7 +633,7 @@ function! s:RenamePathInProjectAddConfig(path, new_fullpath)
   let target_pat = '\s'.escape(target, '~\/').'\($\|\/\)'
   let idx = 0
   for line in adds
-    if s:Include(line, target_pat)
+    if project#Include(line, target_pat)
       let adds[idx] = substitute(line, target_pat, ' '.a:new_fullpath, '')
     endif
     let idx += 1
@@ -659,7 +646,7 @@ function! s:GetItemIndexInProjectAddConfig(adds, path)
   let target_pat = '\s'.escape(target, '~\/').',\?'
   let idx = 0
   for line in a:adds
-    if s:Include(line, target_pat)
+    if project#Include(line, target_pat)
       break
     endif
     let idx += 1
@@ -818,7 +805,7 @@ endfunction
 
 function! s:GetProjectByPath(projects, path)
   let projects = copy(a:projects)
-  call filter(projects, {_, project -> s:Include(a:path, project.fullpath)})
+  call filter(projects, {_, project -> project#Include(a:path, project.fullpath)})
   if len(projects) == 1
     return projects[0]
   endif
@@ -828,35 +815,6 @@ function! s:GetProjectByPath(projects, path)
   endif
 
   return {}
-endfunction
-
-function! project#SearchFiles()
-  if !s:ProjectExists()
-    call s:Warn('No project opened')
-    return
-  endif
-
-  call project#PrepareListBuffer('Search files by name:', 'SEARCH_FILES')
-
-  let Init = function('s:SearchFilesBufferInit')
-  let Update = function('s:SearchFilesBufferUpdate')
-  let Open = function('s:SearchFilesBufferOpen')
-  call project#RenderList(Init, Update, Open)
-endfunction
-
-function! project#FindInFiles(...)
-  if !s:ProjectExists()
-    call s:Warn('No project opened')
-    return
-  endif
-
-  call s:SetInitInput(a:000)
-  call project#PrepareListBuffer('Find in files:', 'FIND_IN_FILES')
-
-  let Init = function('s:FindInFilesBufferInit')
-  let Update = function('s:FindInFilesBufferUpdateTimer')
-  let Open = function('s:FindInFilesBufferOpen')
-  call project#RenderList(Init, Update, Open)
 endfunction
 
 function! project#RunTasks()
@@ -956,7 +914,7 @@ function! s:RunTasksBufferUpdate(input)
   if empty(a:input)
     call s:ShowInputLine('')
   else
-    call s:RedrawInputLine()
+    call project#RedrawInputLine()
   endif
 endfunction
 
@@ -1125,26 +1083,6 @@ function! s:SortRunTasks(a1, a2)
   endif
 
   return -1
-endfunction
-
-function! s:SetInitInput(args)
-  if len(a:args) == 2
-    let input = a:args[0]
-    let range = a:args[1]
-
-    if !empty(input)
-      let s:init_input = input
-      return
-    endif
-
-    if range > 0
-      let saved = @z
-      normal! gv"zy
-      let s:init_input = @z
-      let @z = saved
-      return
-    endif
-  endif
 endfunction
 
 function! project#PrepareListBuffer(prefix, list_type)
@@ -1475,521 +1413,6 @@ function! s:GetListCommand(char)
   return ''
 endfunction
 
-function! s:SortFilesList(input, a1, a2)
-  let file1 = a:a1.file
-  let file2 = a:a2.file
-  let first = '\c'.a:input[0]
-
-  let start1 = match(file1, first)
-  let start2 = match(file2, first)
-  if start1 == start2
-    return len(file1) - len(file2)
-  elseif start1 != -1 && start2 != -1
-    return start1 - start2
-  else
-    return start1 == -1 ? 1 : -1
-  endif
-endfunction
-
-function! s:DecorateSearchFilesDisplay(list, display)
-  if s:IsListMore(a:list)
-    let a:display[0] .= '...more'
-  endif
-
-  let recent_index = s:GetRecentIndex(a:list)
-  if recent_index != -1
-    let a:display[recent_index] .= ''
-  endif
-endfunction
-
-function! s:GetRecentIndex(list)
-  let index = 0
-  for item in a:list
-    if has_key(item, 'recent') && item.recent
-      return index
-    endif
-    let index += 1
-  endfor
-
-  return -1
-endfunction
-
-function! s:GetSearchFilesDisplay(list)
-  let display = map(copy(a:list), function('s:GetSearchFilesDisplayRow'))
-  call s:DecorateSearchFilesDisplay(a:list, display)
-  return display
-endfunction
-
-function! s:GetSearchFilesDisplayRow(idx, value)
-  let value = a:value
-  let full_path = $vim_project.'/'.value.path.'/'.value.file
-  if isdirectory(full_path)
-    let file = substitute(value.__file, '\S\zs\s\|\S\zs$', '/', '')
-  else
-    let file = value.__file
-  endif
-  return file.'  '.value.__path
-endfunction
-
-function! s:GetSearchFilesByOldFiles(input)
-  let oldfiles = s:GetOldFiles()
-
-  call s:FilterOldFilesByPath(oldfiles)
-  call s:MapSearchFiles(oldfiles)
-  call s:FilterOldFilesByInput(oldfiles, a:input)
-  call s:SortSearchFilesList(oldfiles, a:input)
-
-  return oldfiles
-endfunction
-
-function! s:GetOldFiles()
-  let oldfiles = copy(v:oldfiles)
-
-  call s:AddBuffers(oldfiles)
-  return oldfiles
-endfunction
-
-function! s:AddBuffers(oldfiles)
-  let bufs = getbufinfo({'buflisted': 1})
-  call sort(bufs, {buf1, buf2 -> buf1.lastused - buf2.lastused})
-  for buf in bufs
-    let bufname = project#ReplaceHomeWithTide(buf.name)
-    call insert(a:oldfiles, bufname)
-  endfor
-endfunction
-
-function! s:FilterOldFilesByPath(oldfiles)
-  let project_dir = s:SetSlashBasedOnOS(project#ReplaceHomeWithTide($vim_project.'/'))
-  call filter(a:oldfiles, {_, val -> count(val, project_dir) > 0 })
-
-  let search_exclude = copy(s:search_exclude)
-  call map(search_exclude, {_, val -> project_dir.val})
-  call filter(a:oldfiles, {_, val -> !s:IsPathStartWithAny(val, search_exclude)})
-
-  call map(a:oldfiles, {_, val -> fnamemodify(val, ':p')})
-  call filter(a:oldfiles, {_, val ->
-        \ count(['ControlP', ''], fnamemodify(val, ':t')) == 0
-        \ && (filereadable(val) || isdirectory(val))
-        \})
-
-
-  let project_dir_pat = escape(fnamemodify(project_dir, ':p'), '\')
-  call map(a:oldfiles, {_, val -> substitute(val, project_dir_pat, './', '')})
-endfunction
-
-function! s:IsPathStartWithAny(fullpath, starts)
-  for start in a:starts
-
-    if s:StartWith(a:fullpath, start)
-      return 1
-    endif
-  endfor
-
-  return 0
-endfunction
-
-function! s:StartWith(string, search)
-  return a:string[0:len(a:search)-1] ==# a:search
-endfunction
-
-function! s:FilterOldFilesByInput(oldfiles, input)
-  let pattern = join(split(a:input, '\zs'), '.*')
-  call filter(a:oldfiles,
-        \{_, val -> val.file =~ pattern})
-endfunction
-
-function! s:GetFilesByFind()
-  let include = join(s:search_include, ' ')
-
-  let search_exclude = copy(s:search_exclude)
-  let exclude_string = join(map(search_exclude, {_, val -> '-name "'.val.'"'}), ' -o ')
-  let exclude = '\( '.exclude_string.' \) -prune -false -o '
-
-  let filter = '-ipath "*"'
-  let cmd = 'find '.include.' -mindepth 1 '.exclude.filter
-  let result = s:RunShellCmd(cmd)
-  return result
-endfunction
-
-function! s:GetFilesByFd()
-  let include = join(s:search_include, ' ')
-
-  let search_exclude = copy(s:search_exclude)
-  let exclude = join(map(search_exclude, {_, val -> '-E "'.val.'"'}), ' ')
-
-  let cmd = 'fd -HI '.exclude.' . '.include
-  let result = s:RunShellCmd(cmd)
-  return result
-endfunction
-
-function! s:GetFilesByGlob()
-  let original_wildignore = &wildignore
-  let cwd = getcwd()
-  execute 'cd '.$vim_project
-  for exclue in s:search_exclude
-    execute 'set wildignore+=*/'.exclue.'*'
-  endfor
-
-  let result = []
-  for path in s:search_include
-    let result = result + glob(path.'/**/*', 0, 1)
-  endfor
-
-  execute 'cd '.cwd
-  let &wildignore = original_wildignore
-  return result
-endfunction
-
-function! s:GetSearchFilesResultList(input)
-  if !exists('s:list_initial_result')
-    let list = s:GetSearchFilesAll()
-  else
-    let list = s:GetSearchFilesByFilter(a:input)
-  endif
-  return list
-endfunction
-
-function! s:TrySearchFilesProgram()
-  let programs = ['fd', 'find']
-  let find_cmd_map = {
-        \'fd': function('s:GetFilesByFd'),
-        \'find': function('s:GetFilesByFind'),
-        \'glob': function('s:GetFilesByGlob'),
-        \}
-  let find_program = ''
-  for program in programs
-    if executable(program)
-      let find_program = program
-      break
-    endif
-  endfor
-
-  if find_program == ''
-    let find_program = 'glob'
-  endif
-
-  let s:find_cmd_func = find_cmd_map[find_program]
-  return find_program
-endfunction
-
-function! s:GetSearchFilesAll()
-  if !exists('s:find_cmd_func')
-    call s:TrySearchFilesProgram()
-  endif
-
-  let result = s:find_cmd_func()
-  call s:MapSearchFiles(result)
-  let s:list_initial_result = result
-  let list = copy(s:list_initial_result)
-  return list
-endfunction
-
-function! s:GetSearchFilesByDirectory(val, filter)
-  let path = a:val.path
-  let file = a:val.file
-  let full_path = $vim_project.'/'.path.'/'.file
-
-  return isdirectory(full_path) && file =~ a:filter
-endfunction
-
-function! s:GetSearchFilesByFilterForDirectory(input)
-  let list = []
-  let filter = substitute(a:input, '/$', '', '')
-  let list = filter(copy(s:list_initial_result), {_, val -> s:GetSearchFilesByDirectory(val, filter)})
-
-  if len(list) < s:max_height
-    call s:SortSearchFilesList(list, filter)
-
-    let filter_fuzzy = join(split(filter, '\zs'), '.*')
-    let list_extra = filter(copy(s:list_initial_result), {_, val -> s:GetSearchFilesByDirectory(val, filter_fuzzy)})
-    call s:SortSearchFilesList(list_extra, filter)
-    let list += list_extra
-  endif
-
-  return list
-endfunction
-
-function! s:GetSearchFilesByFilterForFullpath(input)
-  let filter_origin = a:input
-  let list = []
-  " Match file
-  if len(a:input) < 3
-    let filter_start = '^'.filter_origin
-    let list = filter(copy(s:list_initial_result), {_, val -> val.file =~ filter_start})
-  endif
-
-  if len(list) < s:max_height
-    let list = filter(copy(s:list_initial_result), {_, val -> val.file =~ filter_origin})
-    call s:SortSearchFilesList(list, a:input)
-  endif
-
-  if len(list) < s:max_height
-    let filter_fuzzy = join(split(a:input, '\zs'), '.*')
-    let list_extra = filter(copy(s:list_initial_result), {_, val -> val.file =~ filter_fuzzy})
-    call s:SortSearchFilesList(list_extra, a:input)
-    let list += list_extra
-  endif
-
-  " Match path and file if list is short
-  if len(list) < s:max_height
-    let list_extra = filter(copy(s:list_initial_result), {_, val -> val.path.val.file =~ filter_origin})
-    let list += list_extra
-  endif
-
-  " Fuzzy match path and file if list is short
-  if len(list) < s:max_height
-    let list_extra = filter(copy(s:list_initial_result), {_, val -> val.path.val.file =~ filter_fuzzy})
-    let list += list_extra
-  endif
-  return list
-endfunction
-
-function! s:GetSearchFilesByFilter(input)
-  if a:input =~ '[^\\]/$'
-    " Match directory only
-    return s:GetSearchFilesByFilterForDirectory(a:input)
-  else
-    " Match both directory and filename
-    return s:GetSearchFilesByFilterForFullpath(a:input)
-  endif
-endfunction
-
-function! s:GetSearchFiles(input)
-  let oldfiles = s:GetSearchFilesByOldFiles(a:input)
-  let search_list = s:GetSearchFilesResultList(a:input)
-
-  let files = oldfiles + search_list
-
-  let max_length = s:max_height - 1
-  let files = files[0:max_length*3]
-  call s:UniqueList(files)
-
-  if len(files) > max_length
-    let files = files[0:max_length]
-    let files[-1].more = 1
-  endif
-  if len(oldfiles) > 0
-    let oldfiles[len(oldfiles) - 1].recent = 1
-  endif
-
-  call reverse(files)
-  return files
-endfunction
-
-function! s:MapSearchFiles(list)
-  call map(a:list, {idx, val ->
-        \{
-        \'file': fnamemodify(val, ':t'),
-        \'path': fnamemodify(val, ':h:s+\./\|\.\\\|^\.$++'),
-        \}})
-endfunction
-
-function! s:SortSearchFilesList(list, input)
-  " For performance purpose, skip sorting if there are too many items
-  if len(a:list) > s:search_files_sort_max
-    return
-  endif
-
-  if !empty(a:input) && len(a:list) > 0
-    call sort(a:list, function('s:SortFilesList', [a:input]))
-  endif
-endfunction
-
-function! s:GetSearchFilesResult(input)
-  let files = s:GetSearchFiles(a:input)
-  let min_col_width = s:max_width / 4
-  let max_col_width = s:max_width / 8 * 5
-  call project#TabulateList(files, ['file', 'path'], ['path'], min_col_width, max_col_width)
-  let display = s:GetSearchFilesDisplay(files)
-  return [files, display]
-endfunction
-
-function! s:SearchFilesBufferInit(input)
-  return s:SearchFilesBufferUpdate(a:input)
-endfunction
-
-function! s:SearchFilesBufferUpdate(input)
-  let [list, display] = s:GetSearchFilesResult(a:input)
-  let s:input = a:input
-  let s:list = list
-  call project#ShowInListBuffer(display, a:input)
-  call project#HighlightCurrentLine(len(display))
-  call project#HighlightInputChars(a:input)
-  call project#HighlightNoResults()
-endfunction
-
-function! s:SearchFilesBufferOpen(target, open_cmd, input)
-  let cmd = substitute(a:open_cmd, 'open_\?', '', '')
-  let cmd = cmd == '' ? 'edit' : cmd
-  let file = $vim_project.'/'.a:target.path.'/'.a:target.file
-  execute cmd.' '.file
-endfunction
-
-function! s:TryExternalGrepProgram()
-  " Try rg, ag, grep, vimgrep in order
-  let programs = ['rg', 'ag', 'grep']
-  let grep_cmd_map = {
-        \'rg': function('s:GetRgCmd'),
-        \'ag': function('s:GetAgCmd'),
-        \'grep': function('s:GetGrepCmd'),
-        \}
-
-  let grep_program = ''
-  for program in programs
-    if executable(program)
-      let grep_program = program
-      break
-    endif
-  endfor
-
-  if grep_program != ''
-    let s:grep_cmd_func = grep_cmd_map[grep_program]
-    return grep_program
-  else
-    let s:grep_cmd_func = 0
-    return 'vimgrep'
-  endif
-endfunction
-
-
-function! s:GetGrepResult(search, full_input)
-  if !exists('s:grep_cmd_func')
-    call s:TryExternalGrepProgram()
-  endif
-
-  let flags = s:GetSearchFlags(a:search)
-  let search = s:RemoveSearchFlags(a:search)
-
-  if s:grep_cmd_func != 0
-    let list = s:RunExternalGrep(search, flags, a:full_input)
-  else
-    let list = s:RunVimGrep(search, flags, a:full_input)
-  endif
-
-
-  let result = s:GetGroupedList(list)
-  return result
-endfunction
-
-function! s:GetAgCmd(pattern, flags)
-  let include = copy(s:find_in_files_include)
-  let include_arg = join(include, ' ')
-
-  let exclude = copy(s:find_in_files_exclude)
-  let exclude_arg = join(
-        \map(exclude,{_, val -> '--ignore-dir '.val}), ' ')
-
-  let search_arg = '--hidden --skip-vcs-ignores'
-  if s:Include(a:flags, 'C')
-    let search_arg .= ' --case-sensitive'
-  else
-    let search_arg .= ' --ignore-case'
-  endif
-  if !s:Include(a:flags, 'E')
-    let search_arg .= ' --fixed-strings'
-  endif
-
-  let cmd = 'ag '.search_arg.' '.include_arg.' '.exclude_arg.' -- '.a:pattern
-  return cmd
-endfunction
-
-function! s:GetGrepCmd(pattern, flags)
-  let include = copy(s:find_in_files_include)
-  let include_arg = join(include, ' ')
-  if empty(include_arg)
-    let include_arg = '.'
-  endif
-
-  let exclude = copy(s:find_in_files_exclude)
-  let exclude_arg = join(
-        \map(exclude,{_, val -> '--exclude-dir '.val}), ' ')
-
-  let search_arg = '--line-number --recursive'
-  if !s:Include(a:flags, 'C')
-    let search_arg .= ' --ignore-case'
-  endif
-  if !s:Include(a:flags, 'E')
-    let search_arg .= ' --fixed-strings'
-  endif
-
-  let cmd = 'fgrep '.search_arg.' '.include_arg.' '.exclude_arg.' -- '.a:pattern
-  return cmd
-endfunction
-
-function! s:GetRgCmd(pattern, flags)
-  let include = copy(s:find_in_files_include)
-  " Remove '.', as rg does not support '{./**}'
-  call filter(include, {_, val -> val != '.'})
-
-  if len(include)
-    let include_pattern = map(include, 
-          \{_, val -> val.'/**' })
-    let include_arg = '-g "{'.join(include_pattern, ',').'}"'
-  else
-    let include_arg = '-g "{**}"'
-  endif
-
-  let exclude = copy(s:find_in_files_exclude)
-  let exclude_arg = '-g "!{'.join(exclude, ',').'}"'
-
-  let search_arg = '--line-number --no-ignore-vcs'
-  if !s:Include(a:flags, 'C')
-    let search_arg .= ' --ignore-case'
-  endif
-  if !s:Include(a:flags, 'E')
-    let search_arg .= ' --fixed-strings'
-  endif
-
-  let cmd = 'rg '.search_arg.' '.include_arg.' '.exclude_arg.' -- '.a:pattern
-  return cmd
-endfunction
-
-function! s:RunExternalGrep(search, flags, full_input)
-  let pattern = '"'.escape(a:search, '"').'"'
-  let cmd = s:grep_cmd_func(pattern, a:flags)
-
-  let output = s:RunShellCmd(cmd)
-  let result = s:GetResultFromGrepOutput(a:search, a:full_input, output)
-  return result
-endfunction
-
-
-function! s:SetGrepOutputLength(input, full_input, output)
-  let output = a:output
-  let output_len = len(output)
-  let more = 0
-
-  let replace_initially_added = s:IsReplaceInitiallyAdded(a:full_input)
-
-  if !replace_initially_added
-    if output_len > s:find_in_files_show_max
-      let output = output[0:s:find_in_files_show_max]
-      let more = 1
-    endif
-  elseif output_len > s:find_in_files_stop_max
-    let error_msg = 'Error: :Stopped for too many matches, more than '
-          \.s:find_in_files_stop_max
-    let output = [error_msg]
-  endif
-
-  return [output, more]
-endfunction
-
-function! s:GetResultFromGrepOutput(input, full_input, output)
-  let [output, more] = s:SetGrepOutputLength(a:input, a:full_input, a:output)
-
-  let result = map(map(output, {_, val -> split(val, ':')}), {_, val -> {
-        \'file': val[0],
-        \'lnum': val[1],
-        \'line': join(val[2:], ':'),
-        \}})
-
-  if more
-    let result[0].more = more
-  endif
-  return result
-endfunction
-
 function! s:HasFile(list, file)
   for item in a:list
     if has_key(item, 'file') && item.file == a:file
@@ -1999,74 +1422,14 @@ function! s:HasFile(list, file)
   return 0
 endfunction
 
-function! s:GetGroupedList(list)
-  let joined_list = []
-  let current_file = ''
-
-  " Assume the list has already been ordered by file
-  for item in a:list
-    if current_file != item.file
-      let current_file = item.file
-      call add(joined_list, { 'file': item.file })
-    endif
-    call add(joined_list, item)
-  endfor
-
-  if len(a:list) && has_key(a:list[0], 'more')
-    let joined_list[0].more = a:list[0].more
-  endif
-  return joined_list
-endfunction
-
-function! s:RunVimGrep(search, flags, full_input)
-  let original_wildignore = &wildignore
-  for exclude in s:find_in_files_exclude
-    execute 'set wildignore+=*/'.exclude.'*'
-  endfor
-
-  let pattern_flag = ''
-  if s:Include(a:flags, 'C')
-    let pattern_flag .= '\C'
-  else
-    let pattern_flag .= '\c'
-  endif
-  if s:Include(a:flags, 'E')
-    let pattern_flag .= '\v'
-  else
-    let pattern_flag .= '\V'
-  endif
-
-  let pattern = '/'.pattern_flag.escape(a:search, '/').'/j'
-  let cmd = 'silent! vimgrep '.pattern.' '.$vim_project.'/**/*'
-  execute cmd
-  redraw!
-
-  let &wildignore = original_wildignore
-
-  let output_qf = getqflist()
-
-  let [output, more] = s:SetGrepOutputLength(a:search, a:full_input, output_qf)
-
-  let result = map(output, {_, val -> {
-        \'file': s:RemoveProjectPath(getbufinfo(val.bufnr)[0].name),
-        \'lnum': val.lnum,
-        \'line': val.text,
-        \}})
-
-  if more
-    let result[0].more = more
-  endif
-  return result
-endfunction
-
-function! s:RunShellCmd(cmd)
+function! project#RunShellCmd(cmd)
   let cd_option = s:is_win_version ? '/d' : ''
   let cmd = 'cd '.cd_option.' '.$vim_project.' && '.a:cmd
   try
     let output = systemlist(cmd)
   catch
-    call s:Warn('Exception on running '.a:cmd)
-    call s:Warn(v:exception)
+    call project#Warn('Exception on running '.a:cmd)
+    call project#Warn(v:exception)
     return []
   endtry
 
@@ -2081,247 +1444,17 @@ function! s:RunShellCmd(cmd)
   return output
 endfunction
 
-function! s:GetFindInFilesResult(search, full_input)
-  let raw_search = s:RemoveSearchFlags(a:search)
-  if raw_search == '' || len(raw_search) == 1
-    return []
-  endif
-
-  let list = s:GetGrepResult(a:search, a:full_input)
-  return list
-endfunction
-
-function! s:GetFindInFilesDisplay(list, search, replace)
-  if len(a:list) == 0
-    return []
-  endif
-
-  let pattern = s:GetFindInFilesSearchPattern(a:search)
-  let show_replace = !empty(a:search) && !empty(a:replace)
-
-  let display = map(copy(a:list),
-        \function('s:GetFindInFilesDisplayRow', [pattern, a:replace, show_replace]))
-
-  if s:IsListMore(a:list)
-    let display[0] .= '  ...more'
-  endif
-
-  return display
-endfunction
-
-function! s:IsFileItem(item)
-  return has_key(a:item, 'file') && !has_key(a:item, 'line')
-endfunction
-
-function! s:IsFileLineItem(item)
-  return has_key(a:item, 'file') && has_key(a:item, 'line')
-endfunction
-
-function! s:GetFindInFilesDisplayRow(pattern, replace, show_replace, idx, val)
-  let isFile = s:IsFileItem(a:val)
-  if isFile
-    return a:val.file
-  else
-    let line = a:val.line
-    if a:show_replace
-      let line = s:GetReplacedLine(line, a:pattern, a:replace, 1)
-    endif
-    return '  '.line
-  endif
-endfunction
-
-function! s:GetReplacedLine(line, pattern, replace, add)
-  let prefix = a:add ? '\1' : ''
-  let line = substitute(a:line, '\V\('.a:pattern.'\V\)', prefix.a:replace, 'g')
-  return line
-endfunction
-
-function! s:IsListMore(list)
+function! project#hasMoreOnList(list)
   return len(a:list) && has_key(a:list[0], 'more') && a:list[0].more
 endfunction
 
-function! s:FindInFilesBufferInit(input)
-  return s:FindInFilesBufferUpdate(a:input, 1, 0)
-endfunction
-
-
-function! s:FindInFilesBufferUpdateTimer(input)
-  call timer_stop(s:update_timer)
-  if !s:ShouldRunFindInFiles(a:input) || empty(a:input)
-    call s:FindInFilesBufferUpdate(a:input, 0, 0)
-  else
-    let s:update_timer = timer_start(200,
-          \function('s:FindInFilesBufferUpdate', [a:input, 0]))
-  endif
-endfunction
-
-function! s:IsReplaceInitiallyAdded(input)
-  let [_, replace] = s:ParseInput(a:input)
-  let has_separator = s:Include(a:input, s:search_replace_separator)
-  return has_separator && empty(replace) && s:replace == -1
-endfunction
-
-function! s:ShouldRunFindInFiles(input)
-  let [search, replace] = s:ParseInput(a:input)
-  let search_changed = exists('s:input') && search != s:input && !s:IsShowHistoryList(search)
-  let replace_initially_added = s:IsReplaceInitiallyAdded(a:input)
-  return search_changed || replace_initially_added
-endfunction
-
-function! s:IsShowHistoryList(input)
-  return a:input == '' && s:input == -1 && !empty(s:list)
-endfunction
-
-function! s:GetSearchFlags(search)
-  let case_sensitive = s:Include(a:search, '\\C')
-  let use_regexp = s:Include(a:search, '\\E')
-
-  let flags = ''
-  if case_sensitive
-    let flags .= 'C'
-  endif
-  if use_regexp
-    let flags .= 'E'
-  endif
-  return flags
-endfunction
-
-function! s:RemoveSearchFlags(search)
-  return substitute(a:search, '\\C\|\\E\|\\\@<!\\$', '', 'g')
-endfunction
-
-function! s:ParseInput(input)
-  let inputs = split(a:input, s:search_replace_separator)
-
-  if len(inputs) == 2
-    let search = inputs[0]
-    let replace = inputs[1]
-  elseif len(inputs) == 1
-    let search = inputs[0]
-    let replace = ''
-  else
-    let search = a:input
-    let replace = ''
-  endif
-
-  return [search, replace]
-endfunction
-
-function! s:ShowFindInFilesResultTimer(display, search, replace, full_input)
-  call timer_start(1,
-        \function('s:ShowFindInFilesResult', [a:display, a:search, a:replace, a:full_input]))
-endfunction
-" 
-function! s:ShowFindInFilesResult(display, search, replace, full_input, id)
-  if exists('s:list')
-    call project#ShowInListBuffer(a:display, a:search)
-    call project#HighlightCurrentLine(len(a:display))
-    call s:HighlightSearchAsPattern(a:search)
-    call s:HighlightReplaceChars(a:search, a:replace)
-    call s:HighlighExtraInfo()
-    call project#HighlightNoResults()
-    call s:RedrawInputLine()
-  endif
-endfunction
 
 function! project#HighlightNoResults()
   call matchadd('Comment', '- No results for:.*')
 endfunction
 
-function! s:HighlighExtraInfo()
-  call matchadd('Special', ' \.\.\.more$')
-endfunction
-
-function! s:FindInFilesBufferUpdate(full_input, is_init, id)
-  let should_run = s:ShouldRunFindInFiles(a:full_input)
-  let [search, replace] = s:ParseInput(a:full_input)
-  let should_redraw = s:ShouldRedrawWithReplace(search, replace)
-
-  if !exists('s:list')
-    let s:list = []
-  endif
-
-  if should_run
-    let list = s:GetFindInFilesResult(search, a:full_input)
-    let display = s:GetFindInFilesDisplay(list, search, replace)
-    let s:input = search
-    let s:list = list
-    if s:IsReplaceInitiallyAdded(a:full_input)
-      let s:replace = replace
-    else
-      let s:replace = -1
-    endif
-  elseif should_redraw
-    let [redraw_search, redraw_replace] =
-          \s:TryGetSearchAndReplaceFromHistory(search, replace)
-    let display = s:GetFindInFilesDisplay(s:list, redraw_search, redraw_replace)
-    let s:replace = replace
-  else
-    let display = s:GetFindInFilesDisplay(s:list, search, replace)
-  endif
-
-  " Use timer just for fluent typing. Not necessary
-  let use_timer = (should_run || should_redraw) && !empty(a:full_input) && !a:is_init
-  if use_timer
-    call s:ShowFindInFilesResultTimer(display, search, replace, a:full_input)
-  else
-    call s:ShowFindInFilesResult(display, search, replace, a:full_input, 0)
-  endif
-endfunction
-
-function! s:TryGetSearchAndReplaceFromHistory(search, replace)
-  if s:IsShowHistoryList(a:search) && s:HasFindInFilesHistory()
-    let input = s:list_history.FIND_IN_FILES.input
-    return s:ParseInput(input)
-  else
-    return [a:search, a:replace]
-  endif
-endfunction
-
 function! s:HasFindInFilesHistory()
   return has_key(s:list_history, 'FIND_IN_FILES')
-endfunction
-
-function! s:HasDismissed()
-  return s:dismissed_find_replace
-endfunction
-
-function! s:ResetDismissedVar()
-  if s:dismissed_find_replace
-    let s:dismissed_find_replace = 0
-  endif
-endfunction
-
-function! s:ShouldRedrawWithReplace(input, replace)
-  if s:HasDismissed()
-    return 1
-  endif
-  if empty(a:replace) && s:replace == -1
-    return 0
-  endif
-  return a:replace != s:replace && !s:IsShowHistoryList(a:input)
-endfunction
-
-function! s:HighlightReplaceChars(search, replace)
-  if a:replace == ''
-    return
-  endif
-
-  let pattern = s:GetFindInFilesSearchPattern(a:search)
-  execute 'silent! 3match BeforeReplace /'.pattern.'/'
-  execute 'silent! 2match AfterReplace /'.pattern.'\zs\V'.a:replace.'/'
-  execute 'silent! 1match FirstColumn /'.s:first_column_pattern.'/'
-endfunction
-
-function! s:FindInFilesBufferOpen(target, open_cmd, input)
-  let open_type = substitute(a:open_cmd, 'open_\?', '', '')
-  if open_type == ''
-    let open_type = 'edit'
-  endif
-
-  let file = $vim_project.'/'.a:target.file
-  let lnum = has_key(a:target, 'lnum') ? a:target.lnum : 1
-  execute open_type.' +'.lnum.' '.file
 endfunction
 
 function! s:ShowInputLine(input)
@@ -2332,7 +1465,7 @@ function! s:ShowInputLine(input)
   echo s:prefix.' '.input
 endfunction
 
-function! s:RedrawInputLine()
+function! project#RedrawInputLine()
   call s:ShowInputLine(s:user_input)
 endfunction
 
@@ -2410,7 +1543,7 @@ function! s:ClearWordOfInput(input)
 endfunction
 
 function! s:AddFindReplaceSeparator(input)
-  if !s:Include(a:input, s:search_replace_separator)
+  if !project#Include(a:input, s:search_replace_separator)
     let input = a:input.s:search_replace_separator
   else
     let input = a:input
@@ -2610,7 +1743,7 @@ function! s:SaveListVariables(input)
 
   if s:HasFindInFilesHistory() 
     let last_input = s:list_history[s:list_type].input
-    if !empty(last_input) && s:IsShowHistoryList(a:input)
+    if !empty(last_input) && project#IsShowHistoryList(a:input)
       let input = last_input
     endif
   endif
@@ -2710,7 +1843,7 @@ function! s:OpenTarget(cmd, input, Open)
   let target = s:GetTarget()
 
   if empty(target)
-    call s:Warn('No item selected')
+    call project#Warn('No item selected')
     return
   endif
 
@@ -2732,7 +1865,7 @@ function! project#OpenProjectByName(name)
   if !empty(project)
     call project#OpenProject(project)
   else
-    call s:Warn('Project not found: ['.a:name.']')
+    call project#Warn('Project not found: ['.a:name.']')
   endif
 endfunction
 
@@ -2746,7 +1879,7 @@ function! s:RemoveProjectByName(name, is_recursive)
     call s:RemoveProject(project)
     call s:RemoveProjectByName(a:name, 1)
   elseif !a:is_recursive
-    call s:Warn('Project not found: ['.a:name.']')
+    call project#Warn('Project not found: ['.a:name.']')
   endif
 endfunction
 
@@ -2779,7 +1912,7 @@ function! project#ReloadProject()
 endfunction
 
 function! s:ReloadProject()
-  if s:ProjectExists()
+  if project#ProjectExist()
     call s:SaveAllBuffers()
     let s:reloading_project = 1
 
@@ -2836,7 +1969,7 @@ function! s:PostLoadProject()
 endfunction
 
 function! s:ClearCurrentProject(current)
-  if s:ProjectExists()
+  if project#ProjectExist()
     call s:QuitProject()
     silent! %bdelete
   endif
@@ -2891,7 +2024,7 @@ function! s:UnsetEnvVariables()
   unlet $vim_project_config
 endfunction
 
-function! s:ProjectExists()
+function! project#ProjectExist()
   if empty(s:project)
     return 0
   else
@@ -2900,7 +2033,7 @@ function! s:ProjectExists()
 endfunction
 
 function! project#OpenProjectRoot()
-  if s:ProjectExists()
+  if project#ProjectExist()
     let path = s:GetProjectRootPath()
     if !empty(path)
       execute 'edit '.path
@@ -2909,11 +2042,11 @@ function! project#OpenProjectRoot()
 endfunction
 
 function! project#OpenProjectConfig()
-  if s:ProjectExists()
+  if project#ProjectExist()
     let config = s:GetProjectConfigPath(s:config_home, s:project)
     execute 'tabedit '.config.'/'.s:init_file
   else
-    call s:Warn('No project opened')
+    call project#Warn('No project opened')
   endif
 endfunction
 
@@ -2926,7 +2059,7 @@ function! project#QuitProject()
 endfunction
 
 function! s:QuitProject()
-  if s:ProjectExists()
+  if project#ProjectExist()
     call s:Info('Quitted ['.s:project.name.']')
     call s:SaveSession()
     call s:SourceQuitFile()
@@ -2967,7 +2100,7 @@ function! project#ShowProjectInfo()
     call s:Info('Search Exclude: '.string(s:search_exclude))
     call s:Info('Find in files Exclude: '.string(s:find_in_files_exclude))
   else
-    call s:Warn('No project opened')
+    call project#Warn('No project opened')
   endif
 endfunction
 
@@ -2977,7 +2110,7 @@ function! project#ShowProjectAllInfo()
     call s:Info('------------ Details ------------')
     call s:ShowProjectConfig()
   else
-    call s:Warn('No project opened')
+    call project#Warn('No project opened')
   endif
 endfunction
 
@@ -3100,7 +2233,7 @@ function! s:GetProjectRootPath()
     return path
   else
     redraw
-    call s:Warn('Project path not found: '.path)
+    call project#Warn('Project path not found: '.path)
     return ''
   endif
 endfunction
@@ -3169,7 +2302,7 @@ function! s:FindBranch()
     if !v:shell_error
       let s:branch = matchstr(head, 'refs\/heads\/\zs.*')
     else
-      call s:Warn('Error on find branch: '.v:shell_error)
+      call project#Warn('Error on find branch: '.v:shell_error)
       let s:branch = s:branch_default
     endif
     call s:Debug('Find branch: '.s:branch)
@@ -3180,7 +2313,7 @@ function! s:FindBranch()
 endfunction
 
 function! s:GetSessionFolder()
-  if s:ProjectExists()
+  if project#ProjectExist()
     let config = s:GetProjectConfigPath(s:config_home, s:project)
     return config.'/sessions'
   else
@@ -3190,7 +2323,7 @@ endfunction
 
 
 function! s:GetSessionFile()
-  if s:ProjectExists()
+  if project#ProjectExist()
     let config = s:GetProjectConfigPath(s:config_home, s:project)
     return config.'/sessions/'.s:branch.'.vim'
   else
@@ -3262,7 +2395,7 @@ function! s:SaveSession()
     return
   endif
 
-  if s:ProjectExists()
+  if project#ProjectExist()
     call s:BeforeSaveSession()
 
     let folder = s:GetSessionFolder()
@@ -3433,7 +2566,7 @@ function! s:GotoLinkedFile(files, open_type)
   if a:files[0] =~ '^\w*$' " By file extension
     let current_index = index(a:files, expand('%:e'))
     if current_index == -1 
-      call s:Warn('File map extension not found: '.expand('%:e').' in '.join(a:files, ', '))
+      call project#Warn('File map extension not found: '.expand('%:e').' in '.join(a:files, ', '))
     else
       let target =  expand('%:p:r').'.'.a:files[1 - current_index]
     endif
@@ -3460,95 +2593,21 @@ function! s:OpenFile(open_type, target)
   let expended_open_target = expand(open_target)
 
   if !filereadable(expended_open_target) && !isdirectory(expended_open_target)
-    let display_target = project#ReplaceHomeWithTide(s:RemoveProjectPath(expended_open_target))
-    call s:Warn('File or folder not found: '.display_target)
+    let display_target = project#ReplaceHomeWithTide(
+          \s:RemoveProjectPath(expended_open_target))
+    call project#Warn('File or folder not found: '.display_target)
     return
   endif
 
   execute a:open_type.' '.expended_open_target
 endfunction
 
-function! s:Include(string, search_string)
+function! project#Include(string, search_string)
   return match(a:string, a:search_string) != -1
 endfunction
 
-function! s:GetFindInFilesSearchPattern(search)
-  let flags = s:GetSearchFlags(a:search)
-  let pattern_flags = ''
-  if s:Include(flags, 'C')
-    let pattern_flags .= '\C'
-  else
-    let pattern_flags .= '\c'
-  endif
-  if s:Include(flags, 'E')
-    let pattern_flags .= '\v'
-  else
-    let pattern_flags .= '\V'
-  endif
-
-  let search = s:RemoveSearchFlags(a:search)
-  let pattern = search
-  let pattern = escape(pattern, '/')
-  let pattern = s:TransformPatternOneByOne(pattern)
-  return pattern_flags.pattern
-endfunction
-
-function! s:HighlightSearchAsPattern(search)
-  if a:search == ''
-    return
-  endif
-
-  call clearmatches()
-  let pattern = s:GetFindInFilesSearchPattern(a:search)
-  execute 'silent! 2match InputChar /'.pattern.'/'
-  execute 'silent! 1match FirstColumn /'.s:first_column_pattern.'/'
-endfunction
-
-function! s:TransformPatternOneByOne(pattern)
-  let chars = split(a:pattern, '\zs')
-  let idx = 0
-  for char in chars
-    " \b -> \W for rg/ag
-    call s:ReplaceEscapedChar(chars, idx, char, ['b'], ['W'])
-    let idx += 1
-  endfor
-
-  return join(chars, '')
-endfunction
-
-function! s:AddBackslashIfNot(chars,idx, char, target)
-  let idx = a:idx
-
-  if count(a:target, a:char) > 0 && idx > 0
-    if a:chars[idx-1] != '\'
-      let a:chars[idx] = '\'.a:chars[idx]
-    endif
-  endif
-endfunction
-
-" For example:
-" target ['(', ')', '|']) means ( -> \(, \( -> (, ...,
-function! s:ReverseBackslash(chars, idx, char, target)
-  let idx = a:idx
-
-  if count(a:target, a:char) > 0 && idx > 0
-    if a:chars[idx-1] == '\'
-      let a:chars[idx-1] = ''
-    else
-      let a:chars[idx] = '\'.a:chars[idx]
-    endif
-  endif
-endfunction
-
-function! s:ReplaceEscapedChar(chars, idx, char, from, to)
-  let idx = a:idx
-
-  let char_idx = index(a:from, a:char)
-  if char_idx != -1 && idx > 0
-    if a:chars[idx-1] == '\'
-      let a:chars[idx] = a:to[char_idx]
-    endif
-  endif
+function! project#IsShowHistoryList(input)
+  return a:input == '' && s:input == -1 && !empty(s:list)
 endfunction
 
 function! project#HighlightInputChars(input)
@@ -3644,19 +2703,16 @@ function! s:GetMatchPos(lnum, input)
   return pos
 endfunction
 
-function! s:UniqueList(list)
-  let compare = copy(a:list)
-  call filter(a:list, function('s:UniqueListByFile', [compare]))
+function! project#SetSlashBasedOnOS(val)
+  if s:is_win_version
+    return substitute(a:val, '/', '\', 'g')
+  else
+    return substitute(a:val, '\', '/', 'g')
+  endif
 endfunction
 
-function! s:UniqueListByFile(list, idx, val)
-  for i in range(0, a:idx - 1)
-    let item = a:list[i]
-    if item.file == a:val.file && item.path == a:val.path
-      return 0
-    endif
-  endfor
-  return 1
+function! project#Exist(name)
+  return exists('s:'.a:name)
 endfunction
 
 function! project#GetVariable(name)
