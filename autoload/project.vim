@@ -13,7 +13,6 @@ function! s:Prepare()
   let s:loading_on_vim_enter = 0
   let s:start_project = {}
   let s:start_buf = ''
-  let s:dismissed_find_replace = 0
   let s:sourcing_file = 0
   let s:init_input = ''
   let s:user_input = ''
@@ -489,7 +488,11 @@ function! s:Info(msg, ...)
   echom '['.s:name.'] '.a:msg
 endfunction
 
-function! s:InfoEcho(msg)
+function! project#Info(msg, ...)
+  echom '['.s:name.'] '.a:msg
+endfunction
+
+function! project#InfoEcho(msg)
   echo '['.s:name.'] '.a:msg
 endfunction
 
@@ -1003,11 +1006,11 @@ function! s:RunTask(task)
     return 0
   endif
 
-  let index = s:GetCurrentIndex()
+  let index = project#GetCurrentIndex()
   let a:task.bufnr = term_start(a:task.cmd, options)
 
   if !has_prev_buf
-    call s:UpdateOffsetByIndex(index - (s:run_tasks_output_rows + 1))
+    call project#UpdateOffsetByIndex(index - (s:run_tasks_output_rows + 1))
   endif
   return 1
 endfunction
@@ -1030,12 +1033,21 @@ function! s:StopTask(task)
 endfunction
 
 function! s:StopTaskHandler(input)
-  let index = s:GetCurrentIndex()
-  let task = s:GetTarget()
+  let index = project#GetCurrentIndex()
+  let task = project#GetTarget()
   call s:StopTask(task)
   call s:RunTasksBufferUpdate(a:input)
-  call s:UpdateOffsetByIndex(index)
+  call project#UpdateOffsetByIndex(index)
 endfunction
+
+function! project#UpdateOffsetByIndex(index)
+  if a:index < len(s:list) - 1
+    let s:offset = s:GetCurrentOffset(a:index)
+  else
+    let s:offset = 0
+  endif
+endfunction
+
 
 function! s:FilterRunTasks(tasks, filter)
   let regexp_filter = join(split(a:filter, '\zs'), '.*')
@@ -1453,7 +1465,7 @@ function! project#HighlightNoResults()
   call matchadd('Comment', '- No results for:.*')
 endfunction
 
-function! s:HasFindInFilesHistory()
+function! project#HasFindInFilesHistory()
   return has_key(s:list_history, 'FIND_IN_FILES')
 endfunction
 
@@ -1542,16 +1554,6 @@ function! s:ClearWordOfInput(input)
   return input
 endfunction
 
-function! s:AddFindReplaceSeparator(input)
-  if !project#Include(a:input, s:search_replace_separator)
-    let input = a:input.s:search_replace_separator
-  else
-    let input = a:input
-  endif
-
-  return input
-endfunction
-
 function! s:HandleInput(input, Update, Open)
   let input = a:input
 
@@ -1586,11 +1588,11 @@ function! s:HandleInput(input, Update, Open)
       elseif cmd == 'paste'
         let input .= @*
       elseif cmd == 'replace_prompt'
-        let input = s:AddFindReplaceSeparator(input)
+        let input = project#find_in_files#AddFindReplaceSeparator(input)
       elseif cmd == 'replace_dismiss_item'
-        call s:DismissFindReplaceItem()
+        call project#find_in_files#DismissFindReplaceItem()
       elseif cmd == 'replace_confirm'
-        call s:ConfirmFindReplace(input)
+        call project#find_in_files#ConfirmFindReplace(input)
         break
       elseif cmd == 'switch_to_list'
         break
@@ -1648,73 +1650,10 @@ endfunction
 
 function! s:GetCurrentLineNumber()
   if winheight(0) > len(s:list)
-    return winheight(0) - len(s:list) + s:GetCurrentIndex() + 1
+    return winheight(0) - len(s:list) + project#GetCurrentIndex() + 1
   endif
 
-  return s:GetCurrentIndex() + 1
-endfunction
-
-function! s:ConfirmFindReplace(input)
-  let [current_search, current_replace] = s:ParseInput(a:input)
-  let [search, replace] =
-        \s:TryGetSearchAndReplaceFromHistory(current_search, current_replace)
-  call s:RunReplaceAll(search, replace)
-endfunction
-
-function! s:RunReplaceAll(search, replace)
-  let index_line = 0
-  let index_file = 0
-  let total_lines = s:GetTotalReplaceLines()
-  let total_files = len(s:list) - total_lines
-  let pattern = s:GetFindInFilesSearchPattern(a:search)
-
-  for item in s:list
-    if s:IsFileLineItem(item)
-      call s:ReplaceLineOfFile(item, pattern, a:replace)
-      let index_line += 1
-    else
-      let index_file += 1
-    endif
-    let info_line = 'lines: '.index_line.' of '.total_lines
-    let info_file = 'files: '.index_file.' of '.total_files
-    redraw
-    call s:InfoEcho('Replaced '.info_file.', '.info_line)
-  endfor
-
-  edit
-  call timer_start(100, function('s:Info', ['Replaced '.info_file.', '.info_line]))
-endfunction
-
-function! s:GetTotalReplaceLines()
-  let total = 0
-  for item in s:list
-    if s:IsFileLineItem(item)
-      let total += 1
-    endif
-  endfor
-  return total
-endfunction
-
-function! s:ReplaceLineOfFile(item, pattern, replace)
-  let file = $vim_project.'/'.a:item.file
-  let index = a:item.lnum - 1
-  let lines = readfile(file)
-  let lines[index] = s:GetReplacedLine(lines[index], a:pattern, a:replace, 0)
-  call writefile(lines, file)
-endfunction
-
-function! s:DismissFindReplaceItem()
-  let target = s:GetTarget()
-  if empty(target)
-    return
-  endif
-
-  if s:IsFileLineItem(target)
-    call s:RemoveTarget()
-  else
-    call s:RemoveFile()
-  endif
-  let s:dismissed_find_replace = 1
+  return project#GetCurrentIndex() + 1
 endfunction
 
 function! s:IsOpenCmd(cmd)
@@ -1741,7 +1680,7 @@ function! s:SaveListVariables(input)
 
   let input = a:input
 
-  if s:HasFindInFilesHistory() 
+if project#HasFindInFilesHistory() 
     let last_input = s:list_history[s:list_type].input
     if !empty(last_input) && project#IsShowHistoryList(a:input)
       let input = last_input
@@ -1760,12 +1699,11 @@ function! s:ResetListVariables()
   let s:initial_height = 0
 
   unlet! s:list
-  unlet! s:list_initial_result
   unlet! s:prefix
   unlet! s:list_type
 endfunction
 
-function! s:GetTarget()
+function! project#GetTarget()
   let index = len(s:list) - 1 + s:offset
 
   if index >= 0 && index < len(s:list)
@@ -1776,7 +1714,7 @@ function! s:GetTarget()
   return {}
 endfunction
 
-function! s:GetCurrentIndex()
+function! project#GetCurrentIndex()
   return len(s:list) - 1 + s:offset
 endfunction
 
@@ -1784,63 +1722,8 @@ function! s:GetCurrentOffset(index)
   return a:index - len(s:list) + 1
 endfunction
 
-function! s:GetNextFileIndex(index)
-  for i in range(a:index+1, len(s:list)-1)
-    if s:IsFileItem(s:list[i])
-      return i
-    endif
-  endfor
-
-  return len(s:list)
-endfunction
-
-function! s:RemoveTarget()
-  let index = s:GetCurrentIndex()
-  call remove(s:list, index)
-  call s:RemoveFileWithoutItem()
-  call s:UpdateOffsetAfterRemoveTarget()
-endfunction
-
-function! s:UpdateOffsetAfterRemoveTarget()
-  if s:offset < len(s:list) - 2
-    let s:offset += 1
-  endif
-endfunction
-
-function! s:RemoveFileWithoutItem()
-  let target = s:GetTarget()
-  if s:IsFileItem(target)
-    let current_index = s:GetCurrentIndex()
-    let next_file_index = s:GetNextFileIndex(current_index)
-    if next_file_index - current_index < 2
-      call s:RemoveTarget()
-    endif
-  endif
-endfunction
-
-function! s:RemoveFile()
-  let index = s:GetCurrentIndex()
-  let next_file_index = s:GetNextFileIndex(index)
-  call s:RemoveRange(index, next_file_index - 1)
-  call s:UpdateOffsetByIndex(index)
-endfunction
-
-function! s:UpdateOffsetByIndex(index)
-  if a:index < len(s:list) - 1
-    let s:offset = s:GetCurrentOffset(a:index)
-  else
-    let s:offset = 0
-  endif
-endfunction
-
-function! s:RemoveRange(start, end)
-  if a:start < a:end
-    call remove(s:list, a:start, a:end)
-  endif
-endfunction
-
 function! s:OpenTarget(cmd, input, Open)
-  let target = s:GetTarget()
+  let target = project#GetTarget()
 
   if empty(target)
     call project#Warn('No item selected')
