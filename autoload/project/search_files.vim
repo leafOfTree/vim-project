@@ -14,6 +14,10 @@ function! project#search_files#run()
   call project#RenderList(Init, Update, Open)
 endfunction
 
+function! project#search_files#reset()
+  unlet! s:initial_list
+endfunction
+
 function! s:Init(input)
   call s:Update(a:input)
 endfunction
@@ -186,7 +190,7 @@ function! s:GetFilesByGlob()
 endfunction
 
 function! s:GetSearchFilesResultList(input)
-  if !exists('s:list_initial_result')
+  if !exists('s:initial_list')
     let list = s:GetSearchFilesAll()
   else
     let list = s:GetSearchFilesByFilter(a:input)
@@ -224,8 +228,8 @@ function! s:GetSearchFilesAll()
 
   let result = s:find_cmd_func()
   call s:MapSearchFiles(result)
-  let s:list_initial_result = result
-  let list = copy(s:list_initial_result)
+  let s:initial_list = result
+  let list = copy(s:initial_list)
   return list
 endfunction
 
@@ -240,13 +244,13 @@ endfunction
 function! s:GetSearchFilesByFilterForDirectory(input)
   let list = []
   let filter = substitute(a:input, '/$', '', '')
-  let list = filter(copy(s:list_initial_result), {_, val -> s:GetSearchFilesByDirectory(val, filter)})
+  let list = filter(copy(s:initial_list), {_, val -> s:GetSearchFilesByDirectory(val, filter)})
 
   if len(list) < s:GetMaxHeight()
     call s:SortSearchFilesList(list, filter)
 
     let filter_fuzzy = join(split(filter, '\zs'), '.*')
-    let list_extra = filter(copy(s:list_initial_result), {_, val -> s:GetSearchFilesByDirectory(val, filter_fuzzy)})
+    let list_extra = filter(copy(s:initial_list), {_, val -> s:GetSearchFilesByDirectory(val, filter_fuzzy)})
     call s:SortSearchFilesList(list_extra, filter)
     let list += list_extra
   endif
@@ -260,30 +264,30 @@ function! s:GetSearchFilesByFilterForFullpath(input)
   " Match file
   if len(a:input) < 3
     let filter_start = '^'.filter_origin
-    let list = filter(copy(s:list_initial_result), {_, val -> val.file =~ filter_start})
+    let list = filter(copy(s:initial_list), {_, val -> val.file =~ filter_start})
   endif
 
   if len(list) < s:GetMaxHeight()
-    let list = filter(copy(s:list_initial_result), {_, val -> val.file =~ filter_origin})
+    let list = filter(copy(s:initial_list), {_, val -> val.file =~ filter_origin})
     call s:SortSearchFilesList(list, a:input)
   endif
 
   if len(list) < s:GetMaxHeight()
     let filter_fuzzy = join(split(a:input, '\zs'), '.*')
-    let list_extra = filter(copy(s:list_initial_result), {_, val -> val.file =~ filter_fuzzy})
+    let list_extra = filter(copy(s:initial_list), {_, val -> val.file =~ filter_fuzzy})
     call s:SortSearchFilesList(list_extra, a:input)
     let list += list_extra
   endif
 
   " Match path and file if list is short
   if len(list) < s:GetMaxHeight()
-    let list_extra = filter(copy(s:list_initial_result), {_, val -> val.path.val.file =~ filter_origin})
+    let list_extra = filter(copy(s:initial_list), {_, val -> val.path.val.file =~ filter_origin})
     let list += list_extra
   endif
 
   " Fuzzy match path and file if list is short
   if len(list) < s:GetMaxHeight()
-    let list_extra = filter(copy(s:list_initial_result), {_, val -> val.path.val.file =~ filter_fuzzy})
+    let list_extra = filter(copy(s:initial_list), {_, val -> val.path.val.file =~ filter_fuzzy})
     let list += list_extra
   endif
   return list

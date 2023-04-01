@@ -1697,10 +1697,11 @@ endfunction
 function! s:ResetListVariables()
   unlet! s:input
   let s:initial_height = 0
-
   unlet! s:list
   unlet! s:prefix
   unlet! s:list_type
+
+  call project#search_files#reset()
 endfunction
 
 function! project#GetTarget()
