@@ -1700,8 +1700,6 @@ function! s:ResetListVariables()
   unlet! s:list
   unlet! s:prefix
   unlet! s:list_type
-
-  call project#search_files#reset()
 endfunction
 
 function! project#GetTarget()
@@ -1953,6 +1951,8 @@ function! s:QuitProject()
     let s:project = {}
     call s:UnsetEnvVariables()
     call s:SyncGlobalVariables()
+
+    call project#search_files#reset()
   endif
 endfunction
 
@@ -2498,11 +2498,17 @@ function! project#HighlightInputChars(input)
   call clearmatches()
   for lnum in range(1, line('$'))
     let pos = s:GetMatchPos(lnum, a:input)
-    if len(pos) > 0
-      for i in range(0, len(pos), 8)
-        call matchaddpos('InputChar', pos[i:i+7])
-      endfor
+    if len(pos) == 0
+      continue
     endif
+
+    " The maximum number of positions in {pos} is 8.
+    for i in range(0, len(pos), 8)
+      if empty(pos[i:i+7])
+        continue
+      endif
+      call matchaddpos('InputChar', pos[i:i+7])
+    endfor
   endfor
 endfunction
 
