@@ -633,7 +633,7 @@ function! s:RenamePathInProjectAddConfig(path, new_fullpath)
   let adds = readfile(file)
 
   let target = project#ReplaceHomeWithTide(a:path)
-  let target_pat = '\s'.escape(target, '~\/').'\($\|\/\)'
+  let target_pat = '\s'.escape(target, '~\/').'\ze\($\|\/\|,\)'
   let idx = 0
   for line in adds
     if project#Include(line, target_pat)
