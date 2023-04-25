@@ -1236,7 +1236,7 @@ function! s:SetupListBuffer()
     highlight link SecondColumn Comment
     highlight link Status Constant
     " Linking InfoRow to Normal does not work when overriding other syntax
-    if has('nvim')
+    if has('nvim') || !exists('*hlget')
       highlight link InfoRow Normal
     else
       let normal_hl = hlget('Normal')
