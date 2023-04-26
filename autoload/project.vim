@@ -819,6 +819,8 @@ function! s:GetProjectByPath(projects, path)
   return {}
 endfunction
 
+" offset: 0,1,2,... from bottom to top
+" index: 0,1,2,... from top to bottom
 function! project#UpdateOffsetByIndex(index)
   if a:index < len(s:list) - 1
     let s:offset = s:GetCurrentOffset(a:index)
@@ -1221,7 +1223,7 @@ function! project#RenderList(Init, Update, Open)
   if s:IsOpenCmd(cmd)
     call s:OpenTarget(cmd, input, a:Open)
   endif
-  call s:SaveListVariables(input)
+  call s:SaveListState(input)
   call s:ResetListVariables()
 endfunction
 
@@ -1251,11 +1253,11 @@ function! s:InitListVariables(Init)
 
   call a:Init(input)
 
-  " Empty input if no init and it was set from history
-  if !has_init_input && has_history
-    let s:input = -1
-    let input = ''
-  endif
+  " Empty input if no init and it was set from history ?
+  " if !has_init_input && has_history
+    " let s:input = -1
+    " let input = ''
+  " endif
 
   return input
 endfunction
@@ -1333,7 +1335,7 @@ function! s:HandleInput(input, Update, Open)
       elseif s:IsOpenCmd(cmd)
         break
       elseif cmd == 'stop_task'
-        call s:StopTaskHandler(input)
+        call project#run_tasks#StopTaskHandler(input)
       else
         let input = input.char
       endif
@@ -1400,22 +1402,17 @@ function! s:IsRunTasksList()
   return s:list_type == 'RUN_TASKS'
 endfunction
 
-function! s:SaveListVariables(input)
-  if !s:IsFindInFilesList()
+function! s:ShouldSaveListState()
+  return s:IsFindInFilesList() || s:IsRunTasksList()
+endfunction
+
+function! s:SaveListState(input)
+  if !s:ShouldSaveListState()
     return
   endif
 
-  let input = a:input
-
-if project#HasFindInFilesHistory() 
-    let last_input = s:list_history[s:list_type].input
-    if !empty(last_input) && project#IsShowHistoryList(a:input)
-      let input = last_input
-    endif
-  endif
-
   let s:list_history[s:list_type] = {
-        \'input': input,
+        \'input': a:input,
         \'offset': s:offset,
         \'initial_height': s:initial_height,
         \}
