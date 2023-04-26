@@ -41,6 +41,6 @@ command ProjectSearchFiles call project#search_files#run()
 command -nargs=? -range 
       \ ProjectFindInFiles call project#find_in_files#run(s:TrimQuote(<q-args>), <q-range>)
 
-command ProjectRun call project#RunTasks()
+command ProjectRun call project#run_tasks#run()
 
 call project#begin()
