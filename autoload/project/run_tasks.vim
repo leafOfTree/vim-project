@@ -239,11 +239,10 @@ function! s:RunTask(task)
     let cwd .= '/'.a:task.cd
   endif
 
-  let term_rows = s:HasFilter(a:task) ? 1000 : s:output_rows
   let options = { 
         \'cwd': cwd,
         \'term_name': a:task.name,
-        \'term_rows': term_rows,
+        \'term_rows': s:output_rows,
         \'hidden': 1,
         \}
   let has_started = s:GetTaskStatus(a:task) != ''
