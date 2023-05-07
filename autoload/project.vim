@@ -1254,10 +1254,12 @@ function! s:InitListVariables(Init)
   call a:Init(input)
 
   " Empty input if no init and it was set from history ?
-  " if !has_init_input && has_history
-    " let s:input = -1
-    " let input = ''
-  " endif
+  if s:IsFindInFilesList()
+    if !has_init_input && has_history
+      let s:input = -1
+      let input = ''
+    endif
+  endif
 
   return input
 endfunction
