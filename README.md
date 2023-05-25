@@ -200,8 +200,9 @@ When `Find in files`, you can press <kbd>c-r</kbd> to start to replace, <kbd>c-y
 `:ProjectRun` run a task defined by `tasks`. A task contains
 
 - `name`: task name
-- `cmd`: command to run in terminal
+- `cmd`: command to run in terminal through shell
 - `cd`: change directory to current project relatively
+- `show`, `hide`: both are a list of patterns to fiter task output
 
 For example, with below local config
 
@@ -216,6 +217,8 @@ let g:vim_project_local_config = {
       \{ 
         \'name': 'build', 
         \'cmd': 'npm build'
+        \'show': ['tests run.*in', '^\s\+'],
+        \'hide': ['info'],
       \}, 
       \{ 
         \'name': 'terminal', 
