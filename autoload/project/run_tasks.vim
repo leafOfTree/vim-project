@@ -1,4 +1,4 @@
-let s:output_rows = 15
+let s:output_rows = 20
 
 function! project#run_tasks#run()
   call project#PrepareListBuffer('Run a task:', 'RUN_TASKS')
@@ -118,7 +118,7 @@ function! s:AddTaskOutputWithFilter(task, display, list)
     endif
 
     let line = term_getline(a:task.bufnr, index)
-    if !empty(line) && (!s:MatchAny(line, a:task.hide) || s:MatchAny(line, a:task.show))
+    if s:HasContent(line) && s:MatchUserDefinedPattern(line, a:task.show, a:task.hide)
       let output_count += 1
       call add(output_list_backward, '  '.line)
     endif
@@ -136,6 +136,24 @@ function! s:AddTaskOutputWithFilter(task, display, list)
     let item = {'name': a:task.name, 'cmd': a:task.cmd, 'output': output}
     call add(a:list, item)
   endfor
+endfunction
+
+function! s:HasContent(line)
+  return match(a:line, '^\s*$') == -1 
+endfunction
+
+function! s:MatchUserDefinedPattern(line, show, hide)
+  let match = 1
+  if !empty(a:show)
+    let match = match && s:MatchAny(a:line, a:show)
+  endif
+
+  if !empty(a:hide)
+    let match = match && !s:MatchAny(a:line, a:hide)
+  endif
+
+  return match
+
 endfunction
 
 function! s:MatchAny(str, pats)
@@ -230,6 +248,10 @@ function! s:GetTaskStatus(task)
   endif
 endfunction
 
+function! s:GetTermRows(task)
+  return s:HasFilter(a:task) ? s:output_rows * 10 : s:output_rows
+endfunction
+
 " @return:
 "   1: keep current window,
 "   0: exit current window
@@ -242,7 +264,7 @@ function! s:RunTask(task)
   let options = { 
         \'cwd': cwd,
         \'term_name': a:task.name,
-        \'term_rows': s:output_rows,
+        \'term_rows': s:GetTermRows(a:task),
         \'hidden': 1,
         \'term_kill': 'int',
         \}
