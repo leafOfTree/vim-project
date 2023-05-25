@@ -244,19 +244,23 @@ function! s:RunTask(task)
         \'term_name': a:task.name,
         \'term_rows': s:output_rows,
         \'hidden': 1,
+        \'term_kill': 'int',
         \}
   let has_started = s:GetTaskStatus(a:task) != ''
   call s:StopTask(a:task)
 
+  let shell_prefix = &shell.' '.&shellcmdflag
+  let cmd = shell_prefix.' "'.a:task.cmd.'"'
+
   if has('nvim')
     enew
     set winheight=20
-    let a:task.bufnr = termopen(a:task.cmd, options)
+    let a:task.bufnr = termopen(cmd, options)
     return 0
   endif
 
   let index = project#GetCurrentIndex()
-  let a:task.bufnr = term_start(a:task.cmd, options)
+  let a:task.bufnr = term_start(cmd, options)
 
   if !has_started
     call project#UpdateOffsetByIndex(index - (s:output_rows + 1))
