@@ -1236,10 +1236,10 @@ function! s:InitListVariables(Init)
     let s:initial_height = s:max_height
     let s:init_input = ''
   elseif has_history
-    let prev = s:list_history[s:list_type]
-    let input = prev.input
-    let s:offset = prev.offset
-    let s:initial_height = prev.initial_height
+    let history = s:list_history[s:list_type]
+    let input = history.input
+    let s:offset = history.offset
+    let s:initial_height = history.initial_height
   else
     let input = ''
     let s:offset = 0
@@ -1404,12 +1404,12 @@ function! s:IsRunTasksList()
   return s:list_type == 'RUN_TASKS'
 endfunction
 
-function! s:ShouldSaveListState()
-  return s:IsFindInFilesList() || s:IsRunTasksList()
+function! s:ShouldSaveListState(input)
+  return (s:IsFindInFilesList() && !empty(a:input)) || s:IsRunTasksList()
 endfunction
 
 function! s:SaveListState(input)
-  if !s:ShouldSaveListState()
+  if !s:ShouldSaveListState(a:input)
     return
   endif
 

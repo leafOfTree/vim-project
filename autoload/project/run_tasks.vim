@@ -181,11 +181,6 @@ function! s:RunTasksBufferUpdate(input)
   call project#HighlightInputChars(a:input)
   call s:HighlightRunTasksCmdOutput()
   call project#HighlightNoResults()
-  if empty(a:input)
-    call project#RedrawEmptyInputLine()
-  else
-    call project#RedrawInputLine()
-  endif
 endfunction
 
 function! s:HighlightRunTasksCmdOutput()
