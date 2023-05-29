@@ -46,7 +46,7 @@ function! s:RunTasksBufferUpdateTimer(input, id)
 endfunction
 
 function! s:GetTaskStatusLine(status)
-  let icon = a:status == 'finished' ? '🏁' : '🏃'
+  let icon = a:status == 'finished' ? '🏁 🏁 🏁' : '🏃'
   return '  ['.a:status.'] '.icon
 endfunction
 
