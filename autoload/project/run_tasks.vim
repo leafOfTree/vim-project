@@ -227,7 +227,11 @@ function! s:OpenTaskTerminal(task)
   execute 'sbuffer '.a:task.bufnr
 endfunction
 
-function! project#run_tasks#WipeoutTaskBuffer()
+function! project#run_tasks#reset()
+  call s:WipeoutTaskBuffer()
+endfunction
+
+function! s:WipeoutTaskBuffer()
   let tasks = project#GetVariable('tasks')
   for task in tasks
     if has_key(task, 'bufnr')

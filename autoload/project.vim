@@ -890,14 +890,8 @@ endfunction
 function! s:WatchOnVimQuit()
   augroup vim-quit
     autocmd! vim-quit
-    autocmd QuitPre <buffer> call s:OnVimQuit()
+    autocmd QuitPre <buffer> call project#QuitProject()
   augroup END
-endfunction
-
-function! s:OnVimQuit()
-  call s:WipeoutListBuffer()
-  call project#run_tasks#WipeoutTaskBuffer()
-  call project#QuitProject()
 endfunction
 
 function! s:SetupListBuffer()
@@ -1696,7 +1690,9 @@ function! s:QuitProject()
     call s:UnsetEnvVariables()
     call s:SyncGlobalVariables()
 
+    call s:WipeoutListBuffer()
     call project#search_files#reset()
+    call project#run_tasks#reset()
   endif
 endfunction
 
