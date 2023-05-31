@@ -680,13 +680,19 @@ endfunction
 function! s:WatchOnInitFileChange()
   augroup vim-project-init-file-change
     autocmd! vim-project-init-file-change
-    autocmd BufWritePost $vim_project_config/init.vim call s:Info('Config Reloaded')
-    autocmd BufWritePost $vim_project_config/init.vim call s:SourceInitFile()
+    autocmd BufWritePost $vim_project_config/init.vim call s:OnInitFileChange()
+    
   augroup END
 endfunction
 
 function! s:UnwatchOnInitFileChange()
   autocmd! vim-project-init-file-change
+endfunction
+
+function! s:OnInitFileChange()
+  call s:Info('Config Reloaded')
+  call s:SourceInitFile()
+  call project#search_files#reset()
 endfunction
 
 function! s:SetStartProjectOnBufEnter()
