@@ -181,6 +181,7 @@ function! s:RunTasksBufferUpdate(input)
   call project#HighlightInputChars(a:input)
   call s:HighlightRunTasksCmdOutput()
   call project#HighlightNoResults()
+  redraw
 endfunction
 
 function! s:HighlightRunTasksCmdOutput()
