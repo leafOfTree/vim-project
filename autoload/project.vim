@@ -884,11 +884,23 @@ function! s:WipeoutListBuffer()
   if num != -1
     execute 'silent bwipeout! '.num
   endif
+
+endfunction
+
+function! s:WatchOnVimQuit()
+  augroup vim-quit
+    autocmd! vim-quit
+    autocmd QuitPre <buffer> call s:OnVimQuit()
+  augroup END
+endfunction
+
+function! s:OnVimQuit()
+  call s:WipeoutListBuffer()
+  call project#run_tasks#WipeoutTaskBuffer()
+  call project#QuitProject()
 endfunction
 
 function! s:SetupListBuffer()
-  autocmd QuitPre <buffer> call s:WipeoutListBuffer()
-
   setlocal buftype=nofile bufhidden=delete nobuflisted
   setlocal filetype=vimprojectlist
   setlocal nonumber
@@ -1579,7 +1591,7 @@ function! s:PostLoadProject()
   call s:SetStartBuffer()
   call s:SyncGlobalVariables()
   call s:StartWatchJob()
-  call s:OnVimLeave()
+  call s:WatchOnVimQuit()
 endfunction
 
 function! s:ClearCurrentProject(current)
@@ -1852,13 +1864,6 @@ function! s:GetProjectRootPath()
     call project#Warn('Project path not found: '.path)
     return ''
   endif
-endfunction
-
-function! s:OnVimLeave()
-  augroup vim-project-leave
-    autocmd! vim-project-leave
-    autocmd VimLeavePre * call project#QuitProject()
-  augroup END
 endfunction
 
 function! s:SourceInitFile()
