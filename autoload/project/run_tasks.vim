@@ -235,7 +235,6 @@ function! s:WipeoutTaskBuffer()
   let tasks = project#GetVariable('tasks')
   for task in tasks
     if has_key(task, 'bufnr')
-      echom 'wipe out'
       unlet task.bufnr
     endif
   endfor
