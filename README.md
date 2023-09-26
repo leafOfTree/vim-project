@@ -8,7 +8,6 @@
 
 A vim plugin to manage projects and sessions.
 
-
 **Features**
 
 - Switch between projects
@@ -51,16 +50,23 @@ Project-wide
 - `:ProjectList` 
 - `:ProjectSearchFiles`
 - `:ProjectFindInFiles`
+- `:ProjectRun`
 
 In a list, filter by typing. Select an item by <kbd>c-j</kbd>, <kbd>c-k</kbd> or the arrow keys. Then press <kbd>Enter</kbd> to open it. 
 
 See [Config and Keymappings](#config_keymappings) for details. 
 
-It's recommended to install [fd][4] and one of [rg][5]/[ag][6] to improve performance.
 
 ## Installation
 
-You can install it just like other plugins.
+
+- [fd][4]
+- [rg][5]/[ag][6]
+- this plugin
+
+It's recommended to install [fd][4] and one of [rg][5]/[ag][6] to improve search performance.
+
+You can install this plugin just like others.
 
 <details>
 <summary><a>How to install</a></summary>
@@ -313,7 +319,7 @@ let g:vim_project_config = {
 | Option                        | Description                                                                   |
 |-------------------------------|-------------------------------------------------------------------------------|
 | config_home                   | The directory for all config files                                            |
-| project_base                  | The base directory for relative path in `:Project path`                       |
+| project_base                  | A list of base directories used for path in `:Project path`                   |
 | use_session                   | Use session                                                                   |
 | open_root_when_use_session    | When session used, always open project root at the beginning                  |
 | check_branch_when_use_session | When session used, keep one for each branch                                   |
