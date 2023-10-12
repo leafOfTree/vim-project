@@ -36,7 +36,7 @@ function! s:Update(input)
 
   call project#ShowInListBuffer(display, a:input)
   call project#HighlightCurrentLine(len(display))
-  if input_changed && len(a:input) > 1
+  if input_changed
     call project#HighlightInputChars(a:input)
   endif
 
@@ -48,7 +48,8 @@ function! s:Update(input)
   if !empty(changed_files)
     call popup_clear()
     call popup_notification(changed_files, 
-       \ #{ line: 1, col: 999, pos: 'topright', highlight: 'Normal', time: 1} )
+       \ #{ line: 1, col: 999, pos: 'topright', highlight: 'Normal',
+       \ time: 1, minwidth: 40, maxwidth: &columns - 20 })
   endif
 endfunction
 
@@ -87,7 +88,7 @@ endfunction
 
 function! s:ShowDiff(hash)
   let line = getline('.')
-  let file = matchstr(line, '^\S\t\zs.*')
+  let file = matchstr(line, '^\S\s\zs.*')
   if empty(file)
     return 
   endif
@@ -115,7 +116,7 @@ endfunction
 
 function! s:GetChangedFiles(revision)
   let cmd = 'git diff-tree --no-commit-id --name-status -r -m --root '.a:revision.hash
-  let changed_files = systemlist(cmd)
+  let changed_files = map(systemlist(cmd), 'substitute(v:val, "\t", " ", "")')
   if v:shell_error
     return []
   else

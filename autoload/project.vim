@@ -2261,7 +2261,7 @@ function! project#HighlightInputChars(input)
   if empty(a:input)
     return
   endif
-  for lnum in range(1, line('$'))
+  for lnum in range(max([line('$') - 100, 0]), line('$'))
     let pos = s:GetMatchPos(lnum, a:input)
     if len(pos) == 0
       continue
