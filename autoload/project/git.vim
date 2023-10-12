@@ -45,9 +45,11 @@ function! s:Update(input)
     return
   endif
   let changed_files = s:GetChangedFiles(revision)
-  call popup_clear()
-  call popup_notification(changed_files, 
-     \ #{ line: 1, col: 999, pos: 'topright', highlight: 'Normal', time: 1} )
+  if !empty(changed_files)
+    call popup_clear()
+    call popup_notification(changed_files, 
+       \ #{ line: 1, col: 999, pos: 'topright', highlight: 'Normal', time: 1} )
+  endif
 endfunction
 
 function! s:Open(revision, cmd, input)
@@ -113,7 +115,12 @@ endfunction
 
 function! s:GetChangedFiles(revision)
   let cmd = 'git diff-tree --no-commit-id --name-status -r -m --root '.a:revision.hash
-  return systemlist(cmd)
+  let changed_files = systemlist(cmd)
+  if v:shell_error
+    return []
+  else
+    return changed_files
+  endif
 endfunction
 
 function! s:AddToBuffer(revision)
@@ -162,8 +169,8 @@ function! s:FilterLogs(list, input)
     let list = filter(list, { idx, val -> 
       \s:Match(val.message, pattern)
       \|| s:Match(val.author, pattern)
-      \|| s:Match(val.author, pattern)
-      \|| s:Match(val.date, pattern)
+      \|| s:Match(val.hash, pattern)
+      \|| (a:input[0] =~ '\d' && s:Match(val.date, pattern))
       \})
   endif
   return list
