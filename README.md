@@ -18,6 +18,7 @@ Project-wide
 - Find in files
 - Find and replace (**experimental**)
 - Run tasks
+- Search git log and file history
 - Config
 - Session (optional)
 
@@ -114,6 +115,7 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 | ProjectSearchFiles         | Search files by name                     |
 | ProjectFindInFiles         | Find given string/regexp (at least 2 chars) in files |
 | ProjectRun                 | Run a task defined by `tasks` config     |
+| ProjectShowGitLog          | Search git log and view diff             |
 | ProjectRoot                | Open project root                        |
 | ProjectConfig              | Open project config `init.vim` (effective after save) |
 | ProjectAllConfig           | Open all projects config `project.add.vim` |
@@ -277,43 +279,43 @@ let g:vim_project_config = {
       \}
 
 " Keymappings for list prompt
-  let s:default.list_mappings = {
-        \'open':                 "\<cr>",
-        \'close_list':           "\<esc>",
-        \'clear_char':           ["\<bs>", "\<c-a>"],
-        \'clear_word':           "\<c-w>",
-        \'clear_all':            "\<c-u>",
-        \'prev_item':            ["\<c-k>", "\<up>"],
-        \'next_item':            ["\<c-j>", "\<down>"],
-        \'first_item':           ["\<c-h>", "\<left>"],
-        \'last_item':            ["\<c-l>", "\<right>"],
-        \'scroll_up':            "\<c-p>",
-        \'scroll_down':          "\<c-n>",
-        \'paste':                "\<c-b>",
-        \'switch_to_list':       "\<c-o>",
-        \}
-  let s:default.list_mappings_projects = {
-        \'prev_view':            "\<s-tab>",
-        \'next_view':            "\<tab>",
-        \}
-  let s:default.list_mappings_search_files = {
-        \'open_split':           "\<c-s>",
-        \'open_vsplit':          "\<c-v>",
-        \'open_tabedit':         "\<c-t>",
-        \}
-  let s:default.list_mappings_find_in_files = {
-        \'open_split':           "\<c-s>",
-        \'open_vsplit':          "\<c-v>",
-        \'open_tabedit':         "\<c-t>",
-        \'replace_prompt':       "\<c-r>",
-        \'replace_dismiss_item': "\<c-d>",
-        \'replace_confirm':      "\<c-y>",
-        \}
-  let s:default.list_mappings_run_tasks = {
-        \'run_task':              "\<cr>",
-        \'stop_task':             "\<c-q>",
-        \'open_task_terminal':    "\<c-o>",
-        \}
+let g:vim_project_config.list_mappings = {
+      \'open':                 "\<cr>",
+      \'close_list':           "\<esc>",
+      \'clear_char':           ["\<bs>", "\<c-a>"],
+      \'clear_word':           "\<c-w>",
+      \'clear_all':            "\<c-u>",
+      \'prev_item':            ["\<c-k>", "\<up>"],
+      \'next_item':            ["\<c-j>", "\<down>"],
+      \'first_item':           ["\<c-h>", "\<left>"],
+      \'last_item':            ["\<c-l>", "\<right>"],
+      \'scroll_up':            "\<c-p>",
+      \'scroll_down':          "\<c-n>",
+      \'paste':                "\<c-b>",
+      \'switch_to_list':       "\<c-o>",
+      \}
+let g:vim_project_config.list_mappings_projects = {
+      \'prev_view':            "\<s-tab>",
+      \'next_view':            "\<tab>",
+      \}
+let g:vim_project_config.list_mappings_search_files = {
+      \'open_split':           "\<c-s>",
+      \'open_vsplit':          "\<c-v>",
+      \'open_tabedit':         "\<c-t>",
+      \}
+let g:vim_project_config.list_mappings_find_in_files = {
+      \'open_split':           "\<c-s>",
+      \'open_vsplit':          "\<c-v>",
+      \'open_tabedit':         "\<c-t>",
+      \'replace_prompt':       "\<c-r>",
+      \'replace_dismiss_item': "\<c-d>",
+      \'replace_confirm':      "\<c-y>",
+      \}
+let g:vim_project_config.list_mappings_run_tasks = {
+      \'run_task':              "\<cr>",
+      \'stop_task':             "\<c-q>",
+      \'open_task_terminal':    "\<c-o>",
+      \}
 ```
 
 | Option                        | Description                                                                   |

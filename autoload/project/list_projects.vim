@@ -16,7 +16,7 @@ endfunction
 function! s:Init(input)
   let projects = project#GetVariable('projects')
   let max_col_width = project#GetVariable('max_width') / 2 - 10
-  call project#TabulateList(projects, ['name', 'path', 'note'], ['note'], 0, max_col_width)
+  call project#Tabulate(projects, ['name', 'path', 'note'], 0, max_col_width)
   call s:Update(a:input)
 endfunction
 

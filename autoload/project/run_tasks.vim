@@ -11,7 +11,7 @@ endfunction
 function! s:Init(input)
   let tasks = project#GetVariable('tasks')
   let max_col_width = project#GetVariable('max_width') / 2 - 10
-  call project#TabulateList(tasks, ['name', 'cmd'], [], 0, max_col_width)
+  call project#Tabulate(tasks, ['name', 'cmd'], 0, max_col_width)
   call s:Update(a:input)
 endfunction
 

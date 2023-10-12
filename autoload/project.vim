@@ -840,8 +840,8 @@ function! project#PrepareListBuffer(prefix, list_type)
   let s:prefix = a:prefix
   let s:list_type = a:list_type
   " Manually trigger some events first
-  doautocmd BufLeave
-  doautocmd FocusLost
+  silent doautocmd BufLeave
+  silent doautocmd FocusLost
 
   " Ignore events to avoid a cursor bug when opening from Fern.vim
   let save_eventignore = &eventignore
@@ -914,10 +914,14 @@ function! s:SetupListBuffer()
     highlight link SecondColumn Comment
     highlight link Status Constant
     call project#run_tasks#Highlight()
+  elseif s:IsGitLogList()
+    let s:first_column_pattern = '^'.s:column_pattern
+    let s:second_column_pattern = '\s\{2,}[^- ]'.s:column_pattern
+    highlight link FirstColumn Normal
+    highlight link SecondColumn Comment
   else
     let s:first_column_pattern = '^'.s:column_pattern.s:note_column_pattern
     let s:second_column_pattern = '\s\{2,}[^- ]'.s:column_pattern
-
     highlight link FirstColumn Normal
     highlight link SecondColumn Comment
   endif
@@ -1074,13 +1078,30 @@ function! s:PreviousView()
 endfunction
 
 function! s:AddRightPadding(string, length)
-  let string = a:string
-  let padding = repeat(' ', a:length - len(string) + 1)
-  let string .= padding
-  return string
+  if strdisplaywidth(a:string) > a:length
+    return a:string
+  endif
+
+  let padding = repeat(' ', a:length - strdisplaywidth(a:string) + 1)
+  return a:string.padding
 endfunction
 
-function! project#TabulateList(list, keys, no_limit_keys, min_col_width, max_col_width)
+function! project#TabulateFixed(list, keys, widths)
+  for item in a:list
+    let key_idx = 0
+    for key in a:keys
+      if strdisplaywidth(item[key]) > a:widths[key_idx]
+        let item['__'.key] = s:Truncate(item[key], a:widths[key_idx], '.. ')
+      else
+        let item['__'.key] = s:AddRightPadding(item[key], a:widths[key_idx])
+      endif
+
+      let key_idx = key_idx + 1
+    endfor
+  endfor
+endfunction
+
+function! project#Tabulate(list, keys, min_col_width, max_col_width)
   " Init max width of each column
   let max = {}
 
@@ -1109,8 +1130,8 @@ function! project#TabulateList(list, keys, no_limit_keys, min_col_width, max_col
       for key in a:keys
         if has_key(item, key)
           let value = item['__'.key]
-          if len(value) > a:max_col_width && count(a:no_limit_keys, key) == 0
-            let value = value[0 : a:max_col_width-2].'..'
+          if len(value) > a:max_col_width
+            let value = s:Truncate(value, a:max_col_width, '.. ')
             let item['__'.key] = value
           endif
           if !has_key(max, key) || len(value) > max[key]
@@ -1130,6 +1151,10 @@ function! project#TabulateList(list, keys, no_limit_keys, min_col_width, max_col
       endif
     endfor
   endfor
+endfunction
+
+function! s:Truncate(value, max_width, placeholder)
+  return a:value[0 : a:max_width - len(a:placeholder)].a:placeholder
 endfunction
 
 function! s:GetListCommand(char)
@@ -1414,6 +1439,10 @@ endfunction
 
 function! s:IsRunTasksList()
   return s:list_type == 'RUN_TASKS'
+endfunction
+
+function! s:IsGitLogList()
+  return s:list_type == 'GIT_LOG'
 endfunction
 
 function! s:ShouldSaveListState(input)
@@ -2229,6 +2258,9 @@ endfunction
 
 function! project#HighlightInputChars(input)
   call clearmatches()
+  if empty(a:input)
+    return
+  endif
   for lnum in range(1, line('$'))
     let pos = s:GetMatchPos(lnum, a:input)
     if len(pos) == 0
@@ -2245,6 +2277,7 @@ function! project#HighlightInputChars(input)
   endfor
 endfunction
 
+" Try columns one by one
 function! s:GetMatchPos(lnum, input)
   if empty(a:input)
     return []
@@ -2254,8 +2287,9 @@ function! s:GetMatchPos(lnum, input)
   let pos = []
   " The start position of match
   let start = 0
+  let line = getline(a:lnum)
 
-  let first_col_str = matchstr(getline(a:lnum), s:first_column_pattern)
+  let first_col_str = matchstr(line, s:first_column_pattern)
   let first_col = split(first_col_str, '\zs')
 
   " Try first col full match
@@ -2282,7 +2316,7 @@ function! s:GetMatchPos(lnum, input)
   " No match in first col, try second col
   if start == 0
     let first_length = len(first_col)
-    let second_col_str = matchstr(getline(a:lnum), s:second_column_pattern)
+    let second_col_str = matchstr(line, s:second_column_pattern)
     let second_col = split(second_col_str, '\zs')
     let second_index = 0
   endif
@@ -2310,7 +2344,7 @@ function! s:GetMatchPos(lnum, input)
     endfor
   endif
 
-  " Try first col after second col
+  " Try first col following second col
   if start == 0 && second_index > 0
     for char in search[second_index:]
       let start = index(first_col, char, start, 1) + 1
@@ -2323,7 +2357,65 @@ function! s:GetMatchPos(lnum, input)
     endfor
   endif
 
+  if start == 0 && s:IsGitLogList()
+    call s:GetMatchPosForGitLog(a:lnum, line, a:input, search, pos)
+  endif
+
   return pos
+endfunction
+
+function! s:GetMatchPosForGitLog(lnum, line, input, search, pos)
+  let start = 0
+
+  let lead_length = len(matchstr(a:line, '^.*\ze\s\w*\s*$'))
+  let hash_col_str = matchstr(a:line, s:column_pattern.'\s*$')
+  let hash_col = split(hash_col_str, '\zs')
+
+  " Try hash col full match
+  let full_match = match(hash_col_str, a:input)
+  if full_match > 0
+    for start in range(full_match + 1, full_match + len(a:input))
+      call add(a:pos, [a:lnum, start + lead_length])
+    endfor
+  endif
+
+  " Try hash col
+  if start == 0
+    for char in a:search
+      let start = index(hash_col, char, start, 1) + 1
+      if start == 0
+        break
+      endif
+
+      call add(a:pos, [a:lnum, start + lead_length])
+    endfor
+  endif
+
+  if start == 0
+    let lead_length = len(matchstr(a:line, '^.*\s\ze\d\+\s.*$'))
+    let date_col_str = matchstr(a:line, '^.*\s\zs\d*\s.*ago\ze.*$')
+    let date_col = split(date_col_str, '\zs')
+
+    " Try date col full match
+    let full_match = match(date_col_str, a:input)
+    if full_match > 0
+      for start in range(full_match + 1, full_match + len(a:input))
+        call add(a:pos, [a:lnum, start + lead_length])
+      endfor
+    endif
+  endif
+
+  " Try date col
+  if start == 0
+    for char in a:search
+      let start = index(date_col, char, start, 1) + 1
+      if start == 0
+        break
+      endif
+
+      call add(a:pos, [a:lnum, start + lead_length])
+    endfor
+  endif
 endfunction
 
 function! project#SetSlashBasedOnOS(val)

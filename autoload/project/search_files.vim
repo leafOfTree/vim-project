@@ -364,7 +364,7 @@ function! s:GetSearchFilesResult(input)
   let files = s:GetSearchFiles(a:input)
   let min_col_width = s:GetMaxWidth() / 4
   let max_col_width = s:GetMaxWidth() / 8 * 5
-  call project#TabulateList(files, ['file', 'path'], ['path'], min_col_width, max_col_width)
+  call project#Tabulate(files, ['file', 'path'], min_col_width, max_col_width)
   let display = s:GetSearchFilesDisplay(files)
   return [files, display]
 endfunction
