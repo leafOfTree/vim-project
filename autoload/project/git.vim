@@ -22,8 +22,10 @@ endfunction
 
 function! s:Update(input)
   let input_changed = a:input != s:input
-  let init = empty(a:input)
-  if input_changed || init
+  let prev_list = project#GetVariable('list')
+  let init = empty(a:input) || empty(prev_list)
+  let should_reload = input_changed || init
+  if should_reload
     let list = s:FilterLogs(s:list, a:input)
     call project#SetVariable('list', list)
     let display = s:GetLogsDisplay(list, a:input)
@@ -36,7 +38,7 @@ function! s:Update(input)
 
   call project#ShowInListBuffer(display, a:input)
   call project#HighlightCurrentLine(len(display))
-  if input_changed
+  if should_reload
     call project#HighlightInputChars(a:input)
   endif
 
@@ -94,7 +96,7 @@ function! s:ShowDiff(hash)
   endif
   
   let filename = fnamemodify(file, ':t')
-  call s:OpenBuffer('Before ', 'Before '.filename, 'leftabove')
+  call s:OpenBuffer('\[Before\] ', '[Before] '.filename, 'botright')
   let content = systemlist('git show '.a:hash.'~:'.file)
   if !v:shell_error
     call append(0, content)
@@ -103,7 +105,7 @@ function! s:ShowDiff(hash)
   endif
   diffthis
 
-  call s:OpenBuffer('After ', 'After '.filename, 'vertical')
+  call s:OpenBuffer('\[After\] ', '[After] '.filename, 'vertical')
   let content = systemlist('git show '.a:hash.':'.file)
   if !v:shell_error
     call append(0, content)

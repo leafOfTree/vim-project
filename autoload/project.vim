@@ -1446,7 +1446,9 @@ function! s:IsGitLogList()
 endfunction
 
 function! s:ShouldSaveListState(input)
-  return (s:IsFindInFilesList() && !empty(a:input)) || s:IsRunTasksList()
+  return (s:IsFindInFilesList() && !empty(a:input))
+        \|| s:IsRunTasksList()
+        \|| s:IsGitLogList()
 endfunction
 
 function! s:SaveListState(input)
