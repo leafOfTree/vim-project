@@ -43,6 +43,6 @@ command -nargs=? -range
 
 command ProjectRun call project#run_tasks#run()
 
-command ProjectShowGitLog call project#git#log()
+command ProjectGitLog call project#git#log()
 
 call project#begin()
