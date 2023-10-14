@@ -47,6 +47,7 @@ function! s:ShowCurrentChange()
   call s:OpenBuffer('[diff]', '[diff]', 'vertical')
   call append(0, changes)
   normal! gg
+  silent g/new file mode/d
   silent 4,7d
   setlocal buftype=nofile bufhidden=wipe nobuflisted filetype=git
   setlocal nowrap
