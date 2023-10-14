@@ -52,6 +52,8 @@ Project-wide
 - `:ProjectSearchFiles`
 - `:ProjectFindInFiles`
 - `:ProjectRun`
+- `:ProjectGitLog`
+- `:ProjectFileHistory`
 
 In a list, filter by typing. Select an item by <kbd>c-j</kbd>, <kbd>c-k</kbd> or the arrow keys. Then press <kbd>Enter</kbd> to open it. 
 
@@ -115,7 +117,8 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 | ProjectSearchFiles         | Search files by name                     |
 | ProjectFindInFiles         | Find given string/regexp (at least 2 chars) in files |
 | ProjectRun                 | Run a task defined by `tasks` config     |
-| ProjectGitLog              | Search git log and view diff             |
+| ProjectGitLog              | Show git log                             |
+| ProjectFileHistory         | Show file history                        |
 | ProjectRoot                | Open project root                        |
 | ProjectConfig              | Open project config `init.vim` (effective after save) |
 | ProjectAllConfig           | Open all projects config `project.add.vim` |
