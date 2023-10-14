@@ -1,26 +1,88 @@
 let s:list = []
-let s:input = ''
 let s:display = []
+let s:input = ''
 let s:changes_buffer = 'Changes [Press Enter to view diff or take action]'
+let s:current_file = ''
 
-function! project#git#log()
-  call project#PrepareListBuffer('Search log:', 'GIT_LOG')
-  let Init = function('s:Init')
-  let Update = function('s:Update')
-  let Open = function('s:Open')
-  call project#RenderList(Init, Update, Open)
+function! project#git#file_history()
+  call s:CloseFileHistory()
+
+  let s:current_file = expand('%:p')
+  let filename = expand('%:t')
+  if !filereadable(s:current_file)
+    call project#Warn('Open a file first to show history')
+    return
+  endif
+
+  call project#SetVariable('initial_height', winheight(0) - 5)
+  call project#PrepareListBuffer('History of '.filename.':' , 'GIT_FILE_HISTORY')
+  let Init = function('s:InitFileHistory')
+  let Update = function('s:UpdateFileHistory')
+  let Open = function('s:OpenFileHistory')
+  let Close = function('s:CloseFileHistory')
+  call project#RenderList(Init, Update, Open, Close)
 endfunction
 
-function! s:Init(input)
+function! s:InitFileHistory(input)
+  let format = "%s ||| %aN ||| %ae ||| %ad ||| %h"
+  let cmd = "git log --pretty=format:'".format."' --date=relative ".s:current_file
+  let logs = project#RunShellCmd(cmd)
+  let s:list = s:GetFileHistoryList(logs)
+  call s:UpdateFileHistory(a:input)
+endfunction
+
+function! s:UpdateFileHistory(input)
+  call s:UpdateLog(a:input)
+  call s:ShowCurrentChange()
+endfunction
+
+function! s:ShowCurrentChange()
+  let revision = project#GetTarget()
+  if empty(revision)
+    return
+  endif
+  let format = "%s\ncommit %h\n"
+  let cmd = "git show --pretty=format:'".format."' ".revision.hash.' -- '.s:current_file
+  let changes = systemlist(cmd)
+  call s:OpenBuffer('[diff]', '[diff]', 'vertical')
+  call append(0, changes)
+  normal! gg
+  silent 4,7d
+  setlocal buftype=nofile bufhidden=wipe nobuflisted filetype=git
+  setlocal nowrap
+  wincmd h
+endfunction
+
+function! s:OpenFileHistory(revision, cmd, input)
+  " just keep [diff] window
+endfunction
+
+function! s:CloseFileHistory()
+  call s:CloseBuffer('[diff]')
+endfunction
+
+function! project#git#log()
+  call s:CloseChangesBuffer()
+
+  call project#PrepareListBuffer('Search log:', 'GIT_LOG')
+  let Init = function('s:InitGitLog')
+  let Update = function('s:UpdateGitLog')
+  let Open = function('s:OpenGitLog')
+  let Close = function('s:CloseGitLog')
+  call project#RenderList(Init, Update, Open, Close)
+endfunction
+
+
+function! s:InitGitLog(input)
   let format = "%s ||| %aN ||| %ae ||| %ad ||| %h"
   let cmd = "git log --pretty=format:'".format."' --date=relative"
   let logs = project#RunShellCmd(cmd)
   let s:list = s:GetLogList(logs)
 
-  call s:Update(a:input)
+  call s:UpdateGitLog(a:input)
 endfunction
 
-function! s:Update(input)
+function! s:UpdateLog(input)
   let input_changed = a:input != s:input
   let prev_list = project#GetVariable('list')
   let init = empty(a:input) || empty(prev_list)
@@ -41,6 +103,10 @@ function! s:Update(input)
   if should_reload
     call project#HighlightInputChars(a:input)
   endif
+endfunction
+
+function! s:UpdateGitLog(input)
+  call s:UpdateLog(a:input)
 
   let revision = project#GetTarget()
   if empty(revision)
@@ -49,20 +115,27 @@ function! s:Update(input)
   let changed_files = s:GetChangedFiles(revision)
   if !empty(changed_files)
     call popup_clear()
+    let title = revision.message
+    let changed_files = [title, ''] + changed_files
     call popup_notification(changed_files, 
        \ #{ line: 1, col: 999, pos: 'topright', highlight: 'Normal',
-       \ time: 1, minwidth: 40, maxwidth: &columns - 20 })
+       \ time: 1, minwidth: &columns / 2, maxwidth: &columns - 20 })
   endif
 endfunction
 
-function! s:Open(revision, cmd, input)
+function! s:OpenGitLog(revision, cmd, input)
   call s:OpenChangesBuffer()
   call s:SetupChangesBuffer(a:revision)
   call s:AddToBuffer(a:revision)
 endfunction
 
+function! s:CloseGitLog()
+  let s:list = []
+  let s:display = []
+endfunction
+
 function! s:OpenBuffer(search, name, pos)
-  let num = bufwinnr(a:search)
+  let num = bufwinnr(escape(a:search, '[]'))
   if num == -1
     execute 'silent '.a:pos.' split '.a:name
     setlocal buftype=nofile bufhidden=wipe nobuflisted
@@ -73,8 +146,21 @@ function! s:OpenBuffer(search, name, pos)
   endif
 endfunction
 
+function! s:CloseBuffer(name)
+  let nr = bufnr(escape(a:name, '[]'))
+  if nr != -1
+    execute 'silent bdelete '.nr
+  endif
+endfunction
+
 function! s:OpenChangesBuffer()
   call s:OpenBuffer(s:changes_buffer, s:changes_buffer, 'botright')
+endfunction
+
+function! s:CloseChangesBuffer()
+  call s:CloseBuffer(s:changes_buffer)
+  call s:CloseBuffer('[Before]')
+  call s:CloseBuffer('[After]')
 endfunction
 
 function! s:SetupChangesBuffer(revision)
@@ -96,7 +182,7 @@ function! s:ShowDiff(hash)
   endif
   
   let filename = fnamemodify(file, ':t')
-  call s:OpenBuffer('\[Before\] ', '[Before] '.filename, 'botright')
+  call s:OpenBuffer('[Before] ', '[Before] '.filename, 'botright')
   let content = systemlist('git show '.a:hash.'~:'.file)
   if !v:shell_error
     call append(0, content)
@@ -105,7 +191,7 @@ function! s:ShowDiff(hash)
   endif
   diffthis
 
-  call s:OpenBuffer('\[After\] ', '[After] '.filename, 'vertical')
+  call s:OpenBuffer('[After] ', '[After] '.filename, 'vertical')
   let content = systemlist('git show '.a:hash.':'.file)
   if !v:shell_error
     call append(0, content)
@@ -165,6 +251,19 @@ function! s:GetLogList(logs)
   return list
 endfunction
 
+function! s:GetFileHistoryList(logs)
+  let list = []
+  for log in a:logs
+    let [message, author, email, date, hash] = split(log, ' ||| ', 1)
+    call insert(list, { 'message': message, 'author': author, 'date': date, 'hash': hash, 'email': email })
+  endfor
+
+  let max_col_width = &columns * 3 / 5
+  call project#TabulateFixed(list, ['message', 'author', 'date'], [&columns/2 - 30, 10, 10])
+  return list
+endfunction
+
+
 function! s:FilterLogs(list, input)
   let list = copy(a:list)
   if !empty(a:input)
@@ -203,6 +302,9 @@ function! s:GetLogsDisplay(list, input)
 endfunction
 
 function! s:GetLogsDisplayRow(idx, value)
+  if project#GetVariable('list_type') == 'GIT_FILE_HISTORY'
+    return a:value.__message.' '.a:value.__author.' '.a:value.__date
+  endif
+
   return a:value.__message.' '.a:value.__author.' '.a:value.__date.' '.a:value.hash
-  " return a:value.message.' '.a:value.author.' '.a:value.date.' '.a:value.hash
 endfunction

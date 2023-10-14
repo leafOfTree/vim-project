@@ -1251,7 +1251,7 @@ function! s:ShowInitialInputLine(input, ...)
   call s:ShowInputLine(a:input)
 endfunction
 
-function! project#RenderList(Init, Update, Open)
+function! project#RenderList(Init, Update, Open, Quit = v:null)
   let input = s:InitListVariables(a:Init)
   call s:ShowInitialInputLine(input)
   let [cmd, input] = s:HandleInput(input, a:Update, a:Open)
@@ -1262,6 +1262,9 @@ function! project#RenderList(Init, Update, Open)
   endif
   call s:SaveListState(input)
   call s:ResetListVariables()
+  if !s:IsOpenCmd(cmd) && a:Quit != v:null
+    call a:Quit()
+  endif
 endfunction
 
 function! s:InitListVariables(Init)
@@ -1445,10 +1448,15 @@ function! s:IsGitLogList()
   return s:list_type == 'GIT_LOG'
 endfunction
 
+function! s:IsGitFileHistoryList()
+  return s:list_type == 'GIT_FILE_HISTORY'
+endfunction
+
 function! s:ShouldSaveListState(input)
   return (s:IsFindInFilesList() && !empty(a:input))
         \|| s:IsRunTasksList()
         \|| s:IsGitLogList()
+        \|| s:IsGitFileHistoryList()
 endfunction
 
 function! s:SaveListState(input)

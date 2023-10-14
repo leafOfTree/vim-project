@@ -44,5 +44,6 @@ command -nargs=? -range
 command ProjectRun call project#run_tasks#run()
 
 command ProjectGitLog call project#git#log()
+command ProjectGitFileHistory call project#git#file_history()
 
 call project#begin()
