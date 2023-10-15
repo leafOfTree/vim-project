@@ -1,7 +1,7 @@
 let s:list = []
 let s:display = []
 let s:input = ''
-let s:changes_buffer = 'Changes [Press Enter to view diff or take action]'
+let s:changes_buffer = '[changes] Press Enter to view diff'
 let s:current_file = ''
 
 function! project#git#file_history()
@@ -27,31 +27,41 @@ function! s:InitFileHistory(input)
   let format = "%s ||| %aN ||| %ae ||| %ad ||| %h"
   let cmd = "git log --pretty=format:'".format."' --date=relative ".s:current_file
   let logs = project#RunShellCmd(cmd)
-  let s:list = s:GetFileHistoryList(logs)
+  let s:list = s:GetTabulatedList(logs)
   call s:UpdateFileHistory(a:input)
 endfunction
 
 function! s:UpdateFileHistory(input)
   call s:UpdateLog(a:input)
-  call s:ShowCurrentChange()
+  call s:ShowFileDiff()
 endfunction
 
-function! s:ShowCurrentChange()
+function! s:ShowFileDiff()
   let revision = project#GetTarget()
   if empty(revision)
     return
   endif
-  let format = "%s\ncommit %h\n"
-  let cmd = "git show --pretty=format:'".format."' ".revision.hash.' -- '.s:current_file
-  let changes = systemlist(cmd)
   call s:OpenBuffer('[diff]', '[diff]', 'vertical')
+  call s:AddToFileDiffBuffer(revision)
+  call s:SetupFileDiffBuffer()
+  wincmd h
+endfunction
+
+function! s:AddToFileDiffBuffer(revision)
+  let format = ""
+  let cmd = "git show --pretty=format:'".format."' ".a:revision.hash.' -- '.s:current_file
+  let changes = systemlist(cmd)
   call append(0, changes)
   normal! gg
   silent g/new file mode/d
-  silent 4,7d
+  silent 1,4d
+  let brief = s:GenerateBrief(a:revision)
+  call append(line('$'), brief)
+endfunction
+
+function! s:SetupFileDiffBuffer()
   setlocal buftype=nofile bufhidden=wipe nobuflisted filetype=git
   setlocal nowrap
-  wincmd h
 endfunction
 
 function! s:OpenFileHistory(revision, cmd, input)
@@ -78,7 +88,7 @@ function! s:InitGitLog(input)
   let format = "%s ||| %aN ||| %ae ||| %ad ||| %h"
   let cmd = "git log --pretty=format:'".format."' --date=relative"
   let logs = project#RunShellCmd(cmd)
-  let s:list = s:GetLogList(logs)
+  let s:list = s:GetTabulatedList(logs)
 
   call s:UpdateGitLog(a:input)
 endfunction
@@ -108,31 +118,33 @@ endfunction
 
 function! s:UpdateGitLog(input)
   call s:UpdateLog(a:input)
+  call s:ShowCurrentChangdFiles()
+endfunction
 
+function! s:ShowCurrentChangdFiles()
   let revision = project#GetTarget()
   if empty(revision)
     return
   endif
   let changed_files = s:GetChangedFiles(revision)
-  if !empty(changed_files)
-    call popup_clear()
-    let title = revision.message
-    let changed_files = [title, ''] + changed_files
-    call popup_notification(changed_files, 
-       \ #{ line: 1, col: 999, pos: 'topright', highlight: 'Normal',
-       \ time: 1, minwidth: &columns / 2, maxwidth: &columns - 20 })
+  if empty(changed_files)
+    return
   endif
+
+  call s:OpenBuffer(s:changes_buffer, s:changes_buffer, 'vertical')
+  call s:SetupChangesBuffer(revision)
+  call s:AddToBuffer(revision)
+  wincmd h
 endfunction
 
+
 function! s:OpenGitLog(revision, cmd, input)
-  call s:OpenChangesBuffer()
-  call s:SetupChangesBuffer(a:revision)
-  call s:AddToBuffer(a:revision)
 endfunction
 
 function! s:CloseGitLog()
   let s:list = []
   let s:display = []
+  call s:CloseBuffer(s:changes_buffer)
 endfunction
 
 function! s:OpenBuffer(search, name, pos)
@@ -148,14 +160,13 @@ function! s:OpenBuffer(search, name, pos)
 endfunction
 
 function! s:CloseBuffer(name)
+  if bufname() == a:name
+    quit
+  endif
   let nr = bufnr(escape(a:name, '[]'))
   if nr != -1
     execute 'silent bdelete '.nr
   endif
-endfunction
-
-function! s:OpenChangesBuffer()
-  call s:OpenBuffer(s:changes_buffer, s:changes_buffer, 'botright')
 endfunction
 
 function! s:CloseChangesBuffer()
@@ -172,6 +183,7 @@ function! s:SetupChangesBuffer(revision)
   syntax match DiffBufferAdd /^A\ze\s/
   syntax match DiffBufferDelete /^D\ze\s/
 
+  setlocal buftype=nofile bufhidden=wipe nobuflisted
   execute "nnoremap <buffer> <cr> :call <SID>ShowDiff('".a:revision.hash."')<cr>"
 endfunction
 
@@ -216,8 +228,6 @@ endfunction
 function! s:AddToBuffer(revision)
   let changed_files = s:GetChangedFiles(a:revision)
 
-  setlocal modifiable
-  normal! gg"_dG
   if len(changed_files) > 0
     call append(0, changed_files)
   else
@@ -226,13 +236,12 @@ function! s:AddToBuffer(revision)
 
   let brief = s:GenerateBrief(a:revision)
   call append(line('$'), brief)
-
-  setlocal nomodifiable
   normal! gg
 endfunction
 
 function! s:GenerateBrief(revision)
   let brief = []
+  call add(brief, '----------------------------------------------------------------------------------------')
   call add(brief, a:revision.message)
   call add(brief, '')
   call add(brief, a:revision.hash.' by '.a:revision.author.' <'.a:revision.email.'> '
@@ -240,30 +249,16 @@ function! s:GenerateBrief(revision)
   return brief
 endfunction
 
-function! s:GetLogList(logs)
+function! s:GetTabulatedList(logs)
   let list = []
   for log in a:logs
     let [message, author, email, date, hash] = split(log, ' ||| ', 1)
     call insert(list, { 'message': message, 'author': author, 'date': date, 'hash': hash, 'email': email })
   endfor
 
-  let max_col_width = &columns * 3 / 5
-  call project#TabulateFixed(list, ['message', 'author', 'date'], [max_col_width, 20, 20])
-  return list
-endfunction
-
-function! s:GetFileHistoryList(logs)
-  let list = []
-  for log in a:logs
-    let [message, author, email, date, hash] = split(log, ' ||| ', 1)
-    call insert(list, { 'message': message, 'author': author, 'date': date, 'hash': hash, 'email': email })
-  endfor
-
-  let max_col_width = &columns * 3 / 5
   call project#TabulateFixed(list, ['message', 'author', 'date'], [&columns/2 - 30, 10, 10])
   return list
 endfunction
-
 
 function! s:FilterLogs(list, input)
   let list = copy(a:list)
@@ -303,9 +298,5 @@ function! s:GetLogsDisplay(list, input)
 endfunction
 
 function! s:GetLogsDisplayRow(idx, value)
-  if project#GetVariable('list_type') == 'GIT_FILE_HISTORY'
-    return a:value.__message.' '.a:value.__author.' '.a:value.__date
-  endif
-
-  return a:value.__message.' '.a:value.__author.' '.a:value.__date.' '.a:value.hash
+  return a:value.__message.' '.a:value.__author.' '.a:value.__date
 endfunction
