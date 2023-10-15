@@ -253,7 +253,7 @@ endfunction
 
 function! s:GenerateBrief(revision)
   let brief = []
-  call add(brief, '----------------------------------------------------------------------------------------')
+  call add(brief, '-------------------')
   call add(brief, a:revision.message)
   call add(brief, '')
   call add(brief, a:revision.hash.' by '.a:revision.author.' <'.a:revision.email.'> '
