@@ -1,8 +1,16 @@
 let s:list = []
 let s:display = []
 let s:input = ''
-let s:changes_buffer = '[changes] Press Enter to view diff'
 let s:current_file = ''
+
+let s:changes_buffer = '[changes] Press Enter to view diff'
+let s:changes_buffer_search = '[changes'
+let s:diff_buffer = '[diff]'
+let s:diff_buffer_search = '[diff'
+let s:before_buffer = '[before]'
+let s:before_buffer_search = '[before'
+let s:after_buffer = '[after]'
+let s:after_buffer_search = '[after'
 
 function! project#git#file_history()
   call s:CloseFileHistory()
@@ -41,7 +49,7 @@ function! s:ShowFileDiff()
   if empty(revision)
     return
   endif
-  call s:OpenBuffer('[diff]', '[diff]', 'vertical')
+  call s:OpenBuffer(s:diff_buffer_search, s:diff_buffer, 'vertical')
   call s:AddToFileDiffBuffer(revision)
   call s:SetupFileDiffBuffer()
   wincmd h
@@ -69,7 +77,7 @@ function! s:OpenFileHistory(revision, cmd, input)
 endfunction
 
 function! s:CloseFileHistory()
-  call s:CloseBuffer('[diff]')
+  call s:CloseBuffer(s:diff_buffer_search)
 endfunction
 
 function! project#git#log()
@@ -124,14 +132,16 @@ endfunction
 function! s:ShowCurrentChangdFiles()
   let revision = project#GetTarget()
   if empty(revision)
+    echom 'empty revision'
     return
   endif
   let changed_files = s:GetChangedFiles(revision)
   if empty(changed_files)
+    echom 'empty change files'
     return
   endif
 
-  call s:OpenBuffer(s:changes_buffer, s:changes_buffer, 'vertical')
+  call s:OpenBuffer(s:changes_buffer_search, s:changes_buffer, 'vertical')
   call s:SetupChangesBuffer(revision)
   call s:AddToBuffer(revision)
   wincmd h
@@ -162,7 +172,9 @@ endfunction
 function! s:CloseBuffer(name)
   if bufname() == a:name
     quit
+    return
   endif
+
   let nr = bufnr(escape(a:name, '[]'))
   if nr != -1
     execute 'silent bdelete '.nr
@@ -170,9 +182,9 @@ function! s:CloseBuffer(name)
 endfunction
 
 function! s:CloseChangesBuffer()
-  call s:CloseBuffer(s:changes_buffer)
-  call s:CloseBuffer('[Before]')
-  call s:CloseBuffer('[After]')
+  call s:CloseBuffer(s:changes_buffer_search)
+  call s:CloseBuffer(s:before_buffer_search)
+  call s:CloseBuffer(s:after_buffer_search)
 endfunction
 
 function! s:SetupChangesBuffer(revision)
@@ -195,7 +207,7 @@ function! s:ShowDiff(hash)
   endif
   
   let filename = fnamemodify(file, ':t')
-  call s:OpenBuffer('[Before] ', '[Before] '.filename, 'botright')
+  call s:OpenBuffer(s:before_buffer_search, s:before_buffer.' '.filename, 'botright')
   let content = systemlist('git show '.a:hash.'~:'.file)
   if !v:shell_error
     call append(0, content)
@@ -204,7 +216,7 @@ function! s:ShowDiff(hash)
   endif
   diffthis
 
-  call s:OpenBuffer('[After] ', '[After] '.filename, 'vertical')
+  call s:OpenBuffer(s:after_buffer_search, s:after_buffer.' '.filename, 'vertical')
   let content = systemlist('git show '.a:hash.':'.file)
   if !v:shell_error
     call append(0, content)
@@ -217,7 +229,7 @@ endfunction
 
 function! s:GetChangedFiles(revision)
   let cmd = 'git diff-tree --no-commit-id --name-status -r -m --root '.a:revision.hash
-  let changed_files = map(systemlist(cmd), 'substitute(v:val, "\t", " ", "")')
+  let changed_files = map(project#RunShellCmd(cmd), 'substitute(v:val, "\t", " ", "")')
   if v:shell_error
     return []
   else
