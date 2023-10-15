@@ -25,7 +25,7 @@ endfunction
 
 function! s:InitFileHistory(input)
   let format = "%s ||| %aN ||| %ae ||| %ad ||| %h"
-  let cmd = "git log --pretty=format:'".format."' --date=relative ".s:current_file
+  let cmd = 'git log --pretty=format:"'.format.'" --date=relative '.s:current_file
   let logs = project#RunShellCmd(cmd)
   let s:list = s:GetTabulatedList(logs)
   call s:UpdateFileHistory(a:input)
@@ -49,7 +49,7 @@ endfunction
 
 function! s:AddToFileDiffBuffer(revision)
   let format = ""
-  let cmd = "git show --pretty=format:'".format."' ".a:revision.hash.' -- '.s:current_file
+  let cmd = 'git show --pretty=format:"'.format.'" '.a:revision.hash.' -- '.s:current_file
   let changes = systemlist(cmd)
   call append(0, changes)
   normal! gg
@@ -86,7 +86,7 @@ endfunction
 
 function! s:InitGitLog(input)
   let format = "%s ||| %aN ||| %ae ||| %ad ||| %h"
-  let cmd = "git log --pretty=format:'".format."' --date=relative"
+  let cmd = 'git log --pretty=format:"'.format.'" --date=relative'
   let logs = project#RunShellCmd(cmd)
   let s:list = s:GetTabulatedList(logs)
 
