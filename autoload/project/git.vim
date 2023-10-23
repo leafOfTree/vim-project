@@ -62,7 +62,7 @@ function! s:AddDiffDetails(hash, file)
   let changes = project#RunShellCmd(cmd)
   call append(0, changes)
   normal! gg
-  silent! g/new file mode/d
+  silent! g/^new file mode/d
   silent! 1,4d
 endfunction
 
