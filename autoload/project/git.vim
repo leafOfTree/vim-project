@@ -83,6 +83,7 @@ endfunction
 function! project#git#log()
   call s:CloseChangesBuffer()
 
+  call project#SetVariable('initial_height', winheight(0) - 5)
   call project#PrepareListBuffer('Search log:', 'GIT_LOG')
   let Init = function('s:InitGitLog')
   let Update = function('s:UpdateGitLog')
@@ -177,7 +178,7 @@ function! s:CloseBuffer(name)
 
   let nr = bufnr(escape(a:name, '[]'))
   if nr != -1
-    execute 'silent bdelete '.nr
+    execute 'silent! bdelete '.nr
   endif
 endfunction
 
