@@ -3,7 +3,7 @@ let s:display = []
 let s:input = ''
 let s:current_file = ''
 
-let s:changes_buffer = '[changes] Press Enter to view diff'
+let s:changes_buffer = '[changes]'
 let s:changes_buffer_search = '[changes'
 let s:diff_buffer = '[diff]'
 let s:diff_buffer_search = '[diff'
