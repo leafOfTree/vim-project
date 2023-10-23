@@ -41,33 +41,37 @@ endfunction
 
 function! s:UpdateFileHistory(input)
   call s:UpdateLog(a:input)
-  call s:ShowFileDiff()
+  call s:ShowDiffOfCurrentFile()
 endfunction
 
-function! s:ShowFileDiff()
+function! s:ShowDiffOfCurrentFile()
   let revision = project#GetTarget()
   if empty(revision)
     return
   endif
   call s:OpenBuffer(s:diff_buffer_search, s:diff_buffer, 'vertical')
-  call s:AddToFileDiffBuffer(revision)
-  call s:SetupFileDiffBuffer()
+  call s:AddDiffDetails(revision.hash, s:current_file)
+  call s:AddBrief(revision)
+  call s:SetupDiffBuffer()
   wincmd h
 endfunction
 
-function! s:AddToFileDiffBuffer(revision)
+function! s:AddDiffDetails(hash, file)
   let format = ""
-  let cmd = 'git show --pretty=format:"'.format.'" '.a:revision.hash.' -- '.s:current_file
-  let changes = systemlist(cmd)
+  let cmd = 'git show --pretty=format:"'.format.'" '.a:hash.' -- '.a:file
+  let changes = project#RunShellCmd(cmd)
   call append(0, changes)
   normal! gg
-  silent g/new file mode/d
-  silent 1,4d
+  silent! g/new file mode/d
+  silent! 1,4d
+endfunction
+
+function! s:AddBrief(revision)
   let brief = s:GenerateBrief(a:revision)
   call append(line('$'), brief)
 endfunction
 
-function! s:SetupFileDiffBuffer()
+function! s:SetupDiffBuffer()
   setlocal buftype=nofile bufhidden=wipe nobuflisted filetype=git
   setlocal nowrap
 endfunction
@@ -150,12 +154,14 @@ endfunction
 
 
 function! s:OpenGitLog(revision, cmd, input)
+  execute 'autocmd CursorMoved <buffer> call s:ShowDiffOfCurrentLine("'.a:revision.hash.'")'
 endfunction
+
 
 function! s:CloseGitLog()
   let s:list = []
   let s:display = []
-  call s:CloseBuffer(s:changes_buffer)
+  call s:CloseChangesBuffer()
 endfunction
 
 function! s:OpenBuffer(search, name, pos)
@@ -179,6 +185,9 @@ function! s:CloseBuffer(name)
   let nr = bufnr(escape(a:name, '[]'))
   if nr != -1
     execute 'silent! bdelete '.nr
+    if empty(bufname())
+      quit
+    endif
   endif
 endfunction
 
@@ -186,6 +195,7 @@ function! s:CloseChangesBuffer()
   call s:CloseBuffer(s:changes_buffer_search)
   call s:CloseBuffer(s:before_buffer_search)
   call s:CloseBuffer(s:after_buffer_search)
+  call s:CloseBuffer(s:diff_buffer_search)
 endfunction
 
 function! s:SetupChangesBuffer(revision)
@@ -197,10 +207,22 @@ function! s:SetupChangesBuffer(revision)
   syntax match DiffBufferDelete /^D\ze\s/
 
   setlocal buftype=nofile bufhidden=wipe nobuflisted
-  execute "nnoremap <buffer> <cr> :call <SID>ShowDiff('".a:revision.hash."')<cr>"
 endfunction
 
-function! s:ShowDiff(hash)
+function! s:ShowDiffOfCurrentLine(hash)
+  let line = getline('.')
+  let file = matchstr(line, '^\S\s\zs.*')
+  if empty(file)
+    return
+  endif
+
+  call s:OpenBuffer(s:diff_buffer_search, s:diff_buffer, 'vertical')
+  call s:AddDiffDetails(a:hash, file)
+  call s:SetupDiffBuffer()
+  wincmd h
+endfunction
+
+function! s:ShowDiffSideBySide(hash)
   let line = getline('.')
   let file = matchstr(line, '^\S\s\zs.*')
   if empty(file)
