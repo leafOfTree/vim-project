@@ -275,7 +275,7 @@ function! s:RunTask(task)
         \'term_name': a:task.name,
         \'term_rows': s:GetTermRows(a:task),
         \'hidden': 1,
-        \'term_kill': 'int',
+        \'term_kill': 'term',
         \}
   let has_started = s:GetTaskStatus(a:task) != ''
   call s:StopTask(a:task)
