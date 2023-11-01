@@ -670,6 +670,7 @@ function! s:WatchOnBufEnter()
       " The event order is BufEnter then VimEnter
       autocmd BufEnter * ++once call s:SetStartProjectOnBufEnter()
       autocmd VimEnter * ++once call s:AutoloadOnVimEnter()
+      autocmd VimLeave * call s:QuitProject()
     endif
     if s:auto_detect != 'no'
       autocmd BufEnter * call s:AutoDetectProject()
@@ -895,6 +896,10 @@ function! s:WatchOnVimQuit()
 endfunction
 
 function! s:SetupListBuffer()
+  if !s:IsCurrentListBuffer()
+    return
+  endif
+
   setlocal buftype=nofile bufhidden=delete nobuflisted
   setlocal filetype=vimprojectlist
   setlocal nonumber
