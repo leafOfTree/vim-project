@@ -45,5 +45,6 @@ command ProjectRun call project#run_tasks#run()
 
 command ProjectGitLog call project#git#log()
 command ProjectGitFileHistory call project#git#file_history()
+command ProjectGitCommit call project#git#commit()
 
 call project#begin()
