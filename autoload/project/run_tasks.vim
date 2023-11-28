@@ -269,7 +269,6 @@ function! s:RunTask(task)
   if has_key(a:task, 'cd')
     let cwd .= '/'.a:task.cd
   endif
-
   let options = { 
         \'cwd': cwd,
         \'term_name': a:task.name,
@@ -291,7 +290,12 @@ function! s:RunTask(task)
   endif
 
   let index = project#GetCurrentIndex()
-  let a:task.bufnr = term_start(cmd, options)
+  try 
+    let a:task.bufnr = term_start(cmd, options)
+  catch
+    call project#Warn(v:exception)
+    return 0
+  endtry
 
   if !has_started
     call project#UpdateOffsetByIndex(index - (s:output_rows + 1))
