@@ -139,12 +139,10 @@ endfunction
 function! s:ShowCurrentChangdFiles()
   let revision = project#GetTarget()
   if empty(revision)
-    echom 'empty revision'
     return
   endif
   let changed_files = s:GetChangedFiles(revision)
   if empty(changed_files)
-    echom 'empty change files'
     return
   endif
 
@@ -650,13 +648,23 @@ function! s:ShowCommitMessage(title, files)
 endfunction
 
 function! s:TryCommit()
-  let lines = filter(getline(0, line('$')), {idx, val -> val =~ '^[^#]' && val !~ '^\s*$'})
-  if empty(lines)
+  let message_lines = filter(getline(0, line('$')), {idx, val -> val =~ '^[^#]' && val !~ '^\s*$'})
+  let amend_lines = filter(getline(0, line('$')), {idx, val -> val =~ '--amend'})
+  let is_empty_message = empty(message_lines)
+  let is_amend = !empty(amend_lines)
+  if is_empty_message && !is_amend
     return
   endif
+
   let files = join(s:commit_files, ' ')
-  let message = join(map(lines, {idx, val -> '-m "'.val.'"'}), ' ')
-  let cmd = 'git add '.files.' && git commit '.message
+  let message = join(map(message_lines, {idx, val -> '-m "'.val.'"'}), ' ')
+
+  let option = ''
+  if is_amend
+    let option = option.' --amend --no-edit'
+  endif
+
+  let cmd = 'git add '.files.' && git commit '.message.option
   let result = project#RunShellCmd(cmd)
 
   quit
