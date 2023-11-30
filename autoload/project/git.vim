@@ -168,13 +168,12 @@ endfunction
 function! s:OpenBuffer(search, name, pos)
   let num = bufwinnr(escape(a:search, '[]'))
   if num == -1
-    execute 'silent '.a:pos.' split '.a:name
-    setlocal buftype=nofile bufhidden=wipe nobuflisted
+    execute 'silent '.a:pos.' new '.a:name
   else
     execute num.'wincmd w'
     execute 'silent e '.a:name
-    setlocal buftype=nofile bufhidden=wipe nobuflisted
   endif
+  setlocal buftype=nofile bufhidden=wipe nobuflisted
 endfunction
 
 function! s:CloseBuffer(name)
@@ -379,8 +378,6 @@ let s:changelist = [
 
 let s:changed_files = []
 let s:untracked_files = []
-
-
 let s:commit_files = []
 let s:file_regexp = '^\s\+\S\s\+\zs.*'
 let s:folder_regexp = '^\S\s\zs\w\+'
@@ -669,4 +666,14 @@ function! s:TryCommit()
   setlocal buftype=nofile
   normal! gg
 endfunction
+
+" function! s:TryPush()
+  " quit
+  " let cmd = 'git push'
+  " let result = project#RunShellCmd(cmd)
+  " new PUSH_RESULT
+  " call append(0, [cmd, ''] + result)
+  " setlocal buftype=nofile
+  " normal! gg
+" endfunction
 
