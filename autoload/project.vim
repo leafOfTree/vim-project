@@ -670,7 +670,6 @@ function! s:WatchOnBufEnter()
       " The event order is BufEnter then VimEnter
       autocmd BufEnter * ++once call s:SetStartProjectOnBufEnter()
       autocmd VimEnter * ++once call s:AutoloadOnVimEnter()
-      autocmd VimLeave * call s:QuitProject()
     endif
     if s:auto_detect != 'no'
       autocmd BufEnter * call s:AutoDetectProject()
@@ -891,7 +890,7 @@ endfunction
 function! s:WatchOnVimQuit()
   augroup vim-quit
     autocmd! vim-quit
-    autocmd QuitPre <buffer> call project#QuitProject()
+    autocmd VimLeave * call s:QuitProject()
   augroup END
 endfunction
 
@@ -1596,11 +1595,11 @@ endfunction
 
 function! project#OpenProject(project)
   let current = s:project
-  let new = a:project
+  let open_project = a:project
 
-  if current != new
+  if current != open_project
     call s:ClearCurrentProject(current)
-    let s:project = new
+    let s:project = open_project
 
     call s:PreLoadProject()
     call s:LoadProject()
@@ -1632,7 +1631,7 @@ function! s:PostLoadProject()
   call s:WatchOnVimQuit()
 endfunction
 
-function! s:ClearCurrentProject(current)
+function! s:ClearCurrentProject()
   if project#ProjectExist()
     call s:QuitProject()
     silent! %bdelete
