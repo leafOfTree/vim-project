@@ -1593,19 +1593,16 @@ function! s:SaveAllBuffers()
 endfunction
 
 function! project#OpenProject(project)
-  let current = s:project
-  let open_project = a:project
-
-  if current != open_project
-    call s:ClearCurrentProject(current)
-    let s:project = open_project
+  if s:project != a:project
+    call s:ClearCurrentProject()
+    let s:project = a:project
 
     call s:PreLoadProject()
     call s:LoadProject()
     call s:PostLoadProject()
 
     redraw
-    call s:Info('Opened ['.new.name.']')
+    call s:Info('Opened ['.a:project.name.']')
   else
     call s:Info('Already opened')
   endif

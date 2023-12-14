@@ -672,5 +672,16 @@ function! s:TryCommit()
   new COMMIT_RESULT
   call append(0, [cmd, ''] + result)
   setlocal buftype=nofile
+  nnoremap<buffer><silent> p :call <SID>TryPush()<cr>
+  normal! gg
+endfunction
+
+function! s:TryPush()
+  quit
+  let cmd = 'git push'
+  let result = project#RunShellCmd(cmd)
+  new PUSH_RESULT
+  call append(0, [cmd, ''] + result)
+  setlocal buftype=nofile
   normal! gg
 endfunction
