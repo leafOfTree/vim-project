@@ -884,7 +884,6 @@ function! s:WipeoutListBuffer()
   if num != -1
     execute 'silent bwipeout! '.num
   endif
-
 endfunction
 
 function! s:WatchOnVimQuit()
