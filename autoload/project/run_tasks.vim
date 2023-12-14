@@ -204,7 +204,7 @@ function! s:Open(task, open_cmd, input)
       return 0
     endif
 
-    terminal
+    terminal ++kill=kill
     if !has('nvim')
       call term_sendkeys(bufnr('%'), "cd $vim_project\<CR>")
       call term_sendkeys(bufnr('%'), "clear\<CR>")

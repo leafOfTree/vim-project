@@ -1214,8 +1214,8 @@ function! project#RunShellCmd(cmd)
 
   if v:shell_error
     if !empty(output)
-      call s:DebugWarn(a:cmd)
-      call s:DebugWarn(string(output))
+      call project#Warn(a:cmd)
+      call project#Warn(string(output))
     endif
     return []
   endif
