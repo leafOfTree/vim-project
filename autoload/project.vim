@@ -1213,7 +1213,11 @@ function! project#RunShellCmd(cmd)
   if v:shell_error
     if !empty(output)
       call project#Warn(a:cmd)
-      call project#Warn(string(output))
+      for error in output
+        call project#Warn(error)
+      endfor
+      redraw
+      execute (len(output) + 1).'messages'
     endif
     return []
   endif

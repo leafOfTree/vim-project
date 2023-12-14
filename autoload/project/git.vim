@@ -359,26 +359,36 @@ function! project#git#commit()
   call s:ShowStatus(1)
 endfunction
 
+function! project#git#push()
+  call s:TryPush()
+endfunction
+
+function! project#git#pull()
+  call s:TryPull()
+endfunction
+
 let s:default_folder_name = 'Default'
 let s:untracked_folder_name = 'Untracked'
-let s:changelist = [
-  \{
-  \ 'name': s:default_folder_name,
-  \ 'files': [],
-  \ 'expand': 1,
-  \},
-  \{
-  \ 'name': s:untracked_folder_name,
-  \ 'files': [],
-  \ 'expand': 0,
-  \},
-\]
-
 let s:changed_files = []
 let s:untracked_files = []
 let s:commit_files = []
 let s:file_regexp = '^\s\+\S\s\+\zs.*'
 let s:folder_regexp = '^\S\s\zs\w\+'
+
+function! s:LoadChangelist()
+  let s:changelist = [
+    \{
+    \ 'name': s:default_folder_name,
+    \ 'files': [],
+    \ 'expand': 1,
+    \},
+    \{
+    \ 'name': s:untracked_folder_name,
+    \ 'files': [],
+    \ 'expand': 0,
+    \},
+  \]
+endfunction
 
 function! s:ToggleFolder()
   let lnum = line('.')
@@ -571,19 +581,26 @@ function! s:HasFile(files, file)
 endfunction
 
 function! s:ShowStatus(refresh_data = 0)
+  " Ignore events to avoid a cursor bug when opening from Fern.vim
+  let save_eventignore = &eventignore
+  set eventignore=all
+
+  call s:LoadChangelist()
   call s:OpenBuffer(s:changelist_buffer_search, s:changelist_buffer, 'botright')
   call s:SetupChangelistBuffer()
   let success = s:UpdateChangelist(a:refresh_data)
   if success
     call s:WriteChangelist()
   endif
+
+  let &eventignore = save_eventignore
 endfunction
 
 function! s:SetupChangelistBuffer()
   nnoremap<buffer><silent> o :call <SID>ToggleFolder()<cr>
   nnoremap<buffer><silent> m :call <SID>MoveToChangelist()<cr>
-  vnoremap<buffer><silent> m :call <SID>MoveToChangelist()<cr>
   nnoremap<buffer><silent> c :call <SID>Commit()<cr>
+  nnoremap<buffer><silent> u :call <SID>TryPull()<cr>
   syntax match Comment /\d files/
   setlocal buftype=nofile
   execute 'syntax match Keyword /'.s:folder_regexp.'/'
@@ -617,14 +634,16 @@ function! s:Commit()
   else
     let files = [file]
   endif
-  let s:commit_files = files
 
   let check_files = s:changed_files + s:untracked_files
   let commit_files = filter(check_files, {idx, file -> s:HasFile(files, file)}) 
   if empty(commit_files)
     return 
   endif
+  let s:commit_files = map(copy(commit_files), {idx, file -> s:GetFilename(file)})
   let show_commit_files = map(copy(commit_files), {idx, file -> '#    '.file})
+
+  quit
   call s:ShowCommitMessage(title, show_commit_files)
 endfunction
 
@@ -668,19 +687,36 @@ function! s:TryCommit()
   let result = project#RunShellCmd(cmd)
 
   quit
-  call s:ShowStatus(1)
   new COMMIT_RESULT
   call append(0, [cmd, ''] + result)
   setlocal buftype=nofile
-  nnoremap<buffer><silent> p :call <SID>TryPush()<cr>
+  nnoremap<buffer><silent> p :quit<cr>:call project#git#push()<cr>
   normal! gg
 endfunction
 
 function! s:TryPush()
-  quit
+  call project#Info('Pushing...')
   let cmd = 'git push'
   let result = project#RunShellCmd(cmd)
+  if v:shell_error
+    return 
+  endif
+
   new PUSH_RESULT
+  call append(0, [cmd, ''] + result)
+  setlocal buftype=nofile
+  normal! gg
+endfunction
+
+function! s:TryPull()
+  call project#Info('Updating...')
+  let cmd = 'git pull'
+  let result = project#RunShellCmd(cmd)
+  if v:shell_error
+    return 
+  endif
+
+  new UPDATE_RESULT
   call append(0, [cmd, ''] + result)
   setlocal buftype=nofile
   normal! gg
