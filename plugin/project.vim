@@ -10,7 +10,6 @@ function! s:TrimQuote(args)
   return args
 endfunction
 
-" command ProjectList call project#ListProjects()
 command ProjectList call project#list_projects#run()
 command ProjectQuit call project#QuitProject()
 command ProjectConfigReload call project#ReloadProject()
@@ -44,7 +43,7 @@ command -nargs=? -range
 command ProjectRun call project#run_tasks#run()
 
 command ProjectGitLog call project#git#log()
-command ProjectGitFileHistory call project#git#file_history()
+command -range ProjectGitFileHistory call project#git#file_history(<q-range>)
 command ProjectGitCommit call project#git#commit()
 
 call project#begin()

@@ -1216,13 +1216,17 @@ function! project#RunShellCmd(cmd)
       for error in output
         call project#Warn(error)
       endfor
-      redraw
-      execute (len(output) + 1).'messages'
+      call timer_start(1, function('s:ShowError', [output]))
     endif
     return []
   endif
 
   return output
+endfunction
+
+function! s:ShowError(output, id)
+  redraw
+  execute (len(a:output) + 1).'messages'
 endfunction
 
 function! project#hasMoreOnList(list)
@@ -2371,65 +2375,7 @@ function! s:GetMatchPos(lnum, input)
     endfor
   endif
 
-  if start == 0 && s:IsGitLogList()
-    call s:GetMatchPosForGitLog(a:lnum, line, a:input, search, pos)
-  endif
-
   return pos
-endfunction
-
-function! s:GetMatchPosForGitLog(lnum, line, input, search, pos)
-  let start = 0
-
-  let lead_length = len(matchstr(a:line, '^.*\ze\s\w*\s*$'))
-  let hash_col_str = matchstr(a:line, s:column_pattern.'\s*$')
-  let hash_col = split(hash_col_str, '\zs')
-
-  " Try hash col full match
-  let full_match = match(hash_col_str, a:input)
-  if full_match > 0
-    for start in range(full_match + 1, full_match + len(a:input))
-      call add(a:pos, [a:lnum, start + lead_length])
-    endfor
-  endif
-
-  " Try hash col
-  if start == 0
-    for char in a:search
-      let start = index(hash_col, char, start, 1) + 1
-      if start == 0
-        break
-      endif
-
-      call add(a:pos, [a:lnum, start + lead_length])
-    endfor
-  endif
-
-  if start == 0
-    let lead_length = len(matchstr(a:line, '^.*\s\ze\d\+\s.*$'))
-    let date_col_str = matchstr(a:line, '^.*\s\zs\d*\s.*ago\ze.*$')
-    let date_col = split(date_col_str, '\zs')
-
-    " Try date col full match
-    let full_match = match(date_col_str, a:input)
-    if full_match > 0
-      for start in range(full_match + 1, full_match + len(a:input))
-        call add(a:pos, [a:lnum, start + lead_length])
-      endfor
-    endif
-  endif
-
-  " Try date col
-  if start == 0
-    for char in a:search
-      let start = index(date_col, char, start, 1) + 1
-      if start == 0
-        break
-      endif
-
-      call add(a:pos, [a:lnum, start + lead_length])
-    endfor
-  endif
 endfunction
 
 function! project#SetSlashBasedOnOS(val)

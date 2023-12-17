@@ -13,8 +13,11 @@ let s:after_buffer = '[after]'
 let s:after_buffer_search = '[after'
 let s:changelist_buffer = '[Local Changes]'
 let s:changelist_buffer_search = '[Local Changes'
+let s:file_history_range = []
+let s:log_splitter = ' ||| '
+let s:commit_diffs = []
 
-function! project#git#file_history()
+function! project#git#file_history(...)
   call s:CloseFileHistory()
 
   let s:current_file = expand('%:p')
@@ -24,8 +27,16 @@ function! project#git#file_history()
     return
   endif
 
+  let range = a:000[0]
+  let prompt = 'History of '.filename.':' 
+  let s:file_history_range = []
+  if range > 0
+    let s:file_history_range = [line("'<"), line("'>")]
+    let prompt = 'History of '.filename.' L'.join(s:file_history_range, ',').':' 
+  endif
+
   call project#SetVariable('initial_height', winheight(0) - 5)
-  call project#PrepareListBuffer('History of '.filename.':' , 'GIT_FILE_HISTORY')
+  call project#PrepareListBuffer(prompt, 'GIT_FILE_HISTORY')
   let Init = function('s:InitFileHistory')
   let Update = function('s:UpdateFileHistory')
   let Open = function('s:OpenFileHistory')
@@ -34,11 +45,45 @@ function! project#git#file_history()
 endfunction
 
 function! s:InitFileHistory(input)
-  let format = "%s ||| %aN ||| %ae ||| %ad ||| %h"
-  let cmd = 'git log --pretty=format:"'.format.'" --date=relative '.s:current_file
+  let range = s:GetLineRange()
+  let format = join(["%s", "%aN", "%ae", "%ad", "%h"], s:log_splitter)
+  let cmd = 'git log --pretty=format:"'.format.'" --date=relative '.range.s:current_file
   let logs = project#RunShellCmd(cmd)
+  if empty(range)
+    let s:commit_diffs = []
+  else
+    let [logs, s:commit_diffs] = s:SaveCommitDiff(logs)
+  endif
   let s:list = s:GetTabulatedList(logs)
+
   call s:UpdateFileHistory(a:input)
+endfunction
+
+function! s:SaveCommitDiff(logs)
+  let logs = []
+  let commit_diffs = {}
+
+  let hash = ''
+  for log in a:logs
+    if match(log, s:log_splitter) != -1
+      call add(logs, log)
+      let hash = split(log, s:log_splitter, 1)[-1]
+      let commit_diffs[hash] = []
+    else
+      call add(commit_diffs[hash], log)
+    endif
+  endfor
+
+  return [logs, commit_diffs]
+endfunction
+
+function! s:GetLineRange()
+  let range = ''
+  if !empty(s:file_history_range)
+    let [firstline, lastline] = s:file_history_range
+    let range = ' -L'.firstline.','.lastline.':'
+  endif
+  return range
 endfunction
 
 function! s:UpdateFileHistory(input)
@@ -59,13 +104,24 @@ function! s:ShowDiffOfCurrentFile()
 endfunction
 
 function! s:AddDiffDetails(hash, file)
-  let format = ""
-  let cmd = 'git show --pretty=format:"'.format.'" '.a:hash.' -- '.a:file
-  let changes = project#RunShellCmd(cmd)
+  let changes = []
+  let is_diff_on_range = !empty(s:commit_diffs)
+  if is_diff_on_range
+    let changes = s:commit_diffs[a:hash]
+  else
+    let cmd = 'git show --pretty=format:"" '.a:hash.' '.a:file
+    let changes = project#RunShellCmd(cmd)
+  endif
+
   call append(0, changes)
   normal! gg
   silent! g/^new file mode/d
-  silent! 1,4d
+
+  if is_diff_on_range
+    silent! 1,3d
+  else
+    silent! 1,4d
+  endif
 endfunction
 
 function! s:AddBrief(revision)
@@ -100,7 +156,7 @@ endfunction
 
 
 function! s:InitGitLog(input)
-  let format = "%s ||| %aN ||| %ae ||| %ad ||| %h"
+  let format = join(["%s", "%aN", "%ae", "%ad", "%h"], s:log_splitter)
   let cmd = 'git log --pretty=format:"'.format.'" --date=relative'
   let logs = project#RunShellCmd(cmd)
   let s:list = s:GetTabulatedList(logs)
@@ -295,7 +351,7 @@ endfunction
 
 function! s:GenerateBrief(revision)
   let brief = []
-  call add(brief, '-------------------')
+  call add(brief, '----------------------------------------------------------------------------')
   call add(brief, a:revision.message)
   call add(brief, '')
   call add(brief, a:revision.hash.' by '.a:revision.author.' <'.a:revision.email.'> '
@@ -306,12 +362,22 @@ endfunction
 function! s:GetTabulatedList(logs)
   let list = []
   for log in a:logs
-    let [message, author, email, date, hash] = split(log, ' ||| ', 1)
-    call insert(list, { 'message': message, 'author': author, 'date': date, 'hash': hash, 'email': email })
+    let [message, author, email, date, hash] = split(log, s:log_splitter, 1)
+    let date = s:ShortenDate(date)
+    call insert(list, 
+          \{ 'message': message, 'author': author, 'date': date, 'hash': hash, 'email': email })
   endfor
 
   call project#TabulateFixed(list, ['message', 'author', 'date'], [&columns/2 - 30, 10, 10])
   return list
+endfunction
+
+function! s:ShortenDate(origin)
+  let date = substitute(a:origin, 'years\?', 'y', 'g')
+  let date = substitute(date, 'months\?', 'm', 'g')
+  let date = substitute(date, 'weeks\?', 'w', 'g')
+  let date = substitute(date, 'days\?', 'd', 'g')
+  return date
 endfunction
 
 function! s:FilterLogs(list, input)
