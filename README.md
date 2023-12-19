@@ -44,6 +44,28 @@ Project-wide
 <img alt="screenshot" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/find-and-replace.png" width="380" />
 </p>
 
+---
+
+* [Basic Usage](#basic-usage)
+* [Installation](#installation)
+* [Uninstallation](#uninstallation)
+* [Workflow](#workflow)
+* [Commands](#commands)
+  * [:Project `<path>[, option]`](#project-path-option)
+  * [Search files / Find in files](#search-files--find-in-files)
+    * [Config for search / find](#config-for-search--find)
+  * [Run tasks](#run-tasks)
+* [Config and Keymappings](#config-and-keymappings)
+  * [Config files](#config-files)
+  * [Project local config](#project-local-config)
+  * [Switch between files](#switch-between-files)
+  * [Session options](#session-options)
+  * [Project views](#project-views)
+* [Global variables](#global-variables)
+* [Statusline](#statusline)
+  * [Title](#title)
+* [Debug](#debug)
+* [Credits](#credits)
 
 ## Basic Usage
 
