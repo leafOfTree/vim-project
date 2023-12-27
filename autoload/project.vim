@@ -13,7 +13,7 @@ function! s:Prepare()
   let s:loading_on_vim_enter = 0
   let s:start_project = {}
   let s:start_buf = ''
-  let s:sourcing_file = 0
+  let s:is_init_adding = 0
   let s:init_input = ''
   let s:user_input = ''
   let s:list_buffer = 'vim_project_list'
@@ -245,7 +245,7 @@ endfunction
 function! project#AddProject(args)
   let [path, option] = s:GetAddArgs(a:args)
   let [error, project] = s:AddProject(path, option)
-  if error || s:sourcing_file
+  if error || s:is_init_adding
     return 
   endif
 
@@ -271,7 +271,7 @@ function! s:AddProject(path, ...)
         \s:projects
         \)
   if hasProject
-    if !s:sourcing_file
+    if !s:is_init_adding
       call s:Info('Already has ['.a:path.']')
     endif
     return [1, v:null]
@@ -295,16 +295,37 @@ function! s:AddProject(path, ...)
         \}
 
   if !isdirectory(fullpath)
-    if !s:sourcing_file
-      call project#Warn('Directory not found: '.project#ReplaceHomeWithTide(fullpath))
+    let created = 0
+    if !s:is_init_adding
+      let shortpath = project#ReplaceHomeWithTide(fullpath)
+      call project#Warn('Directory not found: '.shortpath)
+
+      if exists("*mkdir")
+        let created = s:CreateDirectoryForNewProject(fullpath, shortpath)
+      endif
     endif
-    call insert(s:projects_error, project)
-    return [1, v:null]
+
+
+    if !created
+      call insert(s:projects_error, project)
+      return [1, v:null]
+    endif
   endif
 
   call s:InitProjectConfig(project)
   call add(s:projects, project)
   return [0, project]
+endfunction
+
+function! s:CreateDirectoryForNewProject(fullpath, shortpath)
+  echo '[vim-project] Do you want to create directory '.a:shortpath.'? (y/n) '
+  if nr2char(getchar()) == 'y'
+    redraw
+    call mkdir(a:fullpath, 'p')
+    call project#Info("Directory created: ".a:shortpath)
+    return 1
+  endif
+  return 0
 endfunction
 
 function! project#ProjectExistWithSameFullPath(fullpath, projects)
@@ -320,7 +341,7 @@ endfunction
 function! project#IgnoreProject(path)
   let path = project#ReplaceHomeWithTide(a:path)
   let error = s:IgnoreProject(path)
-  if !error && !s:sourcing_file
+  if !error && !s:is_init_adding
     call s:SaveToPluginConfigIgnore(path)
     redraw
     call s:InfoHl('Ignored '.path)
@@ -410,6 +431,11 @@ function! s:GetAbsolutePath(path)
         return full_path
       endif
     endfor
+  endif
+
+  if s:IsRelativePath(path)
+    let full_path = s:RemovePathTrailingSlash(expand(fnamemodify(getcwd().'/'.path, ':p')))
+    return full_path
   endif
   return path
 endfunction
@@ -601,14 +627,14 @@ endfunction
 function! s:SourcePluginConfigFiles()
   let add_file = s:config_home.'/'.s:add_file
   let ignore_file = s:config_home.'/'.s:ignore_file
-  let s:sourcing_file = 1
+  let s:is_init_adding = 1
   if filereadable(add_file)
     execute 'source '.add_file
   endif
   if filereadable(ignore_file)
     execute 'source '.ignore_file
   endif
-  let s:sourcing_file = 0
+  let s:is_init_adding = 0
 endfunction
 
 function! s:SaveToAddFile(path)
@@ -1762,8 +1788,8 @@ function! project#ShowProjectInfo()
   if !empty(s:project)
     call s:Info('Name: '.s:project.name)
     call s:Info('Path: '.project#ReplaceHomeWithTide(s:project.path))
-    call s:Info('Search: '.s:TrySearchFilesProgram())
-    call s:Info('Find in files: '.s:TryExternalGrepProgram())
+    call s:Info('config_home: '.s:config.config_home)
+    call s:Info('project_base: '.join(s:config.project_base, ', '))
     call s:Info('Include: '.string(s:include))
     call s:Info('Search Include: '.string(s:search_include))
     call s:Info('Find in files Include: '.string(s:find_in_files_include))
