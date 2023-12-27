@@ -1242,17 +1242,13 @@ function! project#RunShellCmd(cmd)
       for error in output
         call project#Warn(error)
       endfor
-      call timer_start(1, function('s:ShowError', [output]))
+      redraw
+      execute (len(output) + 1).'messages'
     endif
     return []
   endif
 
   return output
-endfunction
-
-function! s:ShowError(output, id)
-  redraw
-  execute (len(a:output) + 1).'messages'
 endfunction
 
 function! project#hasMoreOnList(list)
