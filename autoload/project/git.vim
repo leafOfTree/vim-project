@@ -421,7 +421,7 @@ function! s:GetLogsDisplayRow(idx, value)
   return a:value.__message.' '.a:value.__author.' '.a:value.__date
 endfunction
 
-function! project#git#commit()
+function! project#git#status()
   call s:ShowStatus(1)
 endfunction
 

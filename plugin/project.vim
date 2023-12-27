@@ -43,7 +43,11 @@ command -nargs=? -range
 command ProjectRun call project#run_tasks#run()
 
 command ProjectGitLog call project#git#log()
+
 command -range ProjectGitFileHistory call project#git#file_history(<q-range>)
-command ProjectGitCommit call project#git#commit()
+
+command ProjectGitCommit call project#git#status()
+
+command ProjectGitStatus call project#git#status()
 
 call project#begin()
