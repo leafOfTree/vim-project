@@ -463,6 +463,12 @@ function! s:ToggleFolder()
     let item.expand = 1 - item.expand
     call s:ShowStatus()
     execute lnum
+  else
+    let file = s:GetCurrentFile(lnum)
+    if !empty(file)
+      wincmd k
+      execute 'e '.file
+    endif
   endif
 endfunction
 
@@ -622,8 +628,8 @@ function! s:UpdateChangelistDisplay()
   endfor
 endfunction
 
-function! s:UpdateChangelist(refresh_data = 0)
-  if a:refresh_data
+function! s:UpdateChangelist(run_git = 0)
+  if a:run_git
     let s:changed_files = project#RunShellCmd('git diff --name-status head')
     if !empty(s:changed_files) && s:changed_files[0] =~ 'Not a git repository'
       return 0
@@ -646,7 +652,7 @@ function! s:HasFile(files, file)
   return count(a:files, filename)
 endfunction
 
-function! s:ShowStatus(refresh_data = 0)
+function! s:ShowStatus(run_git = 0)
   " Ignore events to avoid a cursor bug when opening from Fern.vim
   let save_eventignore = &eventignore
   set eventignore=all
@@ -654,7 +660,7 @@ function! s:ShowStatus(refresh_data = 0)
   call s:LoadChangelist()
   call s:OpenBuffer(s:changelist_buffer_search, s:changelist_buffer, 'botright')
   call s:SetupChangelistBuffer()
-  let success = s:UpdateChangelist(a:refresh_data)
+  let success = s:UpdateChangelist(a:run_git)
   if success
     call s:WriteChangelist()
   endif
@@ -667,6 +673,7 @@ function! s:SetupChangelistBuffer()
   nnoremap<buffer><silent> m :call <SID>MoveToChangelist()<cr>
   nnoremap<buffer><silent> c :call <SID>Commit()<cr>
   nnoremap<buffer><silent> u :call <SID>TryPull()<cr>
+  nnoremap<buffer><silent> p :quit<cr>:call <SID>TryPush()<cr>
   syntax match Comment /\d files/
   setlocal buftype=nofile
   execute 'syntax match Keyword /'.s:folder_regexp.'/'
@@ -753,11 +760,9 @@ function! s:TryCommit()
   let result = project#RunShellCmd(cmd)
 
   quit
-  new COMMIT_RESULT
-  call append(0, [cmd, ''] + result)
-  setlocal buftype=nofile
-  nnoremap<buffer><silent> p :quit<cr>:call project#git#push()<cr>
-  normal! gg
+  call s:OpenResultWindow('COMMIT_RESULT', cmd, result)
+  nnoremap<buffer><silent> u :call <SID>TryPull()<cr>
+  nnoremap<buffer><silent> p :quit<cr>:call <SID>TryPush()<cr>
 endfunction
 
 function! s:TryPush()
@@ -768,10 +773,7 @@ function! s:TryPush()
     return 
   endif
 
-  new PUSH_RESULT
-  call append(0, [cmd, ''] + result)
-  setlocal buftype=nofile
-  normal! gg
+  call s:OpenResultWindow('PUSH_RESULT', cmd, result)
 endfunction
 
 function! s:TryPull()
@@ -782,8 +784,12 @@ function! s:TryPull()
     return 
   endif
 
-  new UPDATE_RESULT
-  call append(0, [cmd, ''] + result)
+  call s:OpenResultWindow('UPDATE_RESULT', cmd, result)
+endfunction
+
+function! s:OpenResultWindow(title, cmd, result)
+  execute 'new '.a:title
+  call append(0, [a:cmd, ''] + a:result)
   setlocal buftype=nofile
   normal! gg
 endfunction
