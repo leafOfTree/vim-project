@@ -48,6 +48,7 @@ function! s:Prepare()
         \'find_in_files_exclude':         [],
         \'auto_detect':                   'no',
         \'auto_detect_file':              ['.git', '.svn'],
+        \'ask_create_directory':          'no',
         \'project_views':                 [],
         \'file_mappings':                 {},
         \'tasks':                         [],
@@ -180,6 +181,7 @@ function! s:InitConfig()
 
   let s:auto_detect_file = s:config.auto_detect_file
   let s:auto_load_on_start = s:config.auto_load_on_start
+  let s:ask_create_directory = s:config.ask_create_directory
   let s:project_views = s:config.project_views
   let s:file_mappings = s:config.file_mappings
   let s:list_mappings = s:config.list_mappings
@@ -300,7 +302,7 @@ function! s:AddProject(path, ...)
       let shortpath = project#ReplaceHomeWithTide(fullpath)
       call project#Warn('Directory not found: '.shortpath)
 
-      if exists("*mkdir")
+      if s:ask_create_directory == 'yes' && exists("*mkdir")
         let created = s:CreateDirectoryForNewProject(fullpath, shortpath)
       endif
     endif

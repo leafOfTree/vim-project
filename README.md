@@ -297,6 +297,7 @@ let g:vim_project_config = {
       \'find_in_files_exclude':         [],
       \'auto_detect':                   'no',
       \'auto_detect_file':              ['.git', '.svn'],
+      \'ask_create_directory':          'no',
       \'project_views':                 [],
       \'file_mappings':                 {},
       \'tasks':                         [],
@@ -354,6 +355,7 @@ let g:vim_project_config.list_mappings_run_tasks = {
 | auto_detect                   | Auto detect projects when opening a file. <br>Choose 'always', 'ask', or 'no' |
 | auto_detect_file              | File used to detect potential projects                                        |
 | auto_load_on_start            | Auto load a project if Vim starts within its directory                        |
+| ask_create_directory          | Ask if need to create directory when `:Project <name>` doesn't find it        |
 | list_mappings                 | Keymappings for list prompt                                                   |
 | include                       | Including folders                                                             |
 | exclude                       | Excluding folders/files                                                       |
