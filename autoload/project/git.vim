@@ -422,6 +422,9 @@ function! s:GetLogsDisplayRow(idx, value)
 endfunction
 
 function! project#git#status()
+  " Manually trigger some events first
+  silent doautocmd BufLeave
+  silent doautocmd FocusLost
   call s:ShowStatus(1)
 endfunction
 
