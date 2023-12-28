@@ -673,7 +673,7 @@ function! s:SetupChangelistBuffer()
   nnoremap<buffer><silent> m :call <SID>MoveToChangelist()<cr>
   nnoremap<buffer><silent> c :call <SID>Commit()<cr>
   nnoremap<buffer><silent> u :call <SID>TryPull()<cr>
-  nnoremap<buffer><silent> p :quit<cr>:call <SID>TryPush()<cr>
+  nnoremap<buffer><silent> p :call <SID>TryPush()<cr>
   syntax match Comment /\d files/
   setlocal buftype=nofile
   execute 'syntax match Keyword /'.s:folder_regexp.'/'
@@ -762,7 +762,7 @@ function! s:TryCommit()
   quit
   call s:OpenResultWindow('COMMIT_RESULT', cmd, result)
   nnoremap<buffer><silent> u :call <SID>TryPull()<cr>
-  nnoremap<buffer><silent> p :quit<cr>:call <SID>TryPush()<cr>
+  nnoremap<buffer><silent> p :call <SID>TryPush()<cr>
 endfunction
 
 function! s:TryPush()
