@@ -276,7 +276,7 @@ function! s:ShowChangeOfCurrentLine()
 endfunction
 
 function! s:AddChangeDetails(file)
-  let cmd = 'git diff '.a:file
+  let cmd = 'git diff -- '.a:file
   let changes = project#RunShellCmd(cmd)
   call append(0, changes)
   normal! gg
