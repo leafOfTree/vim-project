@@ -278,6 +278,13 @@ endfunction
 function! s:AddChangeDetails(file)
   let cmd = 'git diff -- '.a:file
   let changes = project#RunShellCmd(cmd)
+  if empty(changes)
+    " For untracked files
+    " Have to add ' || true' as 'git diff --no-index' returns 0 for no changes, 1 changes
+    let cmd = 'git diff --no-index -- /dev/null '.a:file.' || true'
+    let changes = project#RunShellCmd(cmd)
+  endif
+
   call append(0, changes)
   normal! gg
   silent! g/^new file mode/d
@@ -425,6 +432,7 @@ function! project#git#status()
   " Manually trigger some events first
   silent doautocmd BufLeave
   silent doautocmd FocusLost
+  call s:LoadChangelist()
   call s:ShowStatus(1)
 endfunction
 
@@ -459,7 +467,7 @@ function! s:LoadChangelist()
   \]
 endfunction
 
-function! s:ToggleFolder()
+function! s:ToggleFolderOrOpenFile()
   let lnum = line('.')
   let item = s:GetFolderItem(lnum)
   if !empty(item)
@@ -470,7 +478,7 @@ function! s:ToggleFolder()
     let file = s:GetCurrentFile(lnum)
     if !empty(file)
       wincmd k
-      execute 'e '.file
+      execute 'e '.$vim_project.'/'.file
     endif
   endif
 endfunction
@@ -660,7 +668,6 @@ function! s:ShowStatus(run_git = 0)
   let save_eventignore = &eventignore
   set eventignore=all
 
-  call s:LoadChangelist()
   call s:OpenBuffer(s:changelist_buffer_search, s:changelist_buffer, 'botright')
   call s:SetupChangelistBuffer()
   let success = s:UpdateChangelist(a:run_git)
@@ -672,7 +679,7 @@ function! s:ShowStatus(run_git = 0)
 endfunction
 
 function! s:SetupChangelistBuffer()
-  nnoremap<buffer><silent> o :call <SID>ToggleFolder()<cr>
+  nnoremap<buffer><silent> o :call <SID>ToggleFolderOrOpenFile()<cr>
   nnoremap<buffer><silent> m :call <SID>MoveToChangelist()<cr>
   nnoremap<buffer><silent> c :call <SID>Commit()<cr>
   nnoremap<buffer><silent> u :call <SID>TryPull()<cr>
