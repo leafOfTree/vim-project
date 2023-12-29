@@ -2,6 +2,7 @@ let s:list = []
 let s:display = []
 let s:input = ''
 let s:current_file = ''
+let s:current_line = 0
 
 let s:changes_buffer = '[changes]'
 let s:changes_buffer_search = '[changes'
@@ -220,7 +221,7 @@ function! s:CloseGitLog()
 endfunction
 
 function! s:OpenBuffer(search, name, pos)
-  let num = bufwinnr(escape(a:search, '[]'))
+  let num = s:GetBufWinnr(a:search)
   if num == -1
     execute 'silent '.a:pos.' new '.a:name
   else
@@ -230,13 +231,28 @@ function! s:OpenBuffer(search, name, pos)
   setlocal buftype=nofile bufhidden=wipe nobuflisted
 endfunction
 
+function! s:SwitchBuffer(search)
+  let num = s:GetBufWinnr(a:search)
+  if num != -1
+    execute num.'wincmd w'
+  endif
+endfunction
+
+function! s:GetBufWinnr(search)
+  return bufwinnr(escape(a:search, '[]'))
+endfunction
+
+function! s:GetBufnr(search)
+  return bufnr(escape(a:search, '[]'))
+endfunction
+
 function! s:CloseBuffer(name)
   if bufname() == a:name
     quit
     return
   endif
 
-  let nr = bufnr(escape(a:name, '[]'))
+  let nr = s:GetBufnr(a:name)
   if nr != -1
     execute 'silent! bdelete '.nr
     if empty(bufname())
@@ -265,17 +281,79 @@ function! s:SetupChangesBuffer(revision)
 endfunction
 
 function! s:ShowChangeOfCurrentLine()
-  let file = s:GetCurrentFile(line('.'))
+  let lnum = line('.')
+  if lnum == s:current_line
+    return 
+  endif
+
+
+  let s:current_line = lnum
+  call s:OpenBuffer(s:diff_buffer_search, s:diff_buffer, 'vertical')
+  call s:SetupDiffBuffer()
+  wincmd h
+
+  let file = s:GetCurrentFile(lnum)
   if empty(file)
     return
   endif
-  call s:OpenBuffer(s:diff_buffer_search, s:diff_buffer, 'vertical')
   call s:AddChangeDetails(file)
-  call s:SetupDiffBuffer()
-  wincmd h
 endfunction
 
 function! s:AddChangeDetails(file)
+  if s:IsUntrackedFile(a:file)
+    let cmd = 'git diff --no-index -- /dev/null '.a:file.''
+  else
+    let cmd = 'git diff -- '.a:file
+  endif
+  let buf_nr = s:GetBufnr(s:diff_buffer_search)
+  call s:RunJob(cmd, 'VimProjectAddChangeDetails', buf_nr)
+endfunction
+
+function! s:IsUntrackedFile(file)
+  for untracked_file in s:untracked_files
+    if s:GetFilename(untracked_file) == a:file
+      return 1
+    endif
+  endfor
+  return 0
+endfunction
+
+function! s:RunJob(cmd, exit_cb, buf_nr)
+  let can_run = exists('*job_start') || exists('*jobstart')
+  if !can_run
+    return
+  endif
+
+  " vim
+  if exists('*job_start')
+    call job_start(a:cmd, { 
+          \'exit_cb': a:exit_cb,
+          \'out_io': 'buffer',
+          \'out_buf': a:buf_nr,
+          \'cwd': $vim_project,
+          \})
+  endif
+  " neovim
+  if exists("*jobstart")
+    call jobstart(a:cmd, {
+        \'on_stdout': a:exit_cb,
+        \'stdout_buffered': 1,
+        \})
+  endif
+endfunction
+
+function! VimProjectAddChangeDetails(channel, changes, ...)
+  call s:SwitchBuffer(s:diff_buffer_search)
+  if !empty(a:changes)
+    call append(0, a:changes)
+  endif
+  normal! gg
+  silent! g/^new file mode/d
+  silent! 1,4d
+  call s:SwitchBuffer(s:changelist_buffer_search)
+endfunction
+
+function! s:AddChangeDetailsOld(file)
   let cmd = 'git diff -- '.a:file
   let changes = project#RunShellCmd(cmd)
   if empty(changes)
@@ -453,6 +531,7 @@ let s:file_regexp = '^\s\+\S\s\+\zs.*'
 let s:folder_regexp = '^\S\s\zs\w\+'
 
 function! s:LoadChangelist()
+
   let s:changelist = [
     \{
     \ 'name': s:default_folder_name,
@@ -689,6 +768,8 @@ function! s:SetupChangelistBuffer()
   execute 'syntax match Keyword /'.s:folder_regexp.'/'
   autocmd CursorMoved <buffer> call s:ShowChangeOfCurrentLine()
   autocmd BufUnload <buffer> call s:CloseChangesBuffer()
+
+  let s:current_line = 0
 endfunction
 
 function! s:WriteChangelist()
