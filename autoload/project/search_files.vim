@@ -2,7 +2,7 @@ let s:search_files_sort_max = 1000
 
 function! project#search_files#run()
   if !project#ProjectExist()
-    call project#Warn('No project opened')
+    call project#Warn('Open a project first')
     return
   endif
 

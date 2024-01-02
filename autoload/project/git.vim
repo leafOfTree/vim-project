@@ -19,12 +19,17 @@ let s:log_splitter = ' ||| '
 let s:commit_diffs = []
 
 function! project#git#file_history(...)
+  if !project#ProjectExist()
+    call project#Warn('Open a project first')
+    return
+  endif
+
   call s:CloseFileHistory()
 
   let s:current_file = expand('%:p')
   let filename = expand('%:t')
   if !filereadable(s:current_file)
-    call project#Warn('Open a file first to show history')
+    call project#Warn('Open a file first to show its history')
     return
   endif
 
@@ -144,6 +149,11 @@ function! s:CloseFileHistory()
 endfunction
 
 function! project#git#log()
+  if !project#ProjectExist()
+    call project#Warn('Open a project first')
+    return
+  endif
+
   call s:CloseChangesBuffer()
 
   call project#SetVariable('initial_height', winheight(0) - 5)
@@ -507,6 +517,11 @@ function! s:GetLogsDisplayRow(idx, value)
 endfunction
 
 function! project#git#status()
+  if !project#ProjectExist()
+    call project#Warn('Open a project first')
+    return
+  endif
+
   " Manually trigger some events first
   silent doautocmd BufLeave
   silent doautocmd FocusLost
@@ -515,10 +530,20 @@ function! project#git#status()
 endfunction
 
 function! project#git#push()
+  if !project#ProjectExist()
+    call project#Warn('Open a project first')
+    return
+  endif
+
   call s:TryPush()
 endfunction
 
 function! project#git#pull()
+  if !project#ProjectExist()
+    call project#Warn('Open a project first')
+    return
+  endif
+
   call s:TryPull()
 endfunction
 

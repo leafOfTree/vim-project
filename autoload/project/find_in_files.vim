@@ -6,7 +6,7 @@ let s:dismissed_find_replace = 0
 
 function! project#find_in_files#run(...)
   if !project#ProjectExist()
-    call project#Warn('No project opened')
+    call project#Warn('Open a project first')
     return
   endif
 

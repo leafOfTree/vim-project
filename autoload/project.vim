@@ -1737,7 +1737,7 @@ function! project#OpenProjectConfig()
     let config = s:GetProjectConfigPath(s:config_home, s:project)
     execute 'tabedit '.config.'/'.s:init_file
   else
-    call project#Warn('No project opened')
+    call project#Warn('Open a project first')
   endif
 endfunction
 
@@ -1795,7 +1795,7 @@ function! project#ShowProjectInfo()
     call s:Info('Search Exclude: '.string(s:search_exclude))
     call s:Info('Find in files Exclude: '.string(s:find_in_files_exclude))
   else
-    call project#Warn('No project opened')
+    call project#Warn('Open a project first')
   endif
 endfunction
 
@@ -1805,7 +1805,7 @@ function! project#ShowProjectAllInfo()
     call s:Info('------------ Details ------------')
     call s:ShowProjectConfig()
   else
-    call project#Warn('No project opened')
+    call project#Warn('Open a project first')
   endif
 endfunction
 
