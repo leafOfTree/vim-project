@@ -24,7 +24,7 @@ let s:changed_files = []
 let s:untracked_files = []
 let s:commit_files = []
 let s:file_regexp = '^\s\+\S\s\+\zs.*'
-let s:folder_regexp = '^\S\s\zs\w\+'
+let s:folder_regexp = '^\S\s\zs.\+\ze\s\($\|\d\+\sfile\)'
 let s:changelist_default = [
       \{
       \ 'name': s:default_folder_name,
@@ -612,6 +612,34 @@ function! s:ToggleFolderOrOpenFile()
   endif
 endfunction
 
+function! s:RenameFolder()
+  let lnum = line('.')
+  let item = s:GetFolderItem(lnum)
+  if s:IsUserFolder(item)
+    let name = input('Rename '.item.name.', new name: ')
+    if !empty(name)
+      let item.name = name
+      call s:ShowStatus()
+      execute lnum
+    endif
+  endif
+endfunction
+
+function! s:IsUserFolder(item)
+  return !empty(a:item) 
+        \&& a:item.name != s:default_folder_name && a:item.name != s:untracked_folder_name
+endfunction
+
+function! s:DeleteFolder()
+  let lnum = line('.')
+  let item = s:GetFolderItem(lnum)
+  if s:IsUserFolder(item)
+    call remove(s:changelist, index(s:changelist, item))
+  endif
+  call s:ShowStatus()
+  execute lnum
+endfunction
+
 function! s:MoveToChangelist() range
   let cur_line = getline('.')
   if cur_line !~ s:file_regexp
@@ -620,7 +648,7 @@ function! s:MoveToChangelist() range
 
   let name = input('Move to Another Changelist, name: ')
   if empty(name)
-    let name = s:default_folder_name
+    return
   endif
 
   for lnum in range(a:firstline, a:lastline)
@@ -710,6 +738,8 @@ function! s:GetPrefixAndSuffix(folder)
 
   if !file_num
     let prefix = empty
+  elseif file_num == 1
+    let suffix = file_num.' file'
   else
     let suffix = file_num.' files'
   endif
@@ -809,12 +839,15 @@ endfunction
 
 function! s:SetupChangelistBuffer()
   nnoremap<buffer><silent> o :call <SID>ToggleFolderOrOpenFile()<cr>
+  nnoremap<buffer><silent> r :call <SID>RenameFolder()<cr>
+  nnoremap<buffer><silent> d :call <SID>DeleteFolder()<cr>
   nnoremap<buffer><silent> m :call <SID>MoveToChangelist()<cr>
   nnoremap<buffer><silent> c :call <SID>Commit()<cr>
   nnoremap<buffer><silent> u :call <SID>TryPull()<cr>
   nnoremap<buffer><silent> p :call <SID>TryPush()<cr>
-  syntax match Comment /\d\+ files/
+  syntax match Comment /\d\+ files\?/
   setlocal buftype=nofile
+  setlocal nomodifiable
   execute 'syntax match Keyword /'.s:folder_regexp.'/'
   autocmd CursorMoved <buffer> call s:ShowChangeOfCurrentLine()
   autocmd BufUnload <buffer> call s:CloseChangesBuffer()
@@ -823,9 +856,11 @@ function! s:SetupChangelistBuffer()
 endfunction
 
 function! s:WriteChangelist()
-  call execute('normal ggdG', 'silent!')
+  setlocal modifiable
+  call execute('normal! ggdG', 'silent!')
   call append(0, s:display)
   normal gg
+  setlocal nomodifiable
 endfunction
 
 function! s:Commit()
@@ -886,6 +921,7 @@ function! s:TryCommit()
   let is_empty_message = empty(message_lines)
   let is_amend = !empty(amend_lines)
   if is_empty_message && !is_amend
+    call project#Info('Commit canceled')
     return
   endif
 
