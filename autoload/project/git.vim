@@ -352,11 +352,9 @@ function! s:RunJob(cmd, exit_cb, buf_nr)
   endif
 endfunction
 
-function! VimProjectAddChangeDetails(channel, changes, ...)
+function! VimProjectAddChangeDetails(job, exit_status, ...)
   call s:SwitchBuffer(s:diff_buffer_search)
-  if !empty(a:changes)
-    call append(0, a:changes)
-  endif
+
   normal! gg
   silent! g/^new file mode/d
   silent! 1,4d
