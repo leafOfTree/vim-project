@@ -292,10 +292,11 @@ endfunction
 
 function! s:ShowChangeOfCurrentLine()
   let lnum = line('.')
-  if lnum == s:current_line
+  let is_first_line = lnum == 1
+  let no_moving = lnum == s:current_line
+  if is_first_line || no_moving
     return 
   endif
-
 
   let s:current_line = lnum
   call s:OpenBuffer(s:diff_buffer_search, s:diff_buffer, 'vertical')
@@ -355,9 +356,9 @@ endfunction
 function! VimProjectAddChangeDetails(job, exit_status, ...)
   call s:SwitchBuffer(s:diff_buffer_search)
 
-  normal! gg
   silent! g/^new file mode/d
   silent! 1,4d
+  normal! gg
   call s:SwitchBuffer(s:changelist_buffer_search)
 endfunction
 
@@ -786,7 +787,7 @@ function! s:SetupChangelistBuffer()
   nnoremap<buffer><silent> c :call <SID>Commit()<cr>
   nnoremap<buffer><silent> u :call <SID>TryPull()<cr>
   nnoremap<buffer><silent> p :call <SID>TryPush()<cr>
-  syntax match Comment /\d files/
+  syntax match Comment /\d\+ files/
   setlocal buftype=nofile
   execute 'syntax match Keyword /'.s:folder_regexp.'/'
   autocmd CursorMoved <buffer> call s:ShowChangeOfCurrentLine()
