@@ -18,6 +18,27 @@ let s:file_history_range = []
 let s:log_splitter = ' ||| '
 let s:commit_diffs = []
 
+let s:default_folder_name = 'Default'
+let s:untracked_folder_name = 'Untracked'
+let s:changed_files = []
+let s:untracked_files = []
+let s:commit_files = []
+let s:file_regexp = '^\s\+\S\s\+\zs.*'
+let s:folder_regexp = '^\S\s\zs\w\+'
+let s:changelist_default = [
+      \{
+      \ 'name': s:default_folder_name,
+      \ 'files': [],
+      \ 'expand': 1,
+      \},
+      \{
+      \ 'name': s:untracked_folder_name,
+      \ 'files': [],
+      \ 'expand': 0,
+      \},
+    \]
+
+
 function! project#git#file_history(...)
   if !project#ProjectExist()
     call project#Warn('Open a project first')
@@ -276,6 +297,7 @@ function! s:CloseChangesBuffer()
   call s:CloseBuffer(s:before_buffer_search)
   call s:CloseBuffer(s:after_buffer_search)
   call s:CloseBuffer(s:diff_buffer_search)
+  call s:WriteChangelistFile(s:changelist)
 endfunction
 
 function! s:SetupChangesBuffer(revision)
@@ -546,28 +568,32 @@ function! project#git#pull()
   call s:TryPull()
 endfunction
 
-let s:default_folder_name = 'Default'
-let s:untracked_folder_name = 'Untracked'
-let s:changed_files = []
-let s:untracked_files = []
-let s:commit_files = []
-let s:file_regexp = '^\s\+\S\s\+\zs.*'
-let s:folder_regexp = '^\S\s\zs\w\+'
+function! s:GetChangelistFile()
+  return $vim_project_config.'/changelist.txt'
+endfunction
+
+function! s:ReadChangelistFile()
+  try 
+    let changelist_string = readfile(s:GetChangelistFile())
+    if !empty(changelist_string) && len(changelist_string) == 1
+      return json_decode(changelist_string[0])
+    endif
+  catch
+  endtry
+endfunction
+
+function! s:WriteChangelistFile(changelist)
+  let changelist_string = json_encode(a:changelist)
+  call writefile([changelist_string], s:GetChangelistFile())
+endfunction
 
 function! s:LoadChangelist()
-
-  let s:changelist = [
-    \{
-    \ 'name': s:default_folder_name,
-    \ 'files': [],
-    \ 'expand': 1,
-    \},
-    \{
-    \ 'name': s:untracked_folder_name,
-    \ 'files': [],
-    \ 'expand': 0,
-    \},
-  \]
+  let changelist = s:ReadChangelistFile()
+  if !empty(changelist)
+    let s:changelist = changelist
+  else
+    let s:changelist = s:changelist_default
+  endif
 endfunction
 
 function! s:ToggleFolderOrOpenFile()
