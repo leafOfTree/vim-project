@@ -954,7 +954,6 @@ function! s:ShowCommitMessage(title, files)
   new COMMIT_EDITMSG
   let content = [a:title] + preset_message + a:files
   call append(0, content)
-
   set filetype=gitcommit
   setlocal buftype=nofile
   normal! gg
@@ -963,7 +962,7 @@ function! s:ShowCommitMessage(title, files)
 endfunction
 
 function! s:TryCommit()
-  let message_lines = filter(getline(0, line('$')), {idx, val -> val =~ '^[^#]' && val !~ '^\s*$'})
+  let message_lines = filter(getline(0, line('$')), {idx, val -> val =~ '^[^#]' && val !~ '^\s*$' && val !~ '^amend$'})
   let amend_lines = filter(getline(0, line('$')), {idx, val -> val =~ '^amend$'})
   let is_empty_message = empty(message_lines)
   let is_amend = !empty(amend_lines)
