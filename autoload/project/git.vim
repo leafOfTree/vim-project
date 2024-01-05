@@ -809,6 +809,7 @@ function! s:UpdatePresetChangelist()
     endif
   endfor
 
+  let s:changelist[-1].files = []
   for file in s:untracked_files
     let in_untracked = 1
     for folder in s:changelist
@@ -871,7 +872,7 @@ function! s:ShowStatus(run_git = 0)
   let save_eventignore = &eventignore
   set eventignore=all
 
-  call s:OpenBuffer(s:changelist_buffer_search, s:changelist_buffer, 'botright')
+  call s:OpenBuffer(s:changelist_buffer_search, s:changelist_buffer, 'belowright')
   call s:SetupChangelistBuffer()
   let success = s:UpdateChangelist(a:run_git)
   if success
@@ -963,7 +964,7 @@ endfunction
 
 function! s:TryCommit()
   let message_lines = filter(getline(0, line('$')), {idx, val -> val =~ '^[^#]' && val !~ '^\s*$'})
-  let amend_lines = filter(getline(0, line('$')), {idx, val -> val =~ '--amend'})
+  let amend_lines = filter(getline(0, line('$')), {idx, val -> val =~ '^amend$'})
   let is_empty_message = empty(message_lines)
   let is_amend = !empty(amend_lines)
   if is_empty_message && !is_amend
