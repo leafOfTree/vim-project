@@ -313,6 +313,9 @@ function! s:SetupChangesBuffer(revision)
 endfunction
 
 function! s:ShowChangeOfCurrentLine()
+  if mode() != 'n'
+    return
+  endif
   let lnum = line('.')
   let is_first_line = lnum == 1
   let no_moving = lnum == s:current_line
@@ -401,6 +404,10 @@ function! s:AddChangeDetailsOld(file)
 endfunction
 
 function! s:ShowDiffOfCurrentLine(hash)
+  if mode() != 'n'
+    return
+  endif
+
   let line = getline('.')
   let file = matchstr(line, '^\S\s\zs.*')
   if empty(file)
@@ -841,10 +848,12 @@ function! s:SetupChangelistBuffer()
   nnoremap<buffer><silent> o :call <SID>ToggleFolderOrOpenFile()<cr>
   nnoremap<buffer><silent> r :call <SID>RenameFolder()<cr>
   nnoremap<buffer><silent> d :call <SID>DeleteFolder()<cr>
-  nnoremap<buffer><silent> m :call <SID>MoveToChangelist()<cr>
   nnoremap<buffer><silent> c :call <SID>Commit()<cr>
   nnoremap<buffer><silent> u :call <SID>TryPull()<cr>
   nnoremap<buffer><silent> p :call <SID>TryPush()<cr>
+
+  noremap<buffer><silent> m :call <SID>MoveToChangelist()<cr>
+
   syntax match Comment /\d\+ files\?/
   setlocal buftype=nofile
   setlocal nomodifiable
@@ -951,11 +960,13 @@ function! s:TryPush()
   endif
 
   redraw
-  call project#Info(join(result, ' '))
+  for line in result
+    call project#Info(line)
+  endfor
 endfunction
 
 function! s:TryPull()
-  call project#Info('Updating...')
+  call project#Info('Updating...') 
   let cmd = 'git pull'
   let result = project#RunShellCmd(cmd)
   if v:shell_error
@@ -963,7 +974,9 @@ function! s:TryPull()
   endif
 
   redraw
-  call project#Info(join(result, ' '))
+  for line in result
+    call project#Info(line)
+  endfor
 endfunction
 
 function! s:OpenResultWindow(title, cmd, result)
