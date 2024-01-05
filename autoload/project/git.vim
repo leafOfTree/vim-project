@@ -605,7 +605,7 @@ endfunction
 
 function! s:ToggleFolderOrOpenFile()
   let lnum = line('.')
-  let item = s:GetFolderItem(lnum)
+  let item = s:GetCurrentFolder(lnum)
   if !empty(item)
     let item.expand = 1 - item.expand
     call s:ShowStatus()
@@ -621,7 +621,7 @@ endfunction
 
 function! s:RenameFolder()
   let lnum = line('.')
-  let item = s:GetFolderItem(lnum)
+  let item = s:GetCurrentFolder(lnum)
   if s:IsUserFolder(item)
     let name = input('Rename '.item.name.', new name: ')
     if !empty(name)
@@ -639,52 +639,89 @@ endfunction
 
 function! s:DeleteFolder()
   let lnum = line('.')
-  let item = s:GetFolderItem(lnum)
-  if s:IsUserFolder(item)
-    call remove(s:changelist, index(s:changelist, item))
+  let folder = s:GetCurrentFolder(lnum)
+  if s:IsUserFolder(folder)
+    call remove(s:changelist, index(s:changelist, folder))
   endif
   call s:ShowStatus()
   execute lnum
 endfunction
 
-function! s:MoveToChangelist() range
-  let cur_line = getline('.')
-  if cur_line !~ s:file_regexp
-    return
-  endif
+function! VimProjectAllFolderNames(A, L, P)
+  let lnum = line('.')
+  let folder = s:GetBelongFolder(lnum)
 
-  let name = input('Move to Another Changelist, name: ')
-  if empty(name)
-    return
-  endif
-
-  for lnum in range(a:firstline, a:lastline)
-    call s:MoveTo(lnum, name)
-  endfor
-
-  call s:ShowStatus()
+  let folder_names = map(copy(s:changelist), {idx, v -> v.name})
+  call filter(folder_names, {idx, v -> 
+        \v != s:untracked_folder_name 
+        \&& v != folder.name
+        \&& v =~ a:A
+        \})
+  return folder_names
 endfunction
 
-function! s:MoveTo(lnum, name) 
-  let cur_line = getline(a:lnum)
+function! s:MoveToChangelist() range
+  let lnum = line('.')
+  let folder = s:GetCurrentFolder(lnum)
+
+  if !empty(folder)
+    let name = input('Move to Another Changelist, name: ', '', 'customlist,VimProjectAllFolderNames')
+    if empty(name)
+      return
+    endif
+
+    call s:MoveFolderTo(folder, name)
+  else
+    let file = s:GetCurrentFile(lnum)
+    if !empty(file)
+      let name = input('Move to Another Changelist, name: ', '', 'customlist,VimProjectAllFolderNames')
+      if empty(name)
+        return
+      endif
+
+      for lnum in range(a:firstline, a:lastline)
+        call s:MoveFileTo(lnum, name)
+      endfor
+    else
+      return
+    endif
+  endif
+
+  call s:ShowStatus()
+  execute lnum
+endfunction
+
+function! s:MoveFolderTo(from_folder, to_name)
+  let files = a:from_folder.files
+  let a:from_folder.files = []
+  let target = s:GetChangelistItem(a:to_name)
+  if empty(target)
+    let target = {
+          \ 'name': a:to_name,
+          \ 'files': files,
+          \ 'expand': 1,
+          \}
+    call insert(s:changelist, target, -1)
+  else
+    call extend(target.files, files)
+    let target.expand = 1
+  endif
+endfunction
+
+function! s:MoveFileTo(from_lnum, to_name) 
+  let cur_line = getline(a:from_lnum)
   if cur_line !~ s:file_regexp
     return
   endif
 
-  let target = {}
-  for item in s:changelist
-    if item.name == a:name
-      let target = s:GetChangelistItem(a:name)
-    endif
-  endfor
-
   let file = matchstr(cur_line, s:file_regexp)
-  let current = s:GetCurrentFolder(a:lnum)
-  call filter(current.files, 'v:val != "'.file.'"')
+  let from_folder = s:GetBelongFolder(a:from_lnum)
+  call filter(from_folder.files, 'v:val != "'.file.'"')
 
+  let target = s:GetChangelistItem(a:to_name)
   if empty(target)
     let target = {
-          \ 'name': a:name,
+          \ 'name': a:to_name,
           \ 'files': [file],
           \ 'expand': 1,
           \}
@@ -699,15 +736,15 @@ function! s:GetCurrentFile(lnum)
   return matchstr(getline(a:lnum), s:file_regexp)
 endfunction
 
-function! s:GetCurrentFolder(lnum)
+function! s:GetBelongFolder(lnum)
   let lnum = a:lnum
   while getline(lnum) !~ s:folder_regexp && lnum > -1
     let lnum = lnum - 1
   endwhile
-  return s:GetFolderItem(lnum)
+  return s:GetCurrentFolder(lnum)
 endfunction
 
-function! s:GetFolderItem(lnum)
+function! s:GetCurrentFolder(lnum)
   let prev_line = getline(a:lnum - 1)
   if prev_line =~ '^\s*$'
     let cur_line = getline(a:lnum)
@@ -883,7 +920,7 @@ function! s:Commit()
 
   let file = s:GetCurrentFile(lnum)
   if empty(file)
-    let folder = s:GetCurrentFolder(lnum)
+    let folder = s:GetBelongFolder(lnum)
     let files = folder.files
     let title = folder.name
     if title == s:default_folder_name
