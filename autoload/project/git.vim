@@ -623,7 +623,7 @@ function! s:RenameFolder()
   let lnum = line('.')
   let item = s:GetCurrentFolder(lnum)
   if s:IsUserFolder(item)
-    let name = input('Rename '.item.name.', new name: ')
+    let name = input('Rename: '.item.name.', new name: ', item.name)
     if !empty(name)
       let item.name = name
       call s:ShowStatus()
