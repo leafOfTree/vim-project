@@ -997,9 +997,7 @@ function! s:TryPush()
   endif
 
   redraw
-  for line in result
-    call project#Info(line)
-  endfor
+  call s:ShowResultMessage(result)
 endfunction
 
 function! s:TryPull()
@@ -1011,9 +1009,17 @@ function! s:TryPull()
   endif
 
   redraw
-  for line in result
-    call project#Info(line)
-  endfor
+  call s:ShowResultMessage(result)
+endfunction
+
+function! s:ShowResultMessage(result)
+  if len(a:result) < 3
+    call project#Info(join(a:result, ' | '))
+  else
+    for line in a:result
+      call project#Info(line)
+    endfor
+  endif
 endfunction
 
 function! s:OpenResultWindow(title, cmd, result)
