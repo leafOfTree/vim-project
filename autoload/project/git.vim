@@ -653,8 +653,11 @@ function! s:RenameFolderOrRollbackFile()
     endif
   else
     let file = s:GetCurrentFile(lnum)
-    let name = input('Rollback changes of '.file.'? (y/n)')
-    if !empty(file)
+    let name = input('Rollback changes of '.file.'? (y/n) ')
+    if !empty(name)
+      let cmd = 'git restore -- '.file
+      call project#RunShellCmd(cmd)
+      call s:ShowStatus(1)
     endif
   endif
 endfunction
