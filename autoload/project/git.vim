@@ -994,8 +994,10 @@ function! s:ShowCommitMessage(title, files)
 endfunction
 
 function! s:TryCommit()
-  let message_lines = filter(getline(0, line('$')), {idx, val -> val =~ '^[^#]' && val !~ '^\s*$' && val !~ '^amend$'})
-  let amend_lines = filter(getline(0, line('$')), {idx, val -> val =~ '^amend$'})
+  let lines = getline(0, line('$'))
+  let message_lines = filter(lines, {idx, val -> val =~ '^[^#]' && val !~ '^\s*$' && val !~ '^amend$'})
+  let lines = getline(0, line('$'))
+  let amend_lines = filter(lines, {idx, val -> val =~ '^amend$'})
   let is_empty_message = empty(message_lines)
   let is_amend = !empty(amend_lines)
   if is_empty_message && !is_amend
@@ -1004,7 +1006,7 @@ function! s:TryCommit()
   endif
 
   let files = join(s:commit_files, ' ')
-  let message = join(map(message_lines, {idx, val -> '-m "'.val.'"'}), ' ')
+  let message = join(map(message_lines, {idx, val -> '-m "'.escape(val, '"').'"'}), ' ')
 
   let option = ''
   if is_amend
