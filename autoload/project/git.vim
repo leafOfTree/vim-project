@@ -603,6 +603,21 @@ function! s:LoadChangelist()
   endif
 endfunction
 
+function! s:SortChangelist()
+  call sort(s:changelist, 's:SortChangelistFunc')
+endfunction
+
+function! s:SortChangelistFunc(i1, i2)
+  if a:i1.name == s:default_folder_name || a:i2.name == s:untracked_folder_name
+    return -1
+  endif
+  if a:i1.name == s:untracked_folder_name || a:i2.name == s:default_folder_name
+    return 1
+  endif
+
+  return a:i1.name > a:i2.name ? 1 : -1
+endfunction
+
 function! s:ToggleFolderOrOpenFile()
   let lnum = line('.')
   let item = s:GetCurrentFolder(lnum)
@@ -619,15 +634,27 @@ function! s:ToggleFolderOrOpenFile()
   endif
 endfunction
 
-function! s:RenameFolder()
+function! s:RenameFolderOrRollbackFile()
   let lnum = line('.')
   let item = s:GetCurrentFolder(lnum)
-  if s:IsUserFolder(item)
-    let name = input('Rename: '.item.name.', new name: ', item.name)
-    if !empty(name)
-      let item.name = name
-      call s:ShowStatus()
-      execute lnum
+  if !empty(item)
+    if s:IsUserFolder(item)
+      let name = input('Rename to new name: ', item.name)
+      if !empty(name)
+        if empty(s:GetChangelistItem(name))
+          let item.name = name
+          call s:SortChangelist()
+          call s:ShowStatus()
+          call search(name)
+        else
+          call project#Warn('Changelist '.name.' exists')
+        endif
+      endif
+    endif
+  else
+    let file = s:GetCurrentFile(lnum)
+    let name = input('Rollback changes of '.file.'? (y/n)')
+    if !empty(file)
     endif
   endif
 endfunction
@@ -688,7 +715,9 @@ function! s:MoveToChangelist() range
   endif
 
   call s:ShowStatus()
-  execute lnum
+  if !empty(name)
+    call search(name)
+  endif
 endfunction
 
 function! s:MoveFolderTo(from_folder, to_name)
@@ -696,12 +725,7 @@ function! s:MoveFolderTo(from_folder, to_name)
   let a:from_folder.files = []
   let target = s:GetChangelistItem(a:to_name)
   if empty(target)
-    let target = {
-          \ 'name': a:to_name,
-          \ 'files': files,
-          \ 'expand': 1,
-          \}
-    call insert(s:changelist, target, -1)
+    call s:AddNewFolder(a:to_name, files)
   else
     call extend(target.files, files)
     let target.expand = 1
@@ -720,16 +744,21 @@ function! s:MoveFileTo(from_lnum, to_name)
 
   let target = s:GetChangelistItem(a:to_name)
   if empty(target)
-    let target = {
-          \ 'name': a:to_name,
-          \ 'files': [file],
-          \ 'expand': 1,
-          \}
-    call insert(s:changelist, target, -1)
+    call s:AddNewFolder(a:to_name, [file])
   else
     call add(target.files, file)
     let target.expand = 1
   endif
+endfunction
+
+function! s:AddNewFolder(name, files)
+  let target = {
+        \ 'name': a:name,
+        \ 'files': a:files,
+        \ 'expand': 1,
+        \}
+  call add(s:changelist, target)
+  call s:SortChangelist()
 endfunction
 
 function! s:GetCurrentFile(lnum)
@@ -884,7 +913,7 @@ endfunction
 
 function! s:SetupChangelistBuffer()
   nnoremap<buffer><silent> o :call <SID>ToggleFolderOrOpenFile()<cr>
-  nnoremap<buffer><silent> r :call <SID>RenameFolder()<cr>
+  nnoremap<buffer><silent> r :call <SID>RenameFolderOrRollbackFile()<cr>
   nnoremap<buffer><silent> d :call <SID>DeleteFolder()<cr>
   nnoremap<buffer><silent> c :call <SID>Commit()<cr>
   nnoremap<buffer><silent> u :call <SID>TryPull()<cr>
