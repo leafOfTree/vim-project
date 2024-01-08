@@ -639,7 +639,7 @@ function! s:RenameFolderOrRollbackFile()
   let item = s:GetCurrentFolder(lnum)
   if !empty(item)
     if s:IsUserFolder(item)
-      let name = input('Rename to new name: ', item.name)
+      let name = input('Rename to: ', item.name)
       if !empty(name)
         if empty(s:GetChangelistItem(name))
           let item.name = name
@@ -695,7 +695,7 @@ function! s:MoveToChangelist() range
   let folder = s:GetCurrentFolder(lnum)
 
   if !empty(folder)
-    let name = input('Move to Another Changelist, name: ', '', 'customlist,VimProjectAllFolderNames')
+    let name = input('Move to: ', '', 'customlist,VimProjectAllFolderNames')
     if empty(name)
       return
     endif
@@ -704,7 +704,7 @@ function! s:MoveToChangelist() range
   else
     let file = s:GetCurrentFile(lnum)
     if !empty(file)
-      let name = input('Move to Another Changelist, name: ', '', 'customlist,VimProjectAllFolderNames')
+      let name = input('Move to: ', '', 'customlist,VimProjectAllFolderNames')
       if empty(name)
         return
       endif
