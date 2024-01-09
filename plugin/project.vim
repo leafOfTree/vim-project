@@ -50,4 +50,6 @@ command ProjectGitCommit call project#git#Status()
 
 command ProjectGitStatus call project#git#Status()
 
+command ProjectNew call project#new#NewProject()
+
 call project#begin()
