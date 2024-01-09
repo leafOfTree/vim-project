@@ -35,19 +35,19 @@ command -complete=customlist,project#ListDirs -nargs=+
 command -complete=customlist,project#ListDirs -nargs=1
       \ ProjectIgnore call project#IgnoreProject(s:TrimQuote(<q-args>))
 
-command ProjectSearchFiles call project#search_files#run()
+command ProjectSearchFiles call project#search_files#Run()
 
 command -nargs=? -range 
-      \ ProjectFindInFiles call project#find_in_files#run(s:TrimQuote(<q-args>), <q-range>)
+      \ ProjectFindInFiles call project#find_in_files#Run(s:TrimQuote(<q-args>), <q-range>)
 
-command ProjectRun call project#run_tasks#run()
+command ProjectRun call project#run_tasks#Run()
 
-command ProjectGitLog call project#git#log()
+command ProjectGitLog call project#git#Log()
 
-command -range ProjectGitFileHistory call project#git#file_history(<q-range>)
+command -range ProjectGitFileHistory call project#git#FileHistory(<q-range>)
 
-command ProjectGitCommit call project#git#status()
+command ProjectGitCommit call project#git#Status()
 
-command ProjectGitStatus call project#git#status()
+command ProjectGitStatus call project#git#Status()
 
 call project#begin()

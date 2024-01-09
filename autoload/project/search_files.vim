@@ -1,6 +1,6 @@
 let s:search_files_sort_max = 1000
 
-function! project#search_files#run()
+function! project#search_files#Run()
   if !project#ProjectExist()
     call project#Warn('Open a project first')
     return

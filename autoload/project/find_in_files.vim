@@ -4,7 +4,7 @@ let s:update_timer = 0
 let s:search_replace_separator = ' => '
 let s:dismissed_find_replace = 0
 
-function! project#find_in_files#run(...)
+function! project#find_in_files#Run(...)
   if !project#ProjectExist()
     call project#Warn('Open a project first')
     return

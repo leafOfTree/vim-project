@@ -1132,7 +1132,7 @@ function! project#TabulateFixed(list, keys, widths)
   endfor
 endfunction
 
-function! project#Tabulate(list, keys, min_col_width, max_col_width)
+function! project#Tabulate(list, keys, min_col_width = 0, max_col_width = &columns)
   " Init max width of each column
   let max = {}
 
@@ -1286,7 +1286,7 @@ function! s:ShowInitialInputLine(input, ...)
   call s:ShowInputLine(a:input)
 endfunction
 
-function! project#RenderList(Init, Update, Open, Quit = v:null)
+function! project#RenderList(Init, Update, Open, Close = v:null)
   let input = s:InitListVariables(a:Init)
   call s:ShowInitialInputLine(input)
   let [cmd, input] = s:HandleInput(input, a:Update, a:Open)
@@ -1297,8 +1297,8 @@ function! project#RenderList(Init, Update, Open, Quit = v:null)
   endif
   call s:SaveListState(input)
   call s:ResetListVariables()
-  if !s:IsOpenCmd(cmd) && a:Quit != v:null
-    call a:Quit()
+  if !s:IsOpenCmd(cmd) && a:Close != v:null
+    call a:Close()
   endif
 endfunction
 

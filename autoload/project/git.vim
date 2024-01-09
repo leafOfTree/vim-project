@@ -39,7 +39,7 @@ let s:changelist_default = [
     \]
 
 
-function! project#git#file_history(...)
+function! project#git#FileHistory(...)
   if !project#ProjectExist()
     call project#Warn('Open a project first')
     return
@@ -169,7 +169,7 @@ function! s:CloseFileHistory()
   call s:CloseBuffer(s:diff_buffer_search)
 endfunction
 
-function! project#git#log()
+function! project#git#Log()
   if !project#ProjectExist()
     call project#Warn('Open a project first')
     return
@@ -297,7 +297,6 @@ function! s:CloseChangesBuffer()
   call s:CloseBuffer(s:before_buffer_search)
   call s:CloseBuffer(s:after_buffer_search)
   call s:CloseBuffer(s:diff_buffer_search)
-  call s:WriteChangelistFile(s:changelist)
 endfunction
 
 function! s:SetupChangesBuffer(revision)
@@ -544,7 +543,7 @@ function! s:GetLogsDisplayRow(idx, value)
   return a:value.__message.' '.a:value.__author.' '.a:value.__date
 endfunction
 
-function! project#git#status()
+function! project#git#Status()
   if !project#ProjectExist()
     call project#Warn('Open a project first')
     return
@@ -930,7 +929,9 @@ function! s:SetupChangelistBuffer()
   execute 'syntax match Keyword /'.s:folder_regexp.'/'
   autocmd CursorMoved <buffer> call s:ShowChangeOfCurrentLine()
   autocmd BufUnload <buffer> call s:CloseChangesBuffer()
+  autocmd BufUnload <buffer> call s:WriteChangelistFile(s:changelist)
 
+  
   let s:current_line = 0
 endfunction
 

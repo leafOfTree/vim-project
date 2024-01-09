@@ -1,6 +1,6 @@
 let s:output_rows = 20
 
-function! project#run_tasks#run()
+function! project#run_tasks#Run()
   call project#PrepareListBuffer('Run a task:', 'RUN_TASKS')
   let Init = function('s:Init')
   let Update = function('s:Update')
