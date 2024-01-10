@@ -876,7 +876,7 @@ endfunction
 
 function! s:UpdateChangelist(run_git = 0)
   if a:run_git
-    let s:changed_files = project#RunShellCmd('git diff --name-status head')
+    let s:changed_files = project#RunShellCmd('git diff --name-status')
     if !empty(s:changed_files) && s:changed_files[0] =~ 'Not a git repository'
       return 0
     endif
