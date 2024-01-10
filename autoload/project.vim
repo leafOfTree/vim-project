@@ -52,6 +52,8 @@ function! s:Prepare()
         \'project_views':                 [],
         \'file_mappings':                 {},
         \'tasks':                         [],
+        \'new_tasks':                     [],
+        \'new_tasks_post_cmd':            '',
         \'debug':                         0,
         \}
 
@@ -191,6 +193,8 @@ function! s:InitConfig()
   let s:list_mappings_run_tasks = s:config.list_mappings_run_tasks
   let s:open_types = s:config.file_open_types
   let s:tasks = s:config.tasks
+  let s:new_tasks = s:config.new_tasks
+  let s:new_tasks_post_cmd = s:config.new_tasks_post_cmd
   let s:debug = s:config.debug
 endfunction
 

@@ -1,5 +1,9 @@
-function! project#new#NewProject()
-  let prompt = 'Generate new project by:' 
+let s:name = ''
+
+function! project#new#NewProject(name)
+  let s:name = expand(a:name)
+  let prompt = s:GetCwd().' create ['.s:name.'] by:' 
+
   call project#PrepareListBuffer(prompt, 'GIT_FILE_HISTORY')
   let Init = function('s:Init')
   let Update = function('s:Update')
@@ -7,23 +11,22 @@ function! project#new#NewProject()
   call project#RenderList(Init, Update, Open)
 endfunction
 
+function! s:GetCwd()
+  return '['.project#ReplaceHomeWithTide(getcwd()).']'
+endfunction
+
 function! s:Init(input)
-  let s:list = [
-        \ { 'name': 'vite', 'cmd': 'npm craete vite@latest' },
-        \ { 'name': 'spring', 'cmd': 'spring' },
-        \ { 'name': 'git', 'cmd': 'git clone --depth 1' },
-        \ { 'name': 'degit', 'cmd': 'degit' },
-        \]
-
+  let s:new_tasks = project#GetVariable('new_tasks')
   let max_col_width = project#GetVariable('max_width') / 2 - 10
-  call project#Tabulate(s:list, ['name', 'cmd'])
-
+  call project#Tabulate(s:new_tasks, ['name', 'cmd', 'args'])
   call s:Update(a:input)
 endfunction
 
 function! s:Update(input)
-  let show_list = s:FilterGenerator(copy(s:list), a:input)
-  let display = s:GetNewProjectGeneratorDisplay(show_list)
+  let list = s:FilterTasks(copy(s:new_tasks), a:input)
+  let display = s:GetNewProjectTaskDisplay(list)
+  call project#SetVariable('list', list)
+
   call project#ShowInListBuffer(display, a:input)
   call project#HighlightCurrentLine(len(display))
   call project#HighlightInputChars(a:input)
@@ -31,21 +34,62 @@ function! s:Update(input)
 endfunction
 
 function! s:Open(item, open_cmd, input)
+  let cmd = a:item.cmd
+  if s:WithArgs(a:item)
+    let args = input(s:GetCwd().' '.a:item.cmd.' | '.a:item.args.': ')
+    if !empty(args)
+      let cmd = cmd.' '.args
+    endif
+  endif
+
+  let cmd = cmd.' '.s:name
+  call term_start(cmd, { 'exit_cb': function('s:OnJobEnds')})
 endfunction
 
-function! s:GetNewProjectGeneratorDisplay(list)
+function! s:OnJobEnds(job, status)
+  if !empty(s:name) && a:status == 0
+    call project#AddProject(s:name)
+    let s:new_tasks_post_cmd = project#GetVariable('new_tasks_post_cmd')
+    if !empty(s:new_tasks_post_cmd)
+      call project#RunShellCmd(s:new_tasks_post_cmd)
+    endif
+  endif
+
+  if a:status != 0
+    call project#Warn('Error on creating ['.s:name.']')
+  endif
+endfunction
+
+" function! s:OnTerminalLeave()
+  " call timer_start(100, 's:OpenNewProject')
+" endfunction
+" 
+" function! s:OpenNewProject(timer)
+  " if !empty(s:name)
+    " call project#AddProject(s:name)
+  " endif
+" endfunction
+
+function! s:WithArgs(item)
+  return has_key(a:item, 'args')
+endfunction
+
+function! s:GetNewProjectTaskDisplay(list)
   let display = []
-  for generator in a:list
-    let row = generator.__name.'  '.generator.__cmd
+  for item in a:list
+    let row = item.__name.'  '.item.__cmd
+    if s:WithArgs(item)
+      let row = row.'  '.item.__args
+    endif
     call add(display, row)
   endfor
 
   return display
 endfunction
 
-function! s:FilterGenerator(generators, input)
+function! s:FilterTasks(tasks, input)
   let regexp_input = join(split(a:input, '\zs'), '.*')
-  for item in a:generators
+  for item in a:tasks
     let item._match_type = ''
     let item._match_index = -1
 
@@ -68,7 +112,7 @@ function! s:FilterGenerator(generators, input)
     endif
   endfor
 
-  let result = filter(a:generators, { _, val -> val._match_type != '' })
+  let result = filter(a:tasks, { _, val -> val._match_type != '' })
   return result
 endfunction
 
