@@ -1032,7 +1032,7 @@ function! s:TryPush()
   endif
 
   redraw
-  call s:ShowResultMessage(result)
+  call project#Info('Pushed sucessfully')
 endfunction
 
 function! s:TryPull()
@@ -1044,10 +1044,11 @@ function! s:TryPull()
   endif
 
   redraw
-  call s:ShowResultMessage(result)
+  call project#Info('Updated sucessfully')
 endfunction
 
 function! s:ShowResultMessage(result)
+  redraw
   if len(a:result) < 3
     call project#Info(join(a:result, ' | '))
   else
