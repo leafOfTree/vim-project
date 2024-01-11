@@ -958,9 +958,8 @@ function! s:Commit()
   if empty(file)
     let folder = s:GetBelongFolder(lnum)
     let files = folder.files
-    let title = folder.name
-    if title == s:default_folder_name
-      let title = ''
+    if s:IsUserFolder(folder)
+      let title = folder.name
     endif
   else
     let files = [file]
