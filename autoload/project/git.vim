@@ -321,13 +321,17 @@ function! s:ShowChangeOfCurrentLine()
   if is_first_line || no_moving
     return 
   endif
+  let file = s:GetCurrentFile(lnum)
+  let num = s:GetBufWinnr(s:diff_buffer_search)
+  if empty(file) && num == -1
+    return
+  endif
 
   let s:current_line = lnum
   call s:OpenBuffer(s:diff_buffer_search, s:diff_buffer, 'vertical')
   call s:SetupDiffBuffer()
   wincmd h
 
-  let file = s:GetCurrentFile(lnum)
   if empty(file)
     return
   endif
@@ -588,8 +592,8 @@ function! s:ReadChangelistFile()
   endtry
 endfunction
 
-function! s:WriteChangelistFile(changelist)
-  let changelist_string = json_encode(a:changelist)
+function! s:WriteChangelistFile()
+  let changelist_string = json_encode(s:changelist)
   call writefile([changelist_string], s:GetChangelistFile())
 endfunction
 
@@ -929,9 +933,7 @@ function! s:SetupChangelistBuffer()
   execute 'syntax match Keyword /'.s:folder_regexp.'/'
   autocmd CursorMoved <buffer> call s:ShowChangeOfCurrentLine()
   autocmd BufUnload <buffer> call s:CloseChangesBuffer()
-  autocmd BufUnload <buffer> call s:WriteChangelistFile(s:changelist)
-
-  
+  autocmd BufUnload <buffer> call s:WriteChangelistFile()
   let s:current_line = 0
 endfunction
 
