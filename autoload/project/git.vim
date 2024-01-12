@@ -947,7 +947,6 @@ endfunction
 
 function! s:Commit()
   let files = []
-  let title = ''
 
   let lnum = line('.')
   if getline(lnum) =~ '^\s*$'
@@ -958,9 +957,6 @@ function! s:Commit()
   if empty(file)
     let folder = s:GetBelongFolder(lnum)
     let files = folder.files
-    if s:IsUserFolder(folder)
-      let title = folder.name
-    endif
   else
     let files = [file]
   endif
@@ -973,8 +969,33 @@ function! s:Commit()
   let s:commit_files = map(copy(commit_files), {idx, file -> s:GetFilename(file)})
   let show_commit_files = map(copy(commit_files), {idx, file -> '#    '.file})
 
+  let title = s:GetCommitMessage()
   quit
   call s:ShowCommitMessage(title, show_commit_files)
+endfunction
+
+function! s:GetCommitMessage()
+  let folder_name = ''
+
+  let lnum = line('.')
+  let folder = s:GetBelongFolder(lnum)
+  let folder_name = !empty(folder) ? folder.name : ''
+
+  let title = ''
+  let Message = project#GetVariable('commit_message')
+
+  if !empty(Message)
+    if type(Message) == type(function('tr'))
+      let title = Message(folder_name)
+    elseif type(Message) == type('')
+      let title = Message
+    endif
+  endif
+
+  if empty(title) && s:IsUserFolder(folder)
+    let title = folder_name
+  endif
+  return title
 endfunction
 
 function! s:ShowCommitMessage(title, files)

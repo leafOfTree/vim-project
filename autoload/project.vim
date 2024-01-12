@@ -54,6 +54,7 @@ function! s:Prepare()
         \'tasks':                         [],
         \'new_tasks':                     [],
         \'new_tasks_post_cmd':            '',
+        \'commit_message':                '',
         \'debug':                         0,
         \}
 
@@ -70,6 +71,7 @@ function! s:Prepare()
         \'use_session',
         \'open_root_when_use_session',
         \'check_branch_when_use_session',
+        \'commit_message',
         \]
 
   let s:default.list_mappings = {
@@ -195,6 +197,7 @@ function! s:InitConfig()
   let s:tasks = s:config.tasks
   let s:new_tasks = s:config.new_tasks
   let s:new_tasks_post_cmd = s:config.new_tasks_post_cmd
+  let s:commit_message = s:config.commit_message
   let s:debug = s:config.debug
 endfunction
 
