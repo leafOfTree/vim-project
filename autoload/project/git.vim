@@ -242,7 +242,7 @@ endfunction
 
 
 function! s:OpenGitLog(revision, cmd, input)
-  execute 'autocmd CursorMoved <buffer> call s:ShowDiffOfCurrentLine("'.a:revision.hash.'")'
+  execute 'autocmd CursorMoved <buffer> call s:ShowDiffOnGitLog("'.a:revision.hash.'")'
 endfunction
 
 function! s:CloseGitLog()
@@ -311,7 +311,7 @@ function! s:SetupChangesBuffer(revision)
   autocmd BufUnload <buffer> call s:CloseChangesBuffer()
 endfunction
 
-function! s:ShowChangeOfCurrentLine()
+function! s:ShowDiffOnChangelist()
   if mode() != 'n'
     return
   endif
@@ -406,7 +406,7 @@ function! s:AddChangeDetailsOld(file)
   silent! 1,4d
 endfunction
 
-function! s:ShowDiffOfCurrentLine(hash)
+function! s:ShowDiffOnGitLog(hash)
   if mode() != 'n'
     return
   endif
@@ -931,7 +931,7 @@ function! s:SetupChangelistBuffer()
   setlocal buftype=nofile
   setlocal nomodifiable
   execute 'syntax match Keyword /'.s:folder_regexp.'/'
-  autocmd CursorMoved <buffer> call s:ShowChangeOfCurrentLine()
+  autocmd CursorMoved <buffer> call s:ShowDiffOnChangelist()
   autocmd BufUnload <buffer> call s:CloseChangesBuffer()
   autocmd BufUnload <buffer> call s:WriteChangelistFile()
   let s:current_line = 0
