@@ -115,10 +115,10 @@ endfunction
 
 function! s:UpdateFileHistory(input)
   call s:UpdateLog(a:input)
-  call s:ShowDiffOfCurrentFile()
+  call s:ShowDiffOnFileHistory()
 endfunction
 
-function! s:ShowDiffOfCurrentFile()
+function! s:ShowDiffOnFileHistory()
   let revision = project#GetTarget()
   if empty(revision)
     return
@@ -126,7 +126,7 @@ function! s:ShowDiffOfCurrentFile()
   call s:OpenBuffer(s:diff_buffer_search, s:diff_buffer, 'vertical')
   call s:AddDiffDetails(revision.hash, s:current_file)
   call s:AddBrief(revision)
-  call s:SetupDiffBuffer()
+  call s:SetupDiffBuffer(s:current_file)
   wincmd h
 endfunction
 
@@ -156,9 +156,24 @@ function! s:AddBrief(revision)
   call append(line('$'), brief)
 endfunction
 
-function! s:SetupDiffBuffer()
+function! s:SetupDiffBuffer(file)
   setlocal buftype=nofile bufhidden=wipe nobuflisted filetype=git
   setlocal nowrap
+  execute 'nnoremap<buffer><silent> o :call <SID>JumpToSource("'.a:file.'")<cr>'
+endfunction
+
+function! s:JumpToSource(file)
+  let lnum = line('.')
+  let line = getline(lnum)
+  while (line =~ '^-' || line =~ '^.\s*$') && lnum > 0
+    let lnum = lnum - 1
+    let line = getline(lnum)
+  endwhile
+  let line = substitute(line, '^@@ .* @@', '', 'g')
+  let line = line[1:]
+  wincmd k
+  execute 'e '.$vim_project.'/'.a:file
+  call search('\V'.line[1:])
 endfunction
 
 function! s:OpenFileHistory(revision, cmd, input)
@@ -329,7 +344,7 @@ function! s:ShowDiffOnChangelist()
 
   let s:current_line = lnum
   call s:OpenBuffer(s:diff_buffer_search, s:diff_buffer, 'vertical')
-  call s:SetupDiffBuffer()
+  call s:SetupDiffBuffer(file)
   wincmd h
 
   if empty(file)
@@ -419,7 +434,7 @@ function! s:ShowDiffOnGitLog(hash)
 
   call s:OpenBuffer(s:diff_buffer_search, s:diff_buffer, 'vertical')
   call s:AddDiffDetails(a:hash, file)
-  call s:SetupDiffBuffer()
+  call s:SetupDiffBuffer(file)
   wincmd h
 endfunction
 
