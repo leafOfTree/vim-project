@@ -676,6 +676,7 @@ function! s:RenameFolderOrRollbackFile()
       let cmd = 'git restore -- '.file
       call project#RunShellCmd(cmd)
       call s:ShowStatus(1)
+      call s:CloseBuffer(s:diff_buffer_search)
     endif
   endif
 endfunction
@@ -706,6 +707,24 @@ function! VimProjectAllFolderNames(A, L, P)
         \&& v =~ a:A
         \})
   return folder_names
+endfunction
+
+function! s:NewChangelist()
+  let name = input('New changelist name: ')
+  if empty(name)
+    return
+  endif
+
+  let target = s:GetChangelistItem(name)
+  if empty(target)
+    call s:AddNewFolder(name, [])
+    call s:ShowStatus()
+    if !empty(name)
+      call search(name)
+    endif
+  else
+    call project#Warn('Changelist with name ['.name.'] already exists')
+  endif
 endfunction
 
 function! s:MoveToChangelist() range
@@ -939,6 +958,7 @@ function! s:SetupChangelistBuffer()
   nnoremap<buffer><silent> c :call <SID>Commit()<cr>
   nnoremap<buffer><silent> u :call <SID>TryPull()<cr>
   nnoremap<buffer><silent> p :call <SID>TryPush()<cr>
+  nnoremap<buffer><silent> a :call <SID>NewChangelist()<cr>
 
   noremap<buffer><silent> m :call <SID>MoveToChangelist()<cr>
 
