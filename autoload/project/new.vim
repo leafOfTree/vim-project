@@ -2,7 +2,12 @@ let s:name = ''
 
 function! project#new#NewProject(name)
   let s:name = expand(a:name)
-  let prompt = s:GetCwd().' create ['.s:name.'] by:' 
+  if !s:IsValidName()
+    call project#Warn(s:name.' already exists')
+    return 
+  endif
+
+  let prompt = '['.s:GetCwd().'] create ['.s:GetName().'] by:' 
 
   call project#PrepareListBuffer(prompt, 'GIT_FILE_HISTORY')
   let Init = function('s:Init')
@@ -12,7 +17,15 @@ function! project#new#NewProject(name)
 endfunction
 
 function! s:GetCwd()
-  return '['.project#ReplaceHomeWithTide(getcwd()).']'
+  return fnamemodify(s:name, ':p:h')
+endfunction
+
+function! s:GetName()
+  return fnamemodify(s:name, ':t')
+endfunction
+
+function! s:IsValidName()
+  return !filereadable(s:name) && !isdirectory(s:name)
 endfunction
 
 function! s:Init(input)
@@ -36,22 +49,27 @@ endfunction
 function! s:Open(item, open_cmd, input)
   let cmd = a:item.cmd
   if s:WithArgs(a:item)
-    let args = input(s:GetCwd().' '.a:item.cmd.' | '.a:item.args.': ')
+    let args = input('['.s:GetCwd().'] '.a:item.cmd.' | '.a:item.args.': ')
     if !empty(args)
       let cmd = cmd.' '.args
     endif
   endif
 
-  let cmd = cmd.' '.s:name
-  call term_start(cmd, { 'exit_cb': function('s:OnJobEnds')})
+  let cmd = cmd.' '.s:GetName()
+  call term_start(cmd, { 
+        \'exit_cb': function('s:OnJobEnds'),
+        \'cwd': s:GetCwd(),
+        \})
 endfunction
 
 function! s:OnJobEnds(job, status)
   if !empty(s:name) && a:status == 0
-    call project#AddProject(s:name)
-    let s:new_tasks_post_cmd = project#GetVariable('new_tasks_post_cmd')
-    if !empty(s:new_tasks_post_cmd)
-      call project#RunShellCmd(s:new_tasks_post_cmd)
+    let error = project#AddProject(s:name)
+    if empty(error)
+      let post_cmd = project#GetVariable('new_tasks_post_cmd')
+      if !empty(post_cmd)
+        call project#RunShellCmd(post_cmd)
+      endif
     endif
   endif
 

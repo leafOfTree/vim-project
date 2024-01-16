@@ -255,7 +255,7 @@ function! project#AddProject(args)
   let [path, option] = s:GetAddArgs(a:args)
   let [error, project] = s:AddProject(path, option)
   if error || s:is_init_adding
-    return 
+    return 1
   endif
 
   let save_path = project#ReplaceHomeWithTide(s:GetFullPath(path))
