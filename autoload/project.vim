@@ -27,8 +27,10 @@ function! s:Prepare()
   let s:first_column_pattern = '^'.s:column_pattern
   let s:second_column_pattern = '\s\{2,}[^- ]'.s:column_pattern
 
+  let s:project_history = []
   let s:add_file = 'project.add.vim'
   let s:ignore_file = 'project.ignore.vim'
+  let s:history_file = 'project.history.vim'
   let s:init_file = 'init.vim'
   let s:quit_file = 'quit.vim'
 
@@ -613,6 +615,7 @@ function! project#begin()
   let g:vim_project_loaded = 1
   call s:Main()
   call s:SourcePluginConfigFiles()
+  call s:ReadProjectHistory()
   call s:WatchOnBufEnter()
 endfunction
 
@@ -623,14 +626,21 @@ endfunction
 function! s:CheckVersion()
   if exists('g:vim_project_config')
         \&& type(g:vim_project_config) == type('')
-    let message1 =  'Hey, it seems that you just upgraded. Please configure `g:vim_project_config` as a dict'
-    let message2 =  'For details, please check README.md or https://github.com/leafOfTree/vim-project'
+    let message1 = 'Hey, it seems that you just upgraded. Please configure `g:vim_project_config` as a dict'
+    let message2 = 'For details, please check README.md or https://github.com/leafOfTree/vim-project'
     echom '[vim-project] '.message1
     echom '[vim-project] '.message2
     return 1
   endif
 
   return 0
+endfunction
+
+function! s:ReadProjectHistory()
+  let history_file = s:config_home.'/'.s:history_file
+  if filereadable(history_file)
+    let s:project_history = readfile(history_file)
+  endif
 endfunction
 
 function! s:SourcePluginConfigFiles()
@@ -925,6 +935,7 @@ function! s:WatchOnVimQuit()
   augroup vim-quit
     autocmd! vim-quit
     autocmd VimLeave * call s:QuitProject()
+    autocmd VimLeave * call s:SaveProjectHistory()
   augroup END
 endfunction
 
@@ -1639,12 +1650,27 @@ function! project#OpenProject(project)
     call s:PreLoadProject()
     call s:LoadProject()
     call s:PostLoadProject()
-
+    call s:AddProjectHistory(s:project)
     redraw
     call s:Info('Opened ['.a:project.name.']')
   else
     call s:Info('Already opened')
   endif
+endfunction
+
+function! s:AddProjectHistory(project)
+  let item = a:project.fullpath
+  let idx = index(s:project_history, item)
+  if idx != -1
+    call remove(s:project_history, idx)
+  endif
+
+  call insert(s:project_history, item)
+endfunction
+
+function! s:SaveProjectHistory()
+  let file = s:config_home.'/'.s:history_file
+  call writefile(s:project_history, file)
 endfunction
 
 function! s:PreLoadProject()

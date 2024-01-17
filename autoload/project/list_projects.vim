@@ -60,7 +60,7 @@ function! s:FilterProjects(projects, filter)
   call s:FilterProjectsByView(projects)
 
   if a:filter == ''
-    call sort(projects, 's:SortInauguralProjectsList')
+    call sort(projects, 's:SortInitialProjectsList')
   else
     let projects = s:FilterProjectsList(projects, a:filter)
   endif
@@ -68,8 +68,19 @@ function! s:FilterProjects(projects, filter)
   return projects
 endfunction
 
-function! s:SortInauguralProjectsList(a1, a2)
-  return a:a1.name < a:a2.name ? 1 : -1
+function! s:SortInitialProjectsList(a1, a2)
+  let project_history = project#GetVariable('project_history')
+  let index1 = index(project_history, a:a1.fullpath)
+  let index2 = index(project_history, a:a2.fullpath)
+  if index1 == -1 && index2 == -1
+    return a:a1.name < a:a2.name ? 1 : -1
+  elseif index1 == -1
+    return -1
+  elseif index2 == -1
+    return 1
+  else
+    return index2 - index1
+  endif
 endfunction
 
 function! s:FilterProjectsByView(projects)
