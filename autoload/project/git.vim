@@ -1009,12 +1009,14 @@ function! s:Commit()
   call s:ShowCommitMessage(title, show_commit_files)
 endfunction
 
-function! s:GetCommitMessage()
-  let folder_name = ''
+function! s:RemoveFolderNamePrefix(name)
+  return substitute(a:name, '^\d*\. ', '', 'g')
+endfunction
 
+function! s:GetCommitMessage()
   let lnum = line('.')
   let folder = s:GetBelongFolder(lnum)
-  let folder_name = !empty(folder) ? folder.name : ''
+  let folder_name = !empty(folder) ? s:RemoveFolderNamePrefix(folder.name) : ''
 
   let title = ''
   let Message = project#GetVariable('commit_message')
