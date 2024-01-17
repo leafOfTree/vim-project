@@ -943,6 +943,7 @@ function! s:ShowStatus(run_git = 0)
 
   call s:OpenBuffer(s:changelist_buffer_search, s:changelist_buffer, 'belowright')
   call s:SetupChangelistBuffer()
+  call s:CloseBuffer('COMMIT_RESULT')
   let success = s:UpdateChangelist(a:run_git)
   if success
     call s:WriteChangelist()
