@@ -1096,7 +1096,11 @@ function! s:TryPush()
   endif
 
   redraw
-  call project#Info('Pushed sucessfully')
+  if len(result) == 1
+    call project#Info(result[0])
+  else
+    call project#Info('Pushed sucessfully')
+  endif
 endfunction
 
 function! s:TryPull()
