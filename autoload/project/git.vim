@@ -136,7 +136,7 @@ function! s:AddDiffDetails(hash, file)
   if is_diff_on_range
     let changes = s:commit_diffs[a:hash]
   else
-    let cmd = 'git show --pretty=format:"" '.a:hash.' '.a:file
+    let cmd = 'git show --pretty=format:"" '.a:hash.' -- '.a:file
     let changes = project#RunShellCmd(cmd)
   endif
 
@@ -257,6 +257,10 @@ endfunction
 
 
 function! s:OpenGitLog(revision, cmd, input)
+  if has('nvim')
+    call s:ShowDiffOnGitLog(a:revision.hash)
+  endif
+
   execute 'autocmd CursorMoved <buffer> call s:ShowDiffOnGitLog("'.a:revision.hash.'")'
 endfunction
 
@@ -324,33 +328,47 @@ function! s:SetupChangesBuffer(revision)
 
   setlocal buftype=nofile bufhidden=wipe nobuflisted
   autocmd BufUnload <buffer> call s:CloseChangesBuffer()
+  let s:current_line = 0
 endfunction
 
-function! s:ShowDiffOnChangelist()
+function! s:CanShowDiff(file_regexp)
   if mode() != 'n'
-    return
+    return 0
   endif
   let lnum = line('.')
-  let is_first_line = lnum == 1
   let no_moving = lnum == s:current_line
-  if is_first_line || no_moving
-    return 
+  if no_moving
+    return 0
   endif
-  let file = s:GetCurrentFile(lnum)
+
+  let file = s:GetCurrentFileByRegexp(a:file_regexp)
   let num = s:GetBufWinnr(s:diff_buffer_search)
   if empty(file) && num == -1
-    return
+    return 0
   endif
 
   let s:current_line = lnum
-  call s:OpenBuffer(s:diff_buffer_search, s:diff_buffer, 'vertical')
-  call s:SetupDiffBuffer(file)
-  wincmd h
+  return 1
+endfunction
 
-  if empty(file)
+function! s:ShowDiffOnChangelist()
+  if !s:CanShowDiff(s:file_regexp)
     return
   endif
-  call s:AddChangeDetails(file)
+
+  let file = s:GetCurrentFileByRegexp(s:file_regexp)
+  " Avoid E242
+  try
+    call s:OpenBuffer(s:diff_buffer_search, s:diff_buffer, 'vertical')
+    call s:SetupDiffBuffer(file)
+    wincmd h
+
+    if empty(file)
+      return
+    endif
+    call s:AddChangeDetails(file)
+  catch
+  endtry
 endfunction
 
 function! s:AddChangeDetails(file)
@@ -424,19 +442,18 @@ function! s:AddChangeDetailsOld(file)
 endfunction
 
 function! s:ShowDiffOnGitLog(hash)
-  if mode() != 'n'
+  let git_log_file_regexp = '^\S\s\zs.*'
+  if !s:CanShowDiff(git_log_file_regexp)
     return
   endif
-
-  let line = getline('.')
-  let file = matchstr(line, '^\S\s\zs.*')
-  if empty(file)
-    return
-  endif
-
+  let file = s:GetCurrentFileByRegexp(git_log_file_regexp)
   call s:OpenBuffer(s:diff_buffer_search, s:diff_buffer, 'vertical')
-  call s:AddDiffDetails(a:hash, file)
   call s:SetupDiffBuffer(file)
+  if empty(file)
+    wincmd h
+    return
+  endif
+  call s:AddDiffDetails(a:hash, file)
   wincmd h
 endfunction
 
@@ -646,7 +663,7 @@ function! s:ToggleFolderOrOpenFile()
     call s:ShowStatus()
     execute lnum
   else
-    let file = s:GetCurrentFile(lnum)
+    let file = s:GetCurrentFile()
     if !empty(file)
       wincmd k
       execute 'e '.$vim_project.'/'.file
@@ -672,7 +689,7 @@ function! s:RenameFolderOrRollbackFile()
       endif
     endif
   else
-    let file = s:GetCurrentFile(lnum)
+    let file = s:GetCurrentFile()
     let name = input('Rollback changes of '.file.'? (y/n) ')
     if !empty(name)
       let cmd = 'git restore -- '.file
@@ -741,7 +758,7 @@ function! s:MoveToChangelist() range
 
     call s:MoveFolderTo(folder, name)
   else
-    let file = s:GetCurrentFile(lnum)
+    let file = s:GetCurrentFile()
     if !empty(file)
       let name = input('Move to: ', '', 'customlist,VimProjectAllFolderNames')
       if empty(name)
@@ -803,8 +820,12 @@ function! s:AddNewFolder(name, files)
   call s:SortChangelist()
 endfunction
 
-function! s:GetCurrentFile(lnum)
-  return matchstr(getline(a:lnum), s:file_regexp)
+function! s:GetCurrentFileByRegexp(regexp)
+  return matchstr(getline(line('.')), a:regexp)
+endfunction
+
+function! s:GetCurrentFile()
+  return s:GetCurrentFileByRegexp(s:file_regexp)
 endfunction
 
 function! s:GetBelongFolder(lnum)
@@ -967,14 +988,16 @@ function! s:SetupChangelistBuffer()
 
   noremap<buffer><silent> m :call <SID>MoveToChangelist()<cr>
 
-  syntax match Comment /\d\+ files\?/
   setlocal buftype=nofile
   setlocal nomodifiable
+
+  syntax match Comment /\d\+ files\?/
   execute 'syntax match Keyword /'.s:folder_regexp.'/'
+
   autocmd CursorMoved <buffer> call s:ShowDiffOnChangelist()
   autocmd BufUnload <buffer> call s:CloseChangesBuffer()
   autocmd BufUnload <buffer> call s:WriteChangelistFile()
-  let s:current_line = 0
+  let s:current_line = 1
 endfunction
 
 function! s:WriteChangelist()
@@ -993,7 +1016,7 @@ function! s:Commit()
     return
   endif
 
-  let file = s:GetCurrentFile(lnum)
+  let file = s:GetCurrentFile()
   if empty(file)
     let folder = s:GetBelongFolder(lnum)
     let files = folder.files
