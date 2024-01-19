@@ -1112,7 +1112,11 @@ function! s:TryPull()
   endif
 
   redraw
-  call project#Info('Updated sucessfully')
+  if len(result) == 1
+    call project#Info(result[0])
+  else
+    call project#Info('Updated sucessfully')
+  endif
 endfunction
 
 function! s:ShowResultMessage(result)
