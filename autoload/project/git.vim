@@ -386,18 +386,20 @@ function! s:RunJob(cmd, exit_cb, buf_nr)
           \'out_buf': a:buf_nr,
           \'cwd': $vim_project,
           \})
-  endif
-  " neovim
-  if exists("*jobstart")
+  elseif exists("*jobstart")
     call jobstart(a:cmd, {
         \'on_stdout': a:exit_cb,
         \'stdout_buffered': 1,
+        \'cwd': $vim_project,
         \})
   endif
 endfunction
 
-function! VimProjectAddChangeDetails(job, exit_status, ...)
+function! VimProjectAddChangeDetails(job, data, ...)
   call s:SwitchBuffer(s:diff_buffer_search)
+  if has('nvim')
+    call append(0, a:data)
+  endif
 
   silent! g/^new file mode/d
   silent! 1,4d
@@ -954,12 +956,14 @@ endfunction
 
 function! s:SetupChangelistBuffer()
   nnoremap<buffer><silent> o :call <SID>ToggleFolderOrOpenFile()<cr>
-  nnoremap<buffer><silent> r :call <SID>RenameFolderOrRollbackFile()<cr>
   nnoremap<buffer><silent> d :call <SID>DeleteFolder()<cr>
   nnoremap<buffer><silent> c :call <SID>Commit()<cr>
   nnoremap<buffer><silent> u :call <SID>TryPull()<cr>
   nnoremap<buffer><silent> p :call <SID>TryPush()<cr>
-  nnoremap<buffer><silent> a :call <SID>NewChangelist()<cr>
+
+  " <silent> may cause cursor not show in nvim
+  nnoremap<buffer> r :call <SID>RenameFolderOrRollbackFile()<cr>
+  nnoremap<buffer> a :call <SID>NewChangelist()<cr>
 
   noremap<buffer><silent> m :call <SID>MoveToChangelist()<cr>
 
