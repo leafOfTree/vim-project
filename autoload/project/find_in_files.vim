@@ -307,6 +307,7 @@ function! s:GetSearchPattern(search)
   let search = s:RemoveSearchFlags(a:search)
   let pattern = search
   let pattern = escape(pattern, '/')
+  let pattern = substitute(pattern, '\\\$', '\\\\$', 'g')
   let pattern = s:TransformPatternOneByOne(pattern)
   return pattern_flags.pattern
 endfunction
@@ -506,7 +507,7 @@ function! s:GetRgCmd(pattern, flags)
 endfunction
 
 function! s:RunExternalGrep(search, flags, full_input)
-  let pattern = '"'.escape(a:search, '"').'"'
+  let pattern = '"'.escape(a:search, '"$').'"'
   let cmd = s:grep_cmd_func(pattern, a:flags)
 
   let output = project#RunShellCmd(cmd)
