@@ -2455,6 +2455,22 @@ function! project#SetVariable(name, value)
   let s:[a:name] = a:value
 endfunction
 
+try
+  call nerdfont#find('')
+  function! project#GetIcon(fullpath)
+    let icon = nerdfont#find(a:fullpath, isdirectory(a:fullpath) ? 'close' : 0)
+    if empty(icon)
+      return ''
+    else
+      return icon.' '
+    endif
+  endfunction
+catch 
+  function! project#GetIcon(fullpath)
+    return ''
+  endfunction
+endtry
+
 function! s:Main()
   call s:Prepare()
   call s:InitConfig()

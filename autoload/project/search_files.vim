@@ -69,15 +69,19 @@ function! s:GetSearchFilesDisplay(list)
   return display
 endfunction
 
+function! s:GetFileFullpath(value)
+  return $vim_project.'/'.a:value.path.'/'.a:value.file
+endfunction
+
 function! s:GetSearchFilesDisplayRow(idx, value)
-  let value = a:value
-  let full_path = $vim_project.'/'.value.path.'/'.value.file
-  if isdirectory(full_path)
-    let file = substitute(value.__file, '\S\zs\s\|\S\zs$', '/', '')
+  let fullpath = s:GetFileFullpath(a:value)
+  if isdirectory(fullpath)
+    let file = substitute(a:value.__file, '\S\zs\s\|\S\zs$', '/', '')
   else
-    let file = value.__file
+    let file = a:value.__file
   endif
-  return file.'  '.value.__path
+  let icon = project#GetIcon(fullpath)
+  return icon.file.'  '.a:value.__path
 endfunction
 
 function! s:GetSearchFilesByOldFiles(input)
@@ -236,9 +240,9 @@ endfunction
 function! s:GetSearchFilesByDirectory(val, filter)
   let path = a:val.path
   let file = a:val.file
-  let full_path = $vim_project.'/'.path.'/'.file
+  let fullpath = s:GetFileFullpath(val)
 
-  return isdirectory(full_path) && file =~ a:filter
+  return isdirectory(fullpath) && file =~ a:filter
 endfunction
 
 function! s:GetSearchFilesByFilterForDirectory(input)

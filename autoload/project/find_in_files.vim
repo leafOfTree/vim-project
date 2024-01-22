@@ -350,7 +350,8 @@ endfunction
 function! s:GetDisplayRow(pattern, replace, show_replace, idx, val)
   let isFile = s:IsFileItem(a:val)
   if isFile
-    return a:val.file
+    let icon = project#GetIcon($vim_project.'/'.a:val.file)
+    return icon.a:val.file
   else
     let line = a:val.line
     if a:show_replace

@@ -988,11 +988,17 @@ function! s:SetupChangelistBuffer()
 
   noremap<buffer><silent> m :call <SID>MoveToChangelist()<cr>
 
-  setlocal buftype=nofile
-  setlocal nomodifiable
-
   syntax match Comment /\d\+ files\?/
   execute 'syntax match Keyword /'.s:folder_regexp.'/'
+  hi DiffBufferModify ctermfg=3 guifg=#b58900
+  hi DiffBufferAdd ctermfg=2 guifg=#719e07
+  hi DiffBufferDelete ctermfg=9 guifg=#dc322f
+  syntax match DiffBufferModify /^\s\sM\ze\s/
+  syntax match DiffBufferAdd /^\s\sA\ze\s/
+  syntax match DiffBufferDelete /^\s\sD\ze\s/
+
+  setlocal buftype=nofile
+  setlocal nomodifiable
 
   autocmd CursorMoved <buffer> call s:ShowDiffOnChangelist()
   autocmd BufUnload <buffer> call s:CloseChangesBuffer()
