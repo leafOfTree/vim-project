@@ -56,13 +56,21 @@ function! s:Open(item, open_cmd, input)
   endif
 
   let cmd = cmd.' '.s:GetName()
-  call term_start(cmd, { 
-        \'exit_cb': function('s:OnJobEnds'),
-        \'cwd': s:GetCwd(),
-        \})
+  if has('nvim')
+    new
+    call termopen(cmd, {
+          \'on_exit': function('s:OnJobEnds'),
+          \'cwd': s:GetCwd(),
+          \})
+  else
+    call term_start(cmd, { 
+          \'exit_cb': function('s:OnJobEnds'),
+          \'cwd': s:GetCwd(),
+          \})
+  endif
 endfunction
 
-function! s:OnJobEnds(job, status)
+function! s:OnJobEnds(job, status, ...)
   if !empty(s:name) && a:status == 0
     let error = project#AddProject(s:name)
     if empty(error)
