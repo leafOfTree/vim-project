@@ -2390,7 +2390,7 @@ function! s:GetMatchPos(lnum, input)
 
   " No match in first col, try second col
   if start == 0
-    let first_length = len(first_col)
+    let first_length = strlen(first_col_str)
     let second_col_str = matchstr(line, s:second_column_pattern)
     let second_col = split(second_col_str, '\zs')
     let second_index = 0
@@ -2468,6 +2468,16 @@ try
 catch 
   function! project#GetIcon(fullpath)
     return ''
+  endfunction
+endtry
+
+try 
+  call glyph_palette#apply()
+  function! project#HighlightIcon()
+    call glyph_palette#apply()
+  endfunction
+catch
+  function! project#HighlightIcon()
   endfunction
 endtry
 

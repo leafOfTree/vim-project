@@ -30,6 +30,7 @@ function! s:Update(input)
   call project#HighlightCurrentLine(len(display))
   call project#HighlightInputChars(a:input)
   call project#HighlightNoResults()
+  call project#HighlightIcon()
 endfunction
 
 function! s:Open(target, open_cmd, input)
@@ -239,6 +240,21 @@ function! s:GetSearchFilesAll()
   return list
 endfunction
 
+function! s:SortByFileThenDirectory(result)
+  call sort(a:result, function('s:SortByFileThenDirectoryFunc'))
+endfunction
+
+function! s:SortByFileThenDirectoryFunc(item1, item2)
+  let is_dir1 = isdirectory($vim_project.'/'.a:item1.path.'/'.a:item1.file)
+  let is_dir2 = isdirectory($vim_project.'/'.a:item2.path.'/'.a:item2.file)
+  if is_dir1 && !is_dir2
+    return 1
+  elseif !is_dir1 && is_dir2
+    return -1
+  endif
+  return a:item2.file > a:item1.file ? 1 : -1
+endfunction
+
 function! s:GetSearchFilesByDirectory(val, filter)
   let path = a:val.path
   let file = a:val.file
@@ -311,12 +327,14 @@ endfunction
 
 function! s:GetSearchFiles(input)
   let oldfiles = s:GetSearchFilesByOldFiles(a:input)
-  let search_list = s:GetSearchFilesResultList(a:input)
+  let files = s:GetSearchFilesResultList(a:input)
 
-  let files = oldfiles + search_list
-
-  let max_length = s:GetMaxHeight() - 1
-  let files = files[0:max_length*3]
+  let max_length = (s:GetMaxHeight() - 1)*3 - len(oldfiles)
+  let files = files[0:max_length]
+  if empty(a:input)
+    call s:SortByFileThenDirectory(files)
+  endif
+  let files = oldfiles + files
   call s:UniqueList(files)
 
   if len(files) > max_length
