@@ -242,7 +242,7 @@ endfunction
 function! s:GetSearchFilesByDirectory(val, filter)
   let path = a:val.path
   let file = a:val.file
-  let fullpath = s:GetFileFullpath(val)
+  let fullpath = s:GetFileFullpath(a:val)
 
   return isdirectory(fullpath) && file =~ a:filter
 endfunction
