@@ -31,6 +31,7 @@ function! s:Update(input)
   call project#HighlightInputChars(a:input)
   call project#HighlightNoResults()
   call project#HighlightIcon()
+  call project#HighlightExtraInfo()
 endfunction
 
 function! s:Open(target, open_cmd, input)
@@ -52,10 +53,9 @@ function! s:GetRecentIndex(list)
   return -1
 endfunction
 
-
 function! s:DecorateSearchFilesDisplay(list, display)
   if project#hasMoreOnList(a:list)
-    let a:display[0] .= '...more'
+    let a:display[0] = substitute(a:display[0], '\s*$', '  ...more', 'g')
   endif
 
   let recent_index = s:GetRecentIndex(a:list)

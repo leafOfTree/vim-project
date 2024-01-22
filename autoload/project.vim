@@ -1296,6 +1296,10 @@ function! project#RedrawInputLine()
   call s:ShowInputLine(s:user_input)
 endfunction
 
+function! project#HighlightExtraInfo()
+  1match String /...more/
+endfunction
+
 function! project#RedrawEmptyInputLine()
   call s:ShowInputLine('')
 endfunction

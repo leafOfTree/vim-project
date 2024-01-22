@@ -110,13 +110,9 @@ function! s:ShowResult(display, search, replace, full_input, id)
   call project#HighlightCurrentLine(len(a:display))
   call s:HighlightSearchAsPattern(a:search)
   call s:HighlightReplaceChars(a:search, a:replace)
-  call s:HighlighExtraInfo()
   call project#HighlightNoResults()
   call project#RedrawInputLine()
-endfunction
-
-function! s:HighlighExtraInfo()
-  call matchadd('Special', ' \.\.\.more$')
+  call project#HighlightExtraInfo()
 endfunction
 
 function! project#find_in_files#AddFindReplaceSeparator(input)
