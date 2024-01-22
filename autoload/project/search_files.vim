@@ -86,18 +86,15 @@ endfunction
 
 function! s:GetSearchFilesByOldFiles(input)
   let oldfiles = s:GetOldFiles()
-
   call s:FilterOldFilesByPath(oldfiles)
   call s:MapSearchFiles(oldfiles)
   call s:FilterOldFilesByInput(oldfiles, a:input)
   call s:SortSearchFilesList(oldfiles, a:input)
-
   return oldfiles
 endfunction
 
 function! s:GetOldFiles()
   let oldfiles = copy(v:oldfiles)
-
   call s:AddBuffers(oldfiles)
   return oldfiles
 endfunction
@@ -112,8 +109,13 @@ function! s:AddBuffers(oldfiles)
 endfunction
 
 function! s:FilterOldFilesByPath(oldfiles)
-  let project_dir = project#SetSlashBasedOnOS(project#ReplaceHomeWithTide($vim_project.'/'))
-  call filter(a:oldfiles, {_, val -> count(val, project_dir) > 0 })
+  if has('nvim')
+    let project_dir = project#SetSlashBasedOnOS($vim_project.'/')
+    call filter(a:oldfiles, {_, val -> count(val, project_dir) > 0 })
+  else
+    let project_dir = project#SetSlashBasedOnOS(project#ReplaceHomeWithTide($vim_project.'/'))
+    call filter(a:oldfiles, {_, val -> count(val, project_dir) > 0 })
+  endif
 
   let search_exclude = s:GetExclude()
   call map(search_exclude, {_, val -> project_dir.val})
