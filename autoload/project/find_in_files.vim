@@ -104,7 +104,7 @@ function! s:Open(target, open_cmd, input)
   let lnum = has_key(a:target, 'lnum') ? a:target.lnum : 1
   execute open_type.' +'.lnum.' '.file
 endfunction
-" 
+
 function! s:ShowResult(display, search, replace, full_input, id)
   call project#ShowInListBuffer(a:display, a:search)
   call project#HighlightCurrentLine(len(a:display))
