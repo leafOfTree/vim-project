@@ -205,7 +205,10 @@ function! s:Open(task, open_cmd, input)
     endif
 
     if has('nvim')
+      new
+      cd $vim_project
       terminal
+      startinsert
     else
       terminal ++kill=kill
       call term_sendkeys(bufnr('%'), "cd $vim_project\<CR>")
