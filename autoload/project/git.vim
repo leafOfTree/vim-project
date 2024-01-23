@@ -1080,9 +1080,9 @@ function! s:ShowCommitMessage(title, files)
   new COMMIT_EDITMSG
   let content = [a:title] + preset_message + a:files
   call append(0, content)
-  set filetype=gitcommit
-  setlocal buftype=nofile
   normal! gg
+
+  setlocal buftype=nofile bufhidden=wipe nobuflisted filetype=gitcommit
   syntax match Normal /#\s\{4}\zs.*/ containedin=gitcommitSelected
   autocmd WinClosed <buffer> ++once  call s:TryCommit()
 endfunction
