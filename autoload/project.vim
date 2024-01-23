@@ -1297,7 +1297,7 @@ function! project#RedrawInputLine()
 endfunction
 
 function! project#HighlightExtraInfo()
-  1match String /...more/
+  1match String /  ...more$/
 endfunction
 
 function! project#RedrawEmptyInputLine()
@@ -2477,7 +2477,7 @@ catch
 endtry
 
 try 
-  call glyph_palette#apply()
+  call glyph_palette#clear()
   function! project#HighlightIcon()
     call glyph_palette#apply()
   endfunction

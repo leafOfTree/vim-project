@@ -111,8 +111,9 @@ function! s:ShowResult(display, search, replace, full_input, id)
   call s:HighlightSearchAsPattern(a:search)
   call s:HighlightReplaceChars(a:search, a:replace)
   call project#HighlightNoResults()
-  call project#RedrawInputLine()
   call project#HighlightExtraInfo()
+  call project#HighlightIcon()
+  call project#RedrawInputLine()
 endfunction
 
 function! project#find_in_files#AddFindReplaceSeparator(input)
