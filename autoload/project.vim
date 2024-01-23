@@ -2381,6 +2381,7 @@ function! s:GetMatchPos(lnum, input)
 
   " Try first col
   if start == 0
+    let icon_offset = len(first_col_str) - len(first_col)
     for char in search
       let start = index(first_col, char, start, 1) + 1
       if start == 0
@@ -2388,7 +2389,7 @@ function! s:GetMatchPos(lnum, input)
         break
       endif
 
-      call add(pos, [a:lnum, start])
+      call add(pos, [a:lnum, start + icon_offset])
     endfor
   endif
 
