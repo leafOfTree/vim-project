@@ -144,7 +144,8 @@ function! s:FilterProjectsList(list, filter)
 
     " Filter by path
     if match_index == -1
-      let match_index = match(item.path, regexp_filter)
+      let path = project#ReplaceHomeWithTide(item.path)
+      let match_index = match(path, regexp_filter)
       if match_index != -1
         let item._match_type = 'path'
         let item._match_index = match_index
@@ -153,9 +154,10 @@ function! s:FilterProjectsList(list, filter)
 
     " Filter by path+name
     if match_index == -1
-      let match_index = match(item.path.item.name, regexp_filter)
+      let full_path = project#ReplaceHomeWithTide(item.path.item.name)
+      let match_index = match(full_path, regexp_filter)
       if match_index != -1
-        let item._match_type = 'path_name'
+        let item._match_type = 'full_path'
         let item._match_index = match_index
       endif
     endif
@@ -176,11 +178,11 @@ function! s:SortProjectsList(a1, a2)
   let index1 = a:a1._match_index
   let index2 = a:a2._match_index
 
-  " name > path_name > note > path
+  " name > full_path > note > path
   if type1 == 'name' && type2 != 'name'
     return 1
   endif
-  if type1 == 'path_name' && type2 != 'name' && type2 != 'path_name'
+  if type1 == 'full_path' && type2 != 'name' && type2 != 'full_path'
     return 1
   endif
   if type1 == 'note' && type2 == 'path'
