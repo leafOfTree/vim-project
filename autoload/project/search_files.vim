@@ -104,7 +104,11 @@ function! s:AddBuffers(oldfiles)
   let bufs = getbufinfo({'buflisted': 1})
   call sort(bufs, {buf1, buf2 -> buf1.lastused - buf2.lastused})
   for buf in bufs
-    let bufname = project#ReplaceHomeWithTide(buf.name)
+    if has('nvim')
+      let bufname = buf.name
+    else
+      let bufname = project#ReplaceHomeWithTide(buf.name)
+    endif
     call insert(a:oldfiles, bufname)
   endfor
 endfunction
@@ -135,7 +139,6 @@ endfunction
 
 function! s:IsPathStartWithAny(fullpath, starts)
   for start in a:starts
-
     if s:StartWith(a:fullpath, start)
       return 1
     endif
@@ -145,7 +148,7 @@ function! s:IsPathStartWithAny(fullpath, starts)
 endfunction
 
 function! s:StartWith(string, search)
-  return a:string[0:len(a:search)-1] ==# a:search
+  return a:string[0:len(a:search)-1] ==# a:search && a:string[len(a:search)] == '/'
 endfunction
 
 function! s:FilterOldFilesByInput(oldfiles, input)
