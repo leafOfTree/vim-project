@@ -480,7 +480,7 @@ function! s:InitProjectConfig(project)
           \'"     \{',
           \'"       \''name'': ''start'',',
           \'"       \''cmd'': ''npm start''',
-          \'"     \}',
+          \'"     \},',
           \'"   \],',
           \'"   \''project_root'': ''./'',',
           \'"   \''use_session'': 0,',
