@@ -224,8 +224,22 @@ function! s:hasEmptyTaskCmd(task)
   return !has_key(a:task, 'cmd') || a:task.cmd == ''
 endfunction
 
+function! s:GetNvimTaskBufnr(task)
+  let job_id = a:task.bufnr
+  for buffer in getbufinfo({'buflisted': 1})
+    if has_key(buffer.variables, 'terminal_job_id') && buffer.variables.terminal_job_id == job_id
+      return buffer.bufnr
+    endif
+  endfor
+  return 0
+endfunction
+
 function! s:OpenTaskTerminal(task)
   if has('nvim')
+    let bufnr = s:GetNvimTaskBufnr(a:task)
+    if !empty(bufnr)
+      execute 'sbuffer '.bufnr
+    endif
     return
   endif
 

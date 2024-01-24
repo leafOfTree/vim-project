@@ -266,7 +266,7 @@ You can press
 
 - <kbd>Enter</kbd> to run/rerun the task
 - <kbd>c-q</kbd> to stop the task and remove its output.
-- <kbd>c-o</kbd> to open the corresponding terminal buffer (not work for nvim)
+- <kbd>c-o</kbd> to open the corresponding terminal buffer
 
 **Vim terminal**: 
 If you set `cmd` to empty string `''`, it'll call `:terminal` to open a new Vim terminal window.
