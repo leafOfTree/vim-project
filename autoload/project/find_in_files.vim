@@ -352,6 +352,9 @@ function! s:GetDisplayRow(pattern, replace, show_replace, idx, val)
     return icon.a:val.file
   else
     let line = a:val.line
+    if len(line) > &columns
+      let line = line[0:&columns]
+    endif
     if a:show_replace
       let line = s:GetReplacedLine(line, a:pattern, a:replace, 1)
     endif
