@@ -142,12 +142,12 @@ function! s:AddDiffDetails(hash, file)
 
   call append(0, changes)
   normal! gg
-  silent! g/^new file mode/d
+  silent! g/^new file mode/"_d
 
   if is_diff_on_range
-    silent! 1,3d
+    silent! 1,3d _
   else
-    silent! 1,4d
+    silent! 1,4d _
   endif
 endfunction
 
@@ -419,8 +419,8 @@ function! VimProjectAddChangeDetails(job, data, ...)
     call append(0, a:data)
   endif
 
-  silent! g/^new file mode/d
-  silent! 1,4d
+  silent! g/^new file mode/"_d
+  silent! 1,4d _
   normal! gg
   call s:SwitchBuffer(s:changelist_buffer_search)
 endfunction
@@ -437,8 +437,8 @@ function! s:AddChangeDetailsOld(file)
 
   call append(0, changes)
   normal! gg
-  silent! g/^new file mode/d
-  silent! 1,4d
+  silent! g/^new file mode/"_d
+  silent! 1,4d _
 endfunction
 
 function! s:ShowDiffOnGitLog(hash)
@@ -1008,7 +1008,7 @@ endfunction
 
 function! s:WriteChangelist()
   setlocal modifiable
-  call execute('normal! ggdG', 'silent!')
+  call execute('normal! gg"_dG', 'silent!')
   call append(0, s:display)
   normal gg
   setlocal nomodifiable
