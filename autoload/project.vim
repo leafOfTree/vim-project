@@ -1440,14 +1440,33 @@ function! s:HandleInput(input, Update, Open)
       call a:Update(input)
       let s:user_input = input
       call s:ShowInputLine(input)
+      call s:RemoveNeovideAnimation()
     endwhile
   catch /^Vim:Interrupt$/
     call s:Debug('Interrupt')
     let cmd = 'interrupt'
   finally
   endtry
+  call s:RecoverNeovideAnimation()
 
   return [cmd, input]
+endfunction
+
+function! s:RemoveNeovideAnimation()
+  if !exists("g:neovide") || g:neovide_scroll_animation_length == 0
+    return 
+  endif
+
+  let s:neovide_scroll_animation_length = g:neovide_scroll_animation_length
+  let g:neovide_scroll_animation_length = 0
+endfunction
+
+function! s:RecoverNeovideAnimation()
+  if !exists("g:neovide") || !exists('s:neovide_scroll_animation_length')
+    return 
+  endif
+  let g:neovide_scroll_animation_length = s:neovide_scroll_animation_length
+  unlet s:neovide_scroll_animation_length
 endfunction
 
 function! s:MoveToPrevItem()
