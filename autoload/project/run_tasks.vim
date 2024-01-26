@@ -49,8 +49,17 @@ function! s:RunTasksBufferUpdateTimer(input, id)
   call s:RunTasksBufferUpdate(a:input)
 endfunction
 
-function! s:GetTaskStatusLine(status)
-  let icon = a:status == 'finished' ? '🏁 🏁 🏁' : '🏃🏃🏃'
+function! s:GetTaskStatusLine(task, status)
+  if a:status == 'finished'
+    let error = s:HasTaskExitCode(a:task) && a:task.exit_code
+    if error
+      let icon = '✖ '.a:task.exit_code
+    else
+      let icon = '✔ '
+    endif
+  else
+    let icon = '🏃'
+  endif
   return '  ['.a:status.'] '.icon
 endfunction
 
@@ -75,40 +84,69 @@ function! s:GetRunTasksDisplay(tasks)
       endif
 
       " Add task status
-      let output = s:GetTaskStatusLine(status)
+      let output = s:GetTaskStatusLine(task, status)
       let item = {'name': task.name, 'cmd': task.cmd, 'output': output}
       call add(display, output)
       call add(list, item)
 
-      if has('nvim')
-        continue
-      endif
-
       " Add task output
-      if s:HasFilter(task)
-        call s:AddTaskOutputWithFilter(task, display, list)
+      if has('nvim')
+        call s:AddTaskOutputFromNvim(task, display, list)
       else
-        call s:AddTaskOutput(task, display, list)
+        if s:HasFilter(task)
+          call s:AddTaskOutputWithFilter(task, display, list)
+        else
+          call s:AddTaskOutputFromVim(task, display, list)
+        endif
       endif
     endif
   endfor
   return [display, list]
 endfunction
 
-function! s:AddTaskOutput(task, display, list)
-  let line_offset = 0
-  let row = term_getcursor(a:task.bufnr)[0]
+function! s:AddTaskOutput(output, task, display, list)
+  let item = {'name': a:task.name, 'cmd': a:task.cmd, 'output': a:output}
+  call add(a:display, a:output)
+  call add(a:list, item)
+endfunction
+
+function! s:HasTaskExitCode(task)
+  return has_key(a:task, 'exit_code')
+endfunction
+
+function! s:AddTaskOutputFromNvim(task, display, list)
+  let bufnr = s:GetNvimTaskBufnr(a:task)
+  let lines = getbufline(bufnr, 1, '$')
+  " Remove trailing space
+  let lines = split(trim(join(lines, "\n")), "\n")
+  let rows = len(lines)
+  if rows <= s:output_rows
+    for index in range(0, s:output_rows, 1)
+      if index >= rows
+        let output = '  '
+      else
+        let output = '  '.lines[index]
+      endif
+      call s:AddTaskOutput(output, a:task, a:display, a:list)
+    endfor
+  else
+    for index in range(rows - s:output_rows, rows, 1) 
+      let output = '  '.lines[index - 1]
+      call s:AddTaskOutput(output, a:task, a:display, a:list)
+    endfor
+  endif
+endfunction
+
+function! s:AddTaskOutputFromVim(task, display, list)
+  let rows = term_getcursor(a:task.bufnr)[0]
   for index in range(1, s:output_rows, 1)
-    if row < index
+    if index > rows
       let output = '  '
     else
-      let line = term_getline(a:task.bufnr, index + line_offset)
+      let line = term_getline(a:task.bufnr, index)
       let output = '  '.line
     endif
-
-    call add(a:display, output)
-    let item = {'name': a:task.name, 'cmd': a:task.cmd, 'output': output}
-    call add(a:list, item)
+    call s:AddTaskOutput(output, a:task, a:display, a:list)
   endfor
 endfunction
 
@@ -185,6 +223,8 @@ function! s:RunTasksBufferUpdate(input)
   call project#HighlightInputChars(a:input)
   call s:HighlightRunTasksCmdOutput()
   call project#HighlightNoResults()
+
+  call project#SetVariable('user_input', a:input)
   call project#RedrawInputLine()
 endfunction
 
@@ -192,6 +232,8 @@ function! s:HighlightRunTasksCmdOutput()
   match InfoRow /^\s\{2,}.*/
   2match Status '\[running.*\]'
   3match Special '\[finished.*\]'
+  call matchadd("String", "✔")
+  call matchadd("Error", "✖")
 endfunction
 
 " @return:
@@ -231,7 +273,8 @@ endfunction
 function! s:GetNvimTaskBufnr(task)
   let job_id = a:task.bufnr
   for buffer in getbufinfo({'buflisted': 1})
-    if has_key(buffer.variables, 'terminal_job_id') && buffer.variables.terminal_job_id == job_id
+    let variables = buffer.variables
+    if has_key(variables, 'terminal_job_id') && variables.terminal_job_id == job_id
       return buffer.bufnr
     endif
   endfor
@@ -284,6 +327,10 @@ function! s:GetTermRows(task)
   return s:HasFilter(a:task) ? s:output_rows * 10 : s:output_rows
 endfunction
 
+function! s:OnTaskExit(task, job_id, exit_code, ...)
+  let a:task.exit_code = a:exit_code
+endfunction
+
 " @return:
 "   1: keep current window,
 "   0: exit current window
@@ -302,18 +349,21 @@ function! s:RunTask(task)
   let has_started = s:GetTaskStatus(a:task) != ''
   call s:StopTask(a:task)
 
-  let shell_prefix = &shell.' '.&shellcmdflag
-  let cmd = shell_prefix.' "'.a:task.cmd.'"'
-
   if has('nvim')
-    enew
+    vertical new
     set winheight=20
-    let a:task.bufnr = termopen(cmd, options)
-    return 0
+    let options.on_exit = function('s:OnTaskExit', [a:task])
+    " for nvim, bufnr is job id
+    let a:task.bufnr = termopen(a:task.cmd, options)
+    hide
+    return 1
   endif
 
   let index = project#GetCurrentIndex()
   try 
+    let options.exit_cb = function('s:OnTaskExit', [a:task])
+    let shell_prefix = &shell.' '.&shellcmdflag
+    let cmd = shell_prefix.' "'.a:task.cmd.'"'
     let a:task.bufnr = term_start(cmd, options)
   catch
     call project#Warn(v:exception)
