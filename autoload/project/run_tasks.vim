@@ -18,8 +18,7 @@ endfunction
 function! s:Update(input)
   call project#run_tasks#StopRunTasksTimer()
   call s:RunTasksBufferUpdate(a:input)
-  let s:run_tasks_timer = timer_start(500, function('s:RunTasksBufferUpdateTimer', [a:input]),
-        \{'repeat': -1})
+  call s:StartRunTasksTimers(a:input)
 endfunction
 
 function! project#run_tasks#Highlight()
@@ -32,6 +31,11 @@ function! project#run_tasks#Highlight()
     call hlset(normal_hl)
   endif
   call s:HighlightRunTasksCmdOutput()
+endfunction
+
+function! s:StartRunTasksTimers(input)
+  let s:run_tasks_timer = timer_start(500, function('s:RunTasksBufferUpdateTimer', [a:input]),
+        \{'repeat': -1})
 endfunction
 
 function! project#run_tasks#StopRunTasksTimer()
@@ -181,7 +185,7 @@ function! s:RunTasksBufferUpdate(input)
   call project#HighlightInputChars(a:input)
   call s:HighlightRunTasksCmdOutput()
   call project#HighlightNoResults()
-  redraw
+  call project#RedrawInputLine()
 endfunction
 
 function! s:HighlightRunTasksCmdOutput()
