@@ -53,9 +53,9 @@ function! s:GetTaskStatusLine(task, status)
   if a:status == 'finished'
     let error = s:HasTaskExitCode(a:task) && a:task.exit_code
     if error
-      let icon = '✖ '.a:task.exit_code
+      let icon = '❌ '.a:task.exit_code
     else
-      let icon = '✔ '
+      let icon = '✅ '
     endif
   else
     let icon = '🏃'

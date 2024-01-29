@@ -735,6 +735,7 @@ function! s:UnwatchOnInitFileChange()
 endfunction
 
 function! s:OnInitFileChange()
+  redraw
   call s:Info('Config Reloaded')
   call s:SourceInitFile()
   call project#search_files#reset()

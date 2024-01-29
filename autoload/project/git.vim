@@ -1146,6 +1146,7 @@ function! s:TryPull()
   else
     call project#Info('Updated sucessfully')
   endif
+  call project#search_files#reset()
 endfunction
 
 function! s:ShowResultMessage(result)
