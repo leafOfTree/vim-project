@@ -4,16 +4,17 @@ let s:input = ''
 let s:current_file = ''
 let s:current_line = 0
 
-let s:changes_buffer = '[changes]'
-let s:changes_buffer_search = '[changes'
-let s:diff_buffer = '[diff]'
-let s:diff_buffer_search = '[diff'
-let s:before_buffer = '[before]'
-let s:before_buffer_search = '[before'
-let s:after_buffer = '[after]'
-let s:after_buffer_search = '[after'
-let s:changelist_buffer = '[Local Changes]'
-let s:changelist_buffer_search = '[Local Changes'
+let s:changes_buffer = 'changes'
+let s:changes_buffer_search = 'changes'
+let s:diff_buffer = 'diff'
+let s:diff_buffer_search = 'diff'
+let s:before_buffer = 'before'
+let s:before_buffer_search = 'before'
+let s:after_buffer = 'after'
+let s:after_buffer_search = 'after'
+let s:changelist_buffer = 'local_changes'
+let s:changelist_buffer_search = 'local_changes'
+let s:commit_result_buffer = 'commit_result'
 let s:file_history_range = []
 let s:log_splitter = ' ||| '
 let s:commit_diffs = []
@@ -327,6 +328,7 @@ function! s:SetupChangesBuffer(revision)
   syntax match DiffBufferDelete /^D\ze\s/
 
   setlocal buftype=nofile bufhidden=wipe nobuflisted
+  setlocal nowrap
   autocmd BufUnload <buffer> call s:CloseChangesBuffer()
   let s:current_line = 0
 endfunction
@@ -966,7 +968,7 @@ function! s:ShowStatus(run_git = 0)
 
   call s:OpenBuffer(s:changelist_buffer_search, s:changelist_buffer, 'belowright')
   call s:SetupChangelistBuffer()
-  call s:CloseBuffer('COMMIT_RESULT')
+  call s:CloseBuffer(s:commit_result_buffer)
   let success = s:UpdateChangelist(a:run_git)
   if success
     call s:WriteChangelist()
@@ -1111,7 +1113,7 @@ function! s:TryCommit()
   let result = project#RunShellCmd(cmd)
 
   quit
-  call s:OpenResultWindow('COMMIT_RESULT', cmd, result)
+  call s:OpenResultWindow(s:commit_result_buffer, cmd, result)
   nnoremap<buffer><silent> u :call <SID>TryPull()<cr>
   nnoremap<buffer><silent> p :call <SID>TryPush()<cr>
 endfunction
@@ -1130,6 +1132,7 @@ function! s:TryPush()
   else
     call project#Info('Pushed sucessfully')
   endif
+  call s:CloseBuffer(s:commit_result_buffer)
 endfunction
 
 function! s:TryPull()
