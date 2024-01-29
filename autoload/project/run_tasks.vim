@@ -10,7 +10,7 @@ endfunction
 
 function! s:Init(input)
   let tasks = project#GetVariable('tasks')
-  let max_col_width = project#GetVariable('max_width') / 2 - 10
+  let max_col_width = project#GetVariable('max_width') - 10
   call project#Tabulate(tasks, ['name', 'cmd'], 0, max_col_width)
   call s:Update(a:input)
 endfunction
@@ -121,7 +121,7 @@ function! s:AddTaskOutputFromNvim(task, display, list)
   let lines = split(trim(join(lines, "\n")), "\n")
   let rows = len(lines)
   if rows <= s:output_rows
-    for index in range(0, s:output_rows - 1, 1)
+    for index in range(0, s:output_rows, 1)
       if index >= rows
         let output = '  '
       else
@@ -130,7 +130,7 @@ function! s:AddTaskOutputFromNvim(task, display, list)
       call s:AddTaskOutput(output, a:task, a:display, a:list)
     endfor
   else
-    for index in range(rows - s:output_rows + 1, rows, 1)
+    for index in range(rows - s:output_rows, rows, 1)
       let output = '  '.lines[index - 1]
       call s:AddTaskOutput(output, a:task, a:display, a:list)
     endfor
@@ -139,7 +139,7 @@ endfunction
 
 function! s:AddTaskOutputFromVim(task, display, list)
   let rows = term_getcursor(a:task.bufnr)[0]
-  for index in range(1, s:output_rows, 1)
+  for index in range(0, s:output_rows, 1)
     if index > rows
       let output = '  '
     else
@@ -370,7 +370,7 @@ function! s:RunTask(task)
   endif
 
   if not_started
-    call project#UpdateOffsetByIndex(index - (s:output_rows + 1))
+    call project#UpdateOffsetByIndex(index - (s:output_rows + 2))
   endif
   return 1
 endfunction
