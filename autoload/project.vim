@@ -4,6 +4,7 @@ function! s:Prepare()
   let s:name = 'vim-project'
   let s:list_history = {}
   let s:laststatus_save = &laststatus
+  let s:ruler_save = &ruler
   let s:initial_height = 0
   let s:head_file_job = 0
   let s:project = {}
@@ -913,6 +914,7 @@ function! s:CloseListBuffer(cmd)
   call project#run_tasks#StopRunTasksTimer()
 
   let &g:laststatus = s:laststatus_save
+  let &g:ruler = s:ruler_save
 
   if !s:IsCurrentListBuffer() || a:cmd == 'switch_to_list'
     return
@@ -948,6 +950,7 @@ function! s:SetupListBuffer()
   setlocal nonumber
   setlocal nocursorline
   setlocal nowrap
+  set noruler
   set laststatus=0
 
   if s:IsFindInFilesList()

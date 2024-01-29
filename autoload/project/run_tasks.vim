@@ -225,7 +225,7 @@ function! s:RunTasksBufferUpdate(input)
   call project#HighlightNoResults()
 
   call project#SetVariable('user_input', a:input)
-  call project#RedrawInputLine()
+  redraw
 endfunction
 
 function! s:HighlightRunTasksCmdOutput()
@@ -271,6 +271,9 @@ function! s:hasEmptyTaskCmd(task)
 endfunction
 
 function! s:GetNvimTaskBufnr(task)
+  if !has_key(a:task, 'bufnr')
+    return 0
+  endif
   let job_id = a:task.bufnr
   for buffer in getbufinfo({'buflisted': 1})
     let variables = buffer.variables
