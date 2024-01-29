@@ -933,7 +933,7 @@ function! s:ShowStatus(run_git = 0)
   let save_eventignore = &eventignore
   set eventignore=all
 
-  call s:OpenBuffer(s:changelist_buffer, s:changelist_buffer, 'belowright')
+  call s:OpenBuffer(s:changelist_buffer, 'belowright')
   call s:SetupChangelistBuffer()
   call s:CloseBuffer(s:commit_result_buffer)
   let success = s:UpdateChangelist(a:run_git)
