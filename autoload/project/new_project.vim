@@ -1,6 +1,6 @@
 let s:name = ''
 
-function! project#new#NewProject(name)
+function! project#new_project#NewProject(name)
   let s:name = expand(a:name)
   if !s:IsValidName()
     call project#Warn(s:name.' already exists')
@@ -62,6 +62,7 @@ function! s:Open(item, open_cmd, input)
           \'on_exit': function('s:OnJobEnds'),
           \'cwd': s:GetCwd(),
           \})
+    startinsert
   else
     call term_start(cmd, { 
           \'exit_cb': function('s:OnJobEnds'),
