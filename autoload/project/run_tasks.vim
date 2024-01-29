@@ -351,7 +351,7 @@ function! s:RunTask(task)
   let index = project#GetCurrentIndex()
 
   if has('nvim')
-    vertical new
+    horizontal new
     set winheight=20
     let options.on_exit = function('s:OnTaskExit', [a:task])
     " for nvim, bufnr is job id
