@@ -58,7 +58,7 @@ function! s:GetTaskStatusLine(task, status)
       let icon = '✅ '
     endif
   else
-    let icon = '🏃'
+    let icon = '🏃' " 🔄
   endif
   return '  ['.a:status.'] '.icon
 endfunction
