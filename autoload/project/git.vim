@@ -5,15 +5,10 @@ let s:current_file = ''
 let s:current_line = 0
 
 let s:changes_buffer = 'changes'
-let s:changes_buffer_search = 'changes'
 let s:diff_buffer = 'diff'
-let s:diff_buffer_search = 'diff'
 let s:before_buffer = 'before'
-let s:before_buffer_search = 'before'
 let s:after_buffer = 'after'
-let s:after_buffer_search = 'after'
 let s:changelist_buffer = 'local_changes'
-let s:changelist_buffer_search = 'local_changes'
 let s:commit_result_buffer = 'commit_result'
 let s:file_history_range = []
 let s:log_splitter = ' ||| '
@@ -124,7 +119,7 @@ function! s:ShowDiffOnFileHistory()
   if empty(revision)
     return
   endif
-  call s:OpenBuffer(s:diff_buffer_search, s:diff_buffer, 'vertical')
+  call s:OpenBuffer(s:diff_buffer, 'vertical')
   call s:AddDiffDetails(revision.hash, s:current_file)
   call s:AddBrief(revision)
   call s:SetupDiffBuffer(s:current_file)
@@ -182,7 +177,7 @@ function! s:OpenFileHistory(revision, cmd, input)
 endfunction
 
 function! s:CloseFileHistory()
-  call s:CloseBuffer(s:diff_buffer_search)
+  call s:CloseBuffer(s:diff_buffer)
 endfunction
 
 function! project#git#Log()
@@ -250,7 +245,7 @@ function! s:ShowCurrentChangdFiles()
     return
   endif
 
-  call s:OpenBuffer(s:changes_buffer_search, s:changes_buffer, 'vertical')
+  call s:OpenBuffer(s:changes_buffer, 'vertical')
   call s:SetupChangesBuffer(revision)
   call s:AddToBuffer(revision)
   wincmd h
@@ -271,8 +266,8 @@ function! s:CloseGitLog()
   call s:CloseChangesBuffer()
 endfunction
 
-function! s:OpenBuffer(search, name, pos)
-  let num = s:GetBufWinnr(a:search)
+function! s:OpenBuffer(name, pos)
+  let num = s:GetBufWinnr(a:name)
   if num == -1
     execute 'silent '.a:pos.' new '.a:name
   else
@@ -313,10 +308,10 @@ function! s:CloseBuffer(name)
 endfunction
 
 function! s:CloseChangesBuffer()
-  call s:CloseBuffer(s:changes_buffer_search)
-  call s:CloseBuffer(s:before_buffer_search)
-  call s:CloseBuffer(s:after_buffer_search)
-  call s:CloseBuffer(s:diff_buffer_search)
+  call s:CloseBuffer(s:changes_buffer)
+  call s:CloseBuffer(s:before_buffer)
+  call s:CloseBuffer(s:after_buffer)
+  call s:CloseBuffer(s:diff_buffer)
 endfunction
 
 function! s:SetupChangesBuffer(revision)
@@ -344,7 +339,7 @@ function! s:CanShowDiff(file_regexp)
   endif
 
   let file = s:GetCurrentFileByRegexp(a:file_regexp)
-  let num = s:GetBufWinnr(s:diff_buffer_search)
+  let num = s:GetBufWinnr(s:diff_buffer)
   if empty(file) && num == -1
     return 0
   endif
@@ -361,7 +356,7 @@ function! s:ShowDiffOnChangelist()
   let file = s:GetCurrentFileByRegexp(s:file_regexp)
   " Avoid E242
   try
-    call s:OpenBuffer(s:diff_buffer_search, s:diff_buffer, 'vertical')
+    call s:OpenBuffer(s:diff_buffer, 'vertical')
     call s:SetupDiffBuffer(file)
     wincmd h
 
@@ -379,7 +374,7 @@ function! s:AddChangeDetails(file)
   else
     let cmd = 'git diff -- '.a:file
   endif
-  let buf_nr = s:GetBufnr(s:diff_buffer_search)
+  let buf_nr = s:GetBufnr(s:diff_buffer)
   call s:RunJob(cmd, 'VimProjectAddChangeDetails', buf_nr)
 endfunction
 
@@ -416,7 +411,7 @@ function! s:RunJob(cmd, exit_cb, buf_nr)
 endfunction
 
 function! VimProjectAddChangeDetails(job, data, ...)
-  call s:SwitchBuffer(s:diff_buffer_search)
+  call s:SwitchBuffer(s:diff_buffer)
   if has('nvim')
     call append(0, a:data)
   endif
@@ -424,7 +419,7 @@ function! VimProjectAddChangeDetails(job, data, ...)
   silent! g/^new file mode/"_d
   silent! 1,4d _
   normal! gg
-  call s:SwitchBuffer(s:changelist_buffer_search)
+  call s:SwitchBuffer(s:changelist_buffer)
 endfunction
 
 function! s:AddChangeDetailsOld(file)
@@ -449,7 +444,7 @@ function! s:ShowDiffOnGitLog(hash)
     return
   endif
   let file = s:GetCurrentFileByRegexp(git_log_file_regexp)
-  call s:OpenBuffer(s:diff_buffer_search, s:diff_buffer, 'vertical')
+  call s:OpenBuffer(s:diff_buffer, 'vertical')
   call s:SetupDiffBuffer(file)
   if empty(file)
     wincmd h
@@ -457,34 +452,6 @@ function! s:ShowDiffOnGitLog(hash)
   endif
   call s:AddDiffDetails(a:hash, file)
   wincmd h
-endfunction
-
-function! s:ShowDiffSideBySide(hash)
-  let line = getline('.')
-  let file = matchstr(line, '^\S\s\zs.*')
-  if empty(file)
-    return 
-  endif
-  
-  let filename = fnamemodify(file, ':t')
-  call s:OpenBuffer(s:before_buffer_search, s:before_buffer.' '.filename, 'botright')
-  let content = systemlist('git show '.a:hash.'~:'.file)
-  if !v:shell_error
-    call append(0, content)
-    nnoremap <buffer> <c-n> ]c
-    nnoremap <buffer> <c-p> [c
-  endif
-  diffthis
-
-  call s:OpenBuffer(s:after_buffer_search, s:after_buffer.' '.filename, 'vertical')
-  let content = systemlist('git show '.a:hash.':'.file)
-  if !v:shell_error
-    call append(0, content)
-    nnoremap <buffer> <c-n> ]c
-    nnoremap <buffer> <c-p> [c
-  endif
-  diffthis
-  normal! gg
 endfunction
 
 function! s:GetChangedFiles(revision)
@@ -697,7 +664,7 @@ function! s:RenameFolderOrRollbackFile()
       let cmd = 'git restore -- '.file
       call project#RunShellCmd(cmd)
       call s:ShowStatus(1)
-      call s:CloseBuffer(s:diff_buffer_search)
+      call s:CloseBuffer(s:diff_buffer)
     endif
   endif
 endfunction
@@ -966,7 +933,7 @@ function! s:ShowStatus(run_git = 0)
   let save_eventignore = &eventignore
   set eventignore=all
 
-  call s:OpenBuffer(s:changelist_buffer_search, s:changelist_buffer, 'belowright')
+  call s:OpenBuffer(s:changelist_buffer, s:changelist_buffer, 'belowright')
   call s:SetupChangelistBuffer()
   call s:CloseBuffer(s:commit_result_buffer)
   let success = s:UpdateChangelist(a:run_git)
