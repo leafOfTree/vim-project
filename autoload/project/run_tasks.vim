@@ -130,7 +130,7 @@ function! s:AddTaskOutputFromNvim(task, display, list)
       call s:AddTaskOutput(output, a:task, a:display, a:list)
     endfor
   else
-    for index in range(rows - s:output_rows + 1, rows, 1) 
+    for index in range(rows - s:output_rows + 1, rows, 1)
       let output = '  '.lines[index - 1]
       call s:AddTaskOutput(output, a:task, a:display, a:list)
     endfor
@@ -216,7 +216,6 @@ function! s:RunTasksBufferUpdate(input)
 
   " Move to near task row
   if project#GetVariable('offset') == 0 && getline('.') !~ '^\w'
-    echom 'move to near'
     call project#UpdateOffsetByIndex(search('^\w', 'bnW') - 1)
   endif
 
@@ -226,7 +225,7 @@ function! s:RunTasksBufferUpdate(input)
   call project#HighlightNoResults()
 
   call project#SetVariable('user_input', a:input)
-  " call project#RedrawInputLine()
+  call project#RedrawInputLine()
 endfunction
 
 function! s:HighlightRunTasksCmdOutput()
