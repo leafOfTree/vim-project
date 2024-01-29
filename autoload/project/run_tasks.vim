@@ -121,7 +121,7 @@ function! s:AddTaskOutputFromNvim(task, display, list)
   let lines = split(trim(join(lines, "\n")), "\n")
   let rows = len(lines)
   if rows <= s:output_rows
-    for index in range(0, s:output_rows, 1)
+    for index in range(0, s:output_rows - 1, 1)
       if index >= rows
         let output = '  '
       else
@@ -130,7 +130,7 @@ function! s:AddTaskOutputFromNvim(task, display, list)
       call s:AddTaskOutput(output, a:task, a:display, a:list)
     endfor
   else
-    for index in range(rows - s:output_rows, rows, 1) 
+    for index in range(rows - s:output_rows + 1, rows, 1) 
       let output = '  '.lines[index - 1]
       call s:AddTaskOutput(output, a:task, a:display, a:list)
     endfor
@@ -216,6 +216,7 @@ function! s:RunTasksBufferUpdate(input)
 
   " Move to near task row
   if project#GetVariable('offset') == 0 && getline('.') !~ '^\w'
+    echom 'move to near'
     call project#UpdateOffsetByIndex(search('^\w', 'bnW') - 1)
   endif
 
@@ -225,7 +226,7 @@ function! s:RunTasksBufferUpdate(input)
   call project#HighlightNoResults()
 
   call project#SetVariable('user_input', a:input)
-  call project#RedrawInputLine()
+  " call project#RedrawInputLine()
 endfunction
 
 function! s:HighlightRunTasksCmdOutput()
@@ -346,8 +347,9 @@ function! s:RunTask(task)
         \'hidden': 1,
         \'term_kill': 'term',
         \}
-  let has_started = s:GetTaskStatus(a:task) != ''
+  let not_started = s:GetTaskStatus(a:task) == ''
   call s:StopTask(a:task)
+  let index = project#GetCurrentIndex()
 
   if has('nvim')
     vertical new
@@ -356,21 +358,19 @@ function! s:RunTask(task)
     " for nvim, bufnr is job id
     let a:task.bufnr = termopen(a:task.cmd, options)
     hide
-    return 1
+  else
+    try 
+      let options.exit_cb = function('s:OnTaskExit', [a:task])
+      let shell_prefix = &shell.' '.&shellcmdflag
+      let cmd = shell_prefix.' "'.a:task.cmd.'"'
+      let a:task.bufnr = term_start(cmd, options)
+    catch
+      call project#Warn(v:exception)
+      return 0
+    endtry
   endif
 
-  let index = project#GetCurrentIndex()
-  try 
-    let options.exit_cb = function('s:OnTaskExit', [a:task])
-    let shell_prefix = &shell.' '.&shellcmdflag
-    let cmd = shell_prefix.' "'.a:task.cmd.'"'
-    let a:task.bufnr = term_start(cmd, options)
-  catch
-    call project#Warn(v:exception)
-    return 0
-  endtry
-
-  if !has_started
+  if not_started
     call project#UpdateOffsetByIndex(index - (s:output_rows + 1))
   endif
   return 1
