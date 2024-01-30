@@ -9,6 +9,7 @@ let s:diff_buffer = 'diff'
 let s:before_buffer = 'before'
 let s:after_buffer = 'after'
 let s:changelist_buffer = 'local_changes'
+let s:commit_edit_buffer = 'commit_editmsg'
 let s:commit_result_buffer = 'commit_result'
 let s:file_history_range = []
 let s:log_splitter = ' ||| '
@@ -1046,7 +1047,7 @@ function! s:ShowCommitMessage(title, files)
         \'# On branch master',
         \'# Changes to be committed:'
         \]
-  new COMMIT_EDITMSG
+  execute 'new '.s:commit_edit_buffer
   let content = [a:title] + preset_message + a:files
   call append(0, content)
   normal! gg
