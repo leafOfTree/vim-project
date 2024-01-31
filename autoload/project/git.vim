@@ -1135,5 +1135,6 @@ function! s:OpenResultWindow(title, cmd, result)
   execute 'new '.a:title
   call append(0, [a:cmd, ''] + a:result)
   setlocal buftype=nofile
+  syntax match Keyword /\d\+\ze\s/
   normal! gg
 endfunction
