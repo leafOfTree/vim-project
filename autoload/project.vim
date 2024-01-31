@@ -31,7 +31,7 @@ function! s:Prepare()
   let s:project_history = []
   let s:add_file = 'project.add.vim'
   let s:ignore_file = 'project.ignore.vim'
-  let s:history_file = 'project.history.vim'
+  let s:history_file = 'project.history.txt'
   let s:init_file = 'init.vim'
   let s:quit_file = 'quit.vim'
 
