@@ -589,8 +589,8 @@ endfunction
 function! s:ReadChangelistFile()
   try 
     let changelist_string = readfile(s:GetChangelistFile())
-    if !empty(changelist_string) && len(changelist_string) == 1
-      return json_decode(changelist_string[0])
+    if !empty(changelist_string)
+      return json_decode(join(changelist_string, ''))
     endif
   catch
   endtry
@@ -598,7 +598,8 @@ endfunction
 
 function! s:WriteChangelistFile()
   let changelist_string = json_encode(s:changelist)
-  call writefile([changelist_string], s:GetChangelistFile())
+  let content = split(changelist_string, '\(]\|}\),\zs')
+  call writefile(content, s:GetChangelistFile())
 endfunction
 
 function! s:LoadChangelist()
@@ -660,13 +661,15 @@ function! s:RenameFolderOrRollbackFile()
     endif
   else
     let file = s:GetCurrentFile()
-    let name = input('Rollback changes of '.file.'? (y/n) ')
-    if !empty(name)
+    echo 'Rollback changes of '.file.'? (y/n) '
+    if nr2char(getchar()) == 'y'
       let cmd = 'git restore -- '.file
       call project#RunShellCmd(cmd)
       call s:ShowStatus(1)
       call s:CloseBuffer(s:diff_buffer)
     endif
+    redraw
+    echo
   endif
 endfunction
 
