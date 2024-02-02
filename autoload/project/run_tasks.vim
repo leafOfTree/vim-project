@@ -59,8 +59,23 @@ function! s:GetTaskStatusLine(task, status)
     endif
   else
     let icon = '🏃' " 🔄
+    let duration_full = split(reltimestr(reltime(a:task.started_rel)))[0]
+    let a:task.duration = substitute(duration_full, '\..*', '', 'g')
   endif
-  return '  ['.a:status.'] '.icon
+  
+
+  let width = &columns
+  let left = '  ['.a:status.'] '.icon
+  let right = a:task.duration.'s'
+  if a:status == 'finished'
+    let right = 'At '.a:task.finished.', '.right
+  endif
+  let padding_number = width - strwidth(left) - strwidth(right) - 2
+  let padding = ''
+  for i in range(padding_number)
+    let padding .= ' '
+  endfor
+  return left.padding.right
 endfunction
 
 function! s:GetRunTasksDisplay(tasks)
@@ -131,7 +146,11 @@ function! s:AddTaskOutputFromNvim(task, display, list)
     endfor
   else
     for index in range(rows - s:output_rows, rows, 1)
-      let output = '  '.lines[index - 1]
+      if index == rows
+        let output = '  '
+      else
+        let output = '  '.lines[index]
+      endif
       call s:AddTaskOutput(output, a:task, a:display, a:list)
     endfor
   endif
@@ -139,7 +158,7 @@ endfunction
 
 function! s:AddTaskOutputFromVim(task, display, list)
   let rows = term_getcursor(a:task.bufnr)[0]
-  for index in range(0, s:output_rows, 1)
+  for index in range(1, s:output_rows + 1, 1)
     if index > rows
       let output = '  '
     else
@@ -221,19 +240,23 @@ function! s:RunTasksBufferUpdate(input)
 
   call project#HighlightCurrentLine(len(display))
   call project#HighlightInputChars(a:input)
-  call s:HighlightRunTasksCmdOutput()
   call project#HighlightNoResults()
+  call s:HighlightRunTasksCmdOutput()
+  call s:HighlightRunTasksTime()
 
   call project#SetVariable('user_input', a:input)
-  redraw
+  call project#RedrawInputLine()
+endfunction
+
+function! s:HighlightRunTasksTime()
 endfunction
 
 function! s:HighlightRunTasksCmdOutput()
   match InfoRow /^\s\{2,}.*/
   2match Status '\[running.*\]'
   3match Special '\[finished.*\]'
-  call matchadd("String", "✔")
-  call matchadd("Error", "✖")
+  call matchadd('Comment', 'At.*s$')
+  call matchadd('Comment', '\d\+s$')
 endfunction
 
 " @return:
@@ -332,6 +355,7 @@ endfunction
 
 function! s:OnTaskExit(task, job_id, exit_code, ...)
   let a:task.exit_code = a:exit_code
+  let a:task.finished = strftime("%H:%M")
 endfunction
 
 " @return:
@@ -371,6 +395,9 @@ function! s:RunTask(task)
       return 0
     endtry
   endif
+
+  let a:task.started = strftime("%H:%M")
+  let a:task.started_rel = reltime()
 
   if not_started
     call project#UpdateOffsetByIndex(index - (s:output_rows + 2))
