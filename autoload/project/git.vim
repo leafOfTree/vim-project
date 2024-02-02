@@ -20,7 +20,8 @@ let s:untracked_folder_name = 'Untracked'
 let s:changed_files = []
 let s:untracked_files = []
 let s:commit_files = []
-let s:file_regexp = '^\s\+\S\s\+\zs.*'
+let s:file_regexp = '|\zs.*\ze|'
+let s:directory_regexp = '| \zs.*$'
 let s:folder_regexp = '^\S\s\zs.\+\ze\s\($\|\d\+\sfile\)'
 let s:changelist_default = [
       \{
@@ -339,7 +340,7 @@ function! s:CanShowDiff(file_regexp)
     return 0
   endif
 
-  let file = s:GetCurrentFileByRegexp(a:file_regexp)
+  let file = s:GetCurrentMatchstr(a:file_regexp)
   let num = s:GetBufWinnr(s:diff_buffer)
   if empty(file) && num == -1
     return 0
@@ -354,7 +355,7 @@ function! s:ShowDiffOnChangelist()
     return
   endif
 
-  let file = s:GetCurrentFileByRegexp(s:file_regexp)
+  let file = s:GetCurrentFile()
   " Avoid E242
   try
     call s:OpenBuffer(s:diff_buffer, 'vertical')
@@ -362,6 +363,7 @@ function! s:ShowDiffOnChangelist()
     wincmd h
 
     if empty(file)
+      call s:CloseBuffer(s:diff_buffer)
       return
     endif
     call s:AddChangeDetails(file)
@@ -402,6 +404,7 @@ function! s:RunJob(cmd, exit_cb, buf_nr)
           \'out_buf': a:buf_nr,
           \'cwd': $vim_project,
           \})
+  " nvim
   elseif exists("*jobstart")
     call jobstart(a:cmd, {
         \'on_stdout': a:exit_cb,
@@ -444,7 +447,7 @@ function! s:ShowDiffOnGitLog(hash)
   if !s:CanShowDiff(git_log_file_regexp)
     return
   endif
-  let file = s:GetCurrentFileByRegexp(git_log_file_regexp)
+  let file = s:GetCurrentMatchstr(git_log_file_regexp)
   call s:OpenBuffer(s:diff_buffer, 'vertical')
   call s:SetupDiffBuffer(file)
   if empty(file)
@@ -765,12 +768,10 @@ function! s:MoveFolderTo(from_folder, to_name)
 endfunction
 
 function! s:MoveFileTo(from_lnum, to_name) 
-  let cur_line = getline(a:from_lnum)
-  if cur_line !~ s:file_regexp
+  let file = s:GetFileByLine(a:from_lnum)
+  if empty(file)
     return
   endif
-
-  let file = matchstr(cur_line, s:file_regexp)
   let from_folder = s:GetBelongFolder(a:from_lnum)
   call filter(from_folder.files, 'v:val != "'.file.'"')
 
@@ -793,12 +794,26 @@ function! s:AddNewFolder(name, files)
   call s:SortChangelist()
 endfunction
 
-function! s:GetCurrentFileByRegexp(regexp)
-  return matchstr(getline(line('.')), a:regexp)
+function! s:GetCurrentMatchstr(regexp)
+  return s:GetMatchstrByLine(line('.'), a:regexp)
 endfunction
 
+function! s:GetMatchstrByLine(lnum, regexp)
+  return matchstr(getline(a:lnum), a:regexp)
+endfunction
+
+" Get file in changelist
 function! s:GetCurrentFile()
-  return s:GetCurrentFileByRegexp(s:file_regexp)
+  return s:GetFileByLine(line('.'))
+endfunction
+
+function! s:GetFileByLine(lnum)
+  let name = s:GetMatchstrByLine(a:lnum, s:file_regexp)
+  let directory = s:GetMatchstrByLine(a:lnum, s:directory_regexp)
+  if empty(directory)
+    return name
+  endif
+  return directory.'/'.name
 endfunction
 
 function! s:GetBelongFolder(lnum)
@@ -824,6 +839,10 @@ function! s:GetChangelistItem(name)
       return item
     endif
   endfor
+endfunction
+
+function! s:GetFileChangeSign(file)
+  return split(a:file, '\s\+')[0]
 endfunction
 
 function! s:GetFilename(file)
@@ -896,16 +915,34 @@ function! s:UpdateChangelistDisplay()
       continue
     endif
     let [prefix, suffix] = s:GetPrefixAndSuffix(folder)
-    call add(s:display, prefix.' '.folder.name.' '.suffix)
+    let folder_item = prefix.' '.folder.name.' '.suffix
+    call add(s:display, folder_item)
     if folder.expand
       for file in (s:changed_files + s:untracked_files)
         if s:HasFile(folder.files, file)
-          call add(s:display, '  '.file)
+          let file_item = s:GetChangelistFileDisplay(file)
+          call add(s:display, file_item)
         endif
       endfor
     endif
     call add(s:display, '')
   endfor
+endfunction
+
+function! s:GetChangelistFileDisplay(file)
+  let sign = s:GetFileChangeSign(a:file)
+  let filename = s:GetFilename(a:file)
+  let file_directory = fnamemodify($vim_project.'/'.filename, ':p:h')
+  let name = fnamemodify(filename, ':t')
+  let project_dir = project#GetProjectDirectory()
+  let project_dir_pat = escape(fnamemodify(project_dir, ':p'), '\')
+  if file_directory == project_dir[0:-2]
+    let dir = ''
+  else
+    let dir = substitute(file_directory, project_dir_pat, '', '')
+  endif
+  let icon = project#GetIcon(filename)
+  return '  '.sign.' '.icon.'|'.name.'| '.dir
 endfunction
 
 function! s:UpdateChangelist(run_git = 0)
@@ -962,6 +999,7 @@ function! s:SetupChangelistBuffer()
   noremap<buffer><silent> m :call <SID>MoveToChangelist()<cr>
 
   syntax match Comment /\d\+ files\?/
+  syntax match Comment / \S*$/
   execute 'syntax match Keyword /'.s:folder_regexp.'/'
   hi DiffBufferModify ctermfg=3 guifg=#b58900
   hi DiffBufferAdd ctermfg=2 guifg=#719e07
@@ -969,9 +1007,15 @@ function! s:SetupChangelistBuffer()
   syntax match DiffBufferModify /^\s\sM\ze\s/
   syntax match DiffBufferAdd /^\s\sA\ze\s/
   syntax match DiffBufferDelete /^\s\sD\ze\s/
+  syntax match Splitter "|" conceal
+  call project#HighlightIcon()
 
   setlocal buftype=nofile
   setlocal nomodifiable
+  setlocal conceallevel=3 
+  setlocal concealcursor=nvc
+  setlocal nonumber
+  setlocal nowrap
 
   autocmd CursorMoved <buffer> call s:ShowDiffOnChangelist()
   autocmd BufUnload <buffer> call s:CloseChangesBuffer()

@@ -114,14 +114,8 @@ function! s:AddBuffers(oldfiles)
 endfunction
 
 function! s:FilterOldFilesByPath(oldfiles)
-  if has('nvim')
-    let project_dir = project#SetSlashBasedOnOS($vim_project.'/')
-    call filter(a:oldfiles, {_, val -> count(val, project_dir) > 0 })
-  else
-    let project_dir = project#SetSlashBasedOnOS(project#ReplaceHomeWithTide($vim_project.'/'))
-    call filter(a:oldfiles, {_, val -> count(val, project_dir) > 0 })
-  endif
-
+  let project_dir = project#GetProjectDirectory()
+  call filter(a:oldfiles, {_, val -> count(val, project_dir) > 0 })
   let search_exclude = s:GetExclude()
   call map(search_exclude, {_, val -> project_dir.val})
   call filter(a:oldfiles, {_, val -> !s:IsPathStartWithAny(val, search_exclude)})

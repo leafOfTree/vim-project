@@ -2461,6 +2461,14 @@ function! s:GetMatchPos(lnum, input)
   return pos
 endfunction
 
+function! project#GetProjectDirectory()
+  let path = $vim_project.'/'
+  if !has('nvim')
+    let path = project#ReplaceHomeWithTide(path)
+  endif
+  return project#SetSlashBasedOnOS(path)
+endfunction
+
 function! project#SetSlashBasedOnOS(val)
   if s:is_win_version
     return substitute(a:val, '/', '\', 'g')
