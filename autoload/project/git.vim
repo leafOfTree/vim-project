@@ -918,7 +918,8 @@ function! s:UpdateChangelistDisplay()
     let folder_item = prefix.' '.folder.name.' '.suffix
     call add(s:display, folder_item)
     if folder.expand
-      for file in (s:changed_files + s:untracked_files)
+      let all_files = s:SortAffectedFiles(s:changed_files + s:untracked_files)
+      for file in all_files
         if s:HasFile(folder.files, file)
           let file_item = s:GetChangelistFileDisplay(file)
           call add(s:display, file_item)
@@ -927,6 +928,18 @@ function! s:UpdateChangelistDisplay()
     endif
     call add(s:display, '')
   endfor
+endfunction
+
+function! s:SortAffectedFiles(files)
+  return sort(copy(a:files), function('s:SortAffectedFilesFunc'))
+endfunction
+
+function! s:SortAffectedFilesFunc(i1, i2)
+  let filename_1 = s:GetFilename(a:i1)
+  let name_1 = fnamemodify(filename_1, ':t')
+  let filename_2 = s:GetFilename(a:i2)
+  let name_2 = fnamemodify(filename_2, ':t')
+  return name_1 == name_2 ? 0 : name_1 > name_2 ? 1 : -1
 endfunction
 
 function! s:GetChangelistFileDisplay(file)
