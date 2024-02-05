@@ -9,7 +9,7 @@ function! project#new_project#NewProject(name)
 
   let prompt = '['.s:GetCwd().'] create ['.s:GetName().'] by:' 
 
-  call project#PrepareListBuffer(prompt, 'GIT_FILE_HISTORY')
+  call project#PrepareListBuffer(prompt, 'NEW_PROJECT')
   let Init = function('s:Init')
   let Update = function('s:Update')
   let Open = function('s:Open')
