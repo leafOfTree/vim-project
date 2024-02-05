@@ -269,20 +269,38 @@ function! s:Open(task, open_cmd, input)
       return 0
     endif
 
-    if has('nvim')
-      new
-      cd $vim_project
-      terminal
-      startinsert
-    else
-      terminal ++kill=kill
-      call term_sendkeys(bufnr('%'), "cd $vim_project\<CR>")
-      call term_sendkeys(bufnr('%'), "clear\<CR>")
-    endif
+    call s:OpenBuiltinTerminal()
     return 0
   endif
 
   return s:RunTask(a:task)
+endfunction
+
+let s:terminal_bufnr = -1
+function! s:OpenBuiltinTerminal()
+  if bufexists(s:terminal_bufnr)
+    new
+    execute 'buffer '.s:terminal_bufnr
+    if has('nvim')
+      startinsert
+    else
+      normal! i
+    endif
+    return
+  endif
+
+  if has('nvim')
+    new
+    cd $vim_project
+    terminal
+    startinsert
+  else
+    terminal ++kill=kill
+    call term_sendkeys(bufnr('%'), "cd $vim_project\<CR>")
+    call term_sendkeys(bufnr('%'), "clear\<CR>")
+  endif
+
+  let s:terminal_bufnr = bufnr()
 endfunction
 
 function! s:hasEmptyTaskCmd(task)
