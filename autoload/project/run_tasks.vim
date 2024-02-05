@@ -242,13 +242,9 @@ function! s:RunTasksBufferUpdate(input)
   call project#HighlightInputChars(a:input)
   call project#HighlightNoResults()
   call s:HighlightRunTasksCmdOutput()
-  call s:HighlightRunTasksTime()
 
   call project#SetVariable('user_input', a:input)
   call project#RedrawInputLine()
-endfunction
-
-function! s:HighlightRunTasksTime()
 endfunction
 
 function! s:HighlightRunTasksCmdOutput()
@@ -256,7 +252,7 @@ function! s:HighlightRunTasksCmdOutput()
   2match Status '\[running.*\]'
   3match Special '\[finished.*\]'
   call matchadd('Comment', 'At.*s$')
-  call matchadd('Comment', '\d\+s$')
+  call matchadd('Comment', '   \d\+s$')
 endfunction
 
 " @return:
