@@ -140,7 +140,7 @@ function! s:AddDiffDetails(hash, file)
 
   call append(0, changes)
   normal! gg
-  silent! g/^new file mode/"_d
+  silent! g/^new file mode/d _
 
   if is_diff_on_range
     silent! 1,3d _
@@ -420,7 +420,7 @@ function! VimProjectAddChangeDetails(job, data, ...)
     call append(0, a:data)
   endif
 
-  silent! g/^new file mode/"_d
+  silent! g/^new file mode/d _ 
   silent! 1,4d _
   normal! gg
   call s:SwitchBuffer(s:changelist_buffer)
@@ -438,7 +438,7 @@ function! s:AddChangeDetailsOld(file)
 
   call append(0, changes)
   normal! gg
-  silent! g/^new file mode/"_d
+  silent! g/^new file mode/d _
   silent! 1,4d _
 endfunction
 
