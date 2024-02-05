@@ -1,4 +1,5 @@
 let s:output_rows = 20
+let s:terminal_bufnr = -1
 
 function! project#run_tasks#Run()
   call project#PrepareListBuffer('Run a task:', 'RUN_TASKS')
@@ -276,7 +277,6 @@ function! s:Open(task, open_cmd, input)
   return s:RunTask(a:task)
 endfunction
 
-let s:terminal_bufnr = -1
 function! s:OpenBuiltinTerminal()
   if bufexists(s:terminal_bufnr)
     new
