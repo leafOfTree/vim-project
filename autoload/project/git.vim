@@ -1195,6 +1195,7 @@ function! s:OpenResultWindow(title, cmd, result)
   execute 'new '.a:title
   call append(0, [a:cmd, ''] + a:result)
   setlocal buftype=nofile
-  syntax match Keyword /\d\+\ze\s/
+  syntax match Constant /\[\zs\w*\ze .*\]/
+  syntax match Keyword /\s\zs\d\+\ze\s\(files\? changed\|insertion\|deletion\)/
   normal! gg
 endfunction
