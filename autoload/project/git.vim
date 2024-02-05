@@ -586,7 +586,7 @@ function! project#git#pull()
 endfunction
 
 function! s:GetChangelistFile()
-  return $vim_project_config.'/changelist.txt'
+  return $vim_project_config.'/changelist.json'
 endfunction
 
 function! s:ReadChangelistFile()
