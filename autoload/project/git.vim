@@ -506,10 +506,11 @@ function! s:GetTabulatedList(logs)
 endfunction
 
 function! s:ShortenDate(origin)
-  let date = substitute(a:origin, 'years\?', 'y', 'g')
-  let date = substitute(date, 'months\?', 'm', 'g')
-  let date = substitute(date, 'weeks\?', 'w', 'g')
-  let date = substitute(date, 'days\?', 'd', 'g')
+  let date = substitute(a:origin, ' years\?', 'y', 'g')
+  let date = substitute(date, ' months\?', 'm', 'g')
+  let date = substitute(date, ' weeks\?', 'w', 'g')
+  let date = substitute(date, ' days\?', 'd', 'g')
+  let date = substitute(date, ' hours\?', 'h', 'g')
   return date
 endfunction
 
