@@ -899,7 +899,7 @@ function! project#PrepareListBuffer(prefix, list_type)
 endfunction
 
 function! s:OpenListBuffer()
-  let s:max_height = winheight(0) - 5
+  let s:max_height = winheight(0) - 10
   let s:max_width = &columns
   let win = s:list_buffer
   let num = bufwinnr(win)
