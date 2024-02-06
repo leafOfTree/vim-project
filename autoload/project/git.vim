@@ -12,7 +12,7 @@ let s:changelist_buffer = 'local_changes'
 let s:commit_edit_buffer = 'commit_editmsg'
 let s:commit_result_buffer = 'commit_result'
 let s:file_history_range = []
-let s:log_splitter = ' ||| '
+let s:splitter = ' ||| '
 let s:commit_diffs = []
 
 let s:default_folder_name = 'Default'
@@ -71,7 +71,7 @@ endfunction
 
 function! s:InitFileHistory(input)
   let range = s:GetLineRange()
-  let format = join(["%s", "%aN", "%ae", "%ad", "%h"], s:log_splitter)
+  let format = join(["%s", "%aN", "%ae", "%ad", "%h"], s:splitter)
   let cmd = 'git log --pretty=format:"'.format.'" --date=relative '.range.s:current_file
   let logs = project#RunShellCmd(cmd)
   if empty(range)
@@ -90,9 +90,9 @@ function! s:SaveCommitDiff(logs)
 
   let hash = ''
   for log in a:logs
-    if match(log, s:log_splitter) != -1
+    if match(log, s:splitter) != -1
       call add(logs, log)
-      let hash = split(log, s:log_splitter, 1)[-1]
+      let hash = split(log, s:splitter, 1)[-1]
       let commit_diffs[hash] = []
     else
       call add(commit_diffs[hash], log)
@@ -201,7 +201,7 @@ endfunction
 
 
 function! s:InitGitLog(input)
-  let format = join(["%s", "%aN", "%ae", "%ad", "%h"], s:log_splitter)
+  let format = join(["%s", "%aN", "%ae", "%ad", "%h"], s:splitter)
   let cmd = 'git log --pretty=format:"'.format.'" --date=relative'
   let logs = project#RunShellCmd(cmd)
   let s:list = s:GetTabulatedList(logs)
@@ -283,7 +283,9 @@ function! s:SwitchBuffer(search)
   let num = s:GetBufWinnr(a:search)
   if num != -1
     execute num.'wincmd w'
+    return 0
   endif
+  return 1
 endfunction
 
 function! s:GetBufWinnr(search)
@@ -415,7 +417,11 @@ function! s:RunJob(cmd, exit_cb, buf_nr)
 endfunction
 
 function! VimProjectAddChangeDetails(job, data, ...)
-  call s:SwitchBuffer(s:diff_buffer)
+  let error = s:SwitchBuffer(s:diff_buffer)
+  if error
+    return
+  endif
+
   if has('nvim')
     call append(0, a:data)
   endif
@@ -495,36 +501,28 @@ endfunction
 function! s:GetTabulatedList(logs)
   let list = []
   for log in a:logs
-    let [message, author, email, date, hash] = split(log, s:log_splitter, 1)
-    let date = s:ShortenDate(date)
+    let [message, author, email, date, hash] = split(log, s:splitter, 1)
+    let date = project#ShortenDate(date)
     call insert(list, 
           \{ 'message': message, 'author': author, 'date': date, 'hash': hash, 'email': email })
   endfor
 
-  call project#TabulateFixed(list, ['message', 'author', 'date'], [&columns/2 - 30, 10, 10])
+  call project#TabulateFixed(list, ['message', 'author', 'date'], [&columns/2 - 25, 10, 15])
   return list
-endfunction
-
-function! s:ShortenDate(origin)
-  let date = substitute(a:origin, ' years\?', 'y', 'g')
-  let date = substitute(date, ' months\?', 'm', 'g')
-  let date = substitute(date, ' weeks\?', 'w', 'g')
-  let date = substitute(date, ' days\?', 'd', 'g')
-  let date = substitute(date, ' hours\?', 'h', 'g')
-  return date
 endfunction
 
 function! s:FilterLogs(list, input)
   let list = copy(a:list)
-  if !empty(a:input)
-    let pattern = s:GetRegexpFilter(a:input)
-    let list = filter(list, { idx, val -> 
-      \s:Match(val.message, pattern)
-      \|| s:Match(val.author, pattern)
-      \|| s:Match(val.hash, pattern)
-      \|| (a:input[0] =~ '\d' && s:Match(val.date, pattern))
-      \})
+  if empty(a:input)
+    return list
   endif
+  let pattern = s:GetRegexpFilter(a:input)
+  let list = filter(list, { idx, val -> 
+        \s:Match(val.message, pattern)
+        \|| s:Match(val.author, pattern)
+        \|| s:Match(val.hash, pattern)
+        \|| (a:input[0] =~ '\d' && s:Match(val.date, pattern))
+        \})
   return list
 endfunction
 

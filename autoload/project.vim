@@ -955,32 +955,32 @@ function! s:SetupListBuffer()
 
   if s:IsFindInFilesList()
     let s:first_column_pattern = '^'.s:column_pattern
-    let s:second_column_pattern = '\s\{2,}[^- ]'.s:column_pattern
     highlight link FirstColumn Keyword
     highlight link SecondColumn Normal
   elseif s:IsRunTasksList()
     let s:first_column_pattern = '^'.s:column_pattern
-    let s:second_column_pattern = '\s\{2,}[^- ]'.s:column_pattern
     highlight link FirstColumn Keyword
     highlight link SecondColumn Comment
     highlight link Status Constant
     call project#run_tasks#Highlight()
   elseif s:IsGitLogList()
     let s:first_column_pattern = '^'.s:column_pattern
-    let s:second_column_pattern = '\s\{2,}[^- ]'.s:column_pattern
+    highlight link FirstColumn Normal
+    highlight link SecondColumn Comment
+  elseif s:IsGitBranchList()
+    let s:first_column_pattern = '^\( \|\*\) '.s:column_pattern
     highlight link FirstColumn Normal
     highlight link SecondColumn Comment
   else
     let s:first_column_pattern = '^'.s:column_pattern.s:note_column_pattern
-    let s:second_column_pattern = '\s\{2,}[^- ]'.s:column_pattern
     highlight link FirstColumn Normal
     highlight link SecondColumn Comment
   endif
 
   syntax clear
-  execute 'syntax match FirstColumn /'.s:first_column_pattern.'/'
-  execute 'syntax match SecondColumn /'.s:second_column_pattern.'/'
   execute 'syntax match InfoRow /^\s\{2,}.*/'
+  execute 'syntax match SecondColumn /'.s:second_column_pattern.'/'
+  execute 'syntax match FirstColumn /'.s:first_column_pattern.'/'
 
   highlight link ItemSelected CursorLine
   highlight! link SignColumn Noise
@@ -1524,6 +1524,10 @@ endfunction
 
 function! s:IsGitLogList()
   return s:list_type == 'GIT_LOG'
+endfunction
+
+function! s:IsGitBranchList()
+  return s:list_type == 'GIT_BRANCH'
 endfunction
 
 function! s:IsGitFileHistoryList()
@@ -2487,6 +2491,15 @@ endfunction
 
 function! project#SetVariable(name, value)
   let s:[a:name] = a:value
+endfunction
+
+function! project#ShortenDate(origin)
+  let date = substitute(a:origin, ' years\?', 'y', 'g')
+  let date = substitute(date, ' months\?', 'm', 'g')
+  let date = substitute(date, ' weeks\?', 'w', 'g')
+  let date = substitute(date, ' days\?', 'd', 'g')
+  let date = substitute(date, ' hours\?', 'h', 'g')
+  return date
 endfunction
 
 try
