@@ -87,16 +87,6 @@ function! s:OnJobEnds(job, status, ...)
   endif
 endfunction
 
-" function! s:OnTerminalLeave()
-  " call timer_start(100, 's:OpenNewProject')
-" endfunction
-" 
-" function! s:OpenNewProject(timer)
-  " if !empty(s:name)
-    " call project#AddProject(s:name)
-  " endif
-" endfunction
-
 function! s:WithArgs(item)
   return has_key(a:item, 'args')
 endfunction
