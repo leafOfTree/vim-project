@@ -370,6 +370,7 @@ function! s:ShowDiffOnChangelist()
     endif
     call s:AddChangeDetails(file)
   catch
+    call project#Warn(v:exception)
   endtry
 endfunction
 
@@ -957,20 +958,34 @@ endfunction
 function! s:GetChangelistFileDisplay(file)
   let sign = s:GetFileChangeSign(a:file)
   let filename = s:GetFilename(a:file)
-  let file_directory = fnamemodify($vim_project.'/'.filename, ':p:h')
   let name = fnamemodify(filename, ':t')
-  let project_dir = project#GetProjectDirectory()
-  let project_dir_pat = escape(fnamemodify(project_dir, ':p'), '\')
-  if file_directory == project_dir[0:-2]
+
+  if isdirectory(filename)
     let dir = ''
   else
-    let dir = substitute(file_directory, project_dir_pat, '', '')
+    let file_dir = fnamemodify($vim_project.'/'.filename, ':p:h')
+    let project_dir = project#GetProjectDirectory()
+    if file_dir == project_dir[0:-2]
+      let dir = ''
+    else
+      let project_dir_pat = escape(fnamemodify(project_dir, ':p'), '\')
+      let dir = substitute(file_dir, project_dir_pat, '', '')
+    endif
   endif
   let icon = project#GetIcon(filename)
+
+  let prefix = ''
+
+  if sign == 'D'
+    let prefix = '$'
+  elseif sign == 'A' || sign == 'U'
+    let prefix = '!'
+  endif
+  let splitter = '|'
   if empty(name)
-    return '  '.icon.'|'.dir.'| '
+    return '  '.prefix.icon.splitter.dir.' '
   else
-    return '  '.icon.'|'.name.'| '.dir
+    return '  '.prefix.icon.splitter.name.splitter.' '.dir
   endif
 endfunction
 
@@ -1027,9 +1042,6 @@ function! s:SetupChangelistBuffer()
 
   noremap<buffer><silent> m :call <SID>MoveToChangelist()<cr>
 
-  syntax match Comment /\d\+ files\?/
-  syntax match Comment / \S*$/
-  execute 'syntax match Keyword /'.s:folder_regexp.'/'
   hi DiffBufferModify ctermfg=3 guifg=#b58900
   hi DiffBufferAdd ctermfg=2 guifg=#719e07
   hi DiffBufferDelete ctermfg=9 guifg=#dc322f
@@ -1037,12 +1049,14 @@ function! s:SetupChangelistBuffer()
   syntax match DiffBufferAdd /^\s\sA\ze\s/
   syntax match DiffBufferDelete /^\s\sD\ze\s/
   syntax match Splitter "|" conceal
+  syntax match Splitter "\$" conceal
+  syntax match Splitter "!" conceal
   call project#HighlightIcon()
 
   setlocal buftype=nofile
   setlocal nomodifiable
   setlocal conceallevel=3 
-  setlocal concealcursor=nvc
+  setlocal concealcursor=nc
   setlocal nonumber
   setlocal nowrap
 
@@ -1056,6 +1070,22 @@ function! s:WriteChangelist()
   setlocal modifiable
   call execute('normal! gg"_dG', 'silent!')
   call append(0, s:display)
+
+  call clearmatches()
+  let index = 1
+  for line in s:display
+    if line =~ '\$'
+      call matchadd('Comment', '\%'.index.'l')
+    elseif line =~ '!'
+      call matchadd('diffAdded', '\%'.index.'l')
+    endif
+    let index += 1
+  endfor
+  call matchadd('Comment', ' \S*$')
+  call matchadd('Comment', '\d\+ files\?')
+  call matchadd('Keyword', s:folder_regexp)
+  call project#HighlightIcon()
+
   normal gg
   setlocal nomodifiable
 endfunction
