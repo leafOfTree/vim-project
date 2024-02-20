@@ -130,8 +130,8 @@ endfunction
 
 function! s:AddDiffDetails(hash, file)
   let changes = []
-  let is_diff_on_range = !empty(s:commit_diffs)
-  if is_diff_on_range
+  let is_diff_line = !empty(s:commit_diffs)
+  if is_diff_line
     let changes = s:commit_diffs[a:hash]
   else
     let cmd = 'git show --pretty=format:"" '.a:hash.' -- '.a:file
@@ -142,7 +142,7 @@ function! s:AddDiffDetails(hash, file)
   normal! gg
   silent! g/^new file mode/d _
 
-  if is_diff_on_range
+  if is_diff_line
     silent! 1,3d _
   else
     silent! 1,4d _
@@ -234,10 +234,10 @@ endfunction
 
 function! s:UpdateGitLog(input)
   call s:UpdateLog(a:input)
-  call s:ShowCurrentChangdFiles()
+  call s:ShowCurrentChangedFiles()
 endfunction
 
-function! s:ShowCurrentChangdFiles()
+function! s:ShowCurrentChangedFiles()
   let revision = project#GetTarget()
   if empty(revision)
     return
@@ -325,6 +325,11 @@ function! s:SetupChangesBuffer(revision)
   syntax match DiffBufferModify /^M\ze\s/
   syntax match DiffBufferAdd /^A\ze\s/
   syntax match DiffBufferDelete /^D\ze\s/
+  syntax match Splitter "|" conceal
+  syntax match Splitter "\$" conceal
+  syntax match Splitter "!" conceal
+  setlocal conceallevel=3 
+  setlocal concealcursor=nc
 
   setlocal buftype=nofile bufhidden=wipe nobuflisted
   setlocal nowrap
@@ -450,11 +455,10 @@ function! s:AddChangeDetailsOld(file)
 endfunction
 
 function! s:ShowDiffOnGitLog(hash)
-  let git_log_file_regexp = '^\S\s\zs.*'
-  if !s:CanShowDiff(git_log_file_regexp)
+  if !s:CanShowDiff(s:file_regexp)
     return
   endif
-  let file = s:GetCurrentMatchstr(git_log_file_regexp)
+  let file = s:GetCurrentFile()
   call s:OpenBuffer(s:diff_buffer, 'vertical')
   call s:SetupDiffBuffer(file)
   if empty(file)
@@ -471,7 +475,7 @@ function! s:GetChangedFiles(revision)
   if v:shell_error
     return []
   else
-    return changed_files
+    return map(changed_files, {idx, v -> s:GetChangedFileDisplay(v, '')})
   endif
 endfunction
 
@@ -480,6 +484,7 @@ function! s:AddToBuffer(revision)
 
   if len(changed_files) > 0
     call append(0, changed_files)
+    call s:HighlightFiles(changed_files)
   else
     call append(0, 'No files found')
   endif
@@ -934,7 +939,7 @@ function! s:UpdateChangelistDisplay()
       let all_files = s:SortAffectedFiles(s:changed_files + s:untracked_files)
       for file in all_files
         if s:HasFile(folder.files, file)
-          let file_item = s:GetChangelistFileDisplay(file)
+          let file_item = s:GetChangedFileDisplay(file)
           call add(s:display, file_item)
         endif
       endfor
@@ -955,7 +960,7 @@ function! s:SortAffectedFilesFunc(i1, i2)
   return name_1 == name_2 ? 0 : name_1 > name_2 ? 1 : -1
 endfunction
 
-function! s:GetChangelistFileDisplay(file)
+function! s:GetChangedFileDisplay(file, prefix = '  ')
   let sign = s:GetFileChangeSign(a:file)
   let filename = s:GetFilename(a:file)
   let name = fnamemodify(filename, ':t')
@@ -974,18 +979,17 @@ function! s:GetChangelistFileDisplay(file)
   endif
   let icon = project#GetIcon(filename)
 
-  let prefix = ''
-
+  let sign_mark = ''
   if sign == 'D'
-    let prefix = '$'
+    let sign_mark = '$'
   elseif sign == 'A' || sign == 'U'
-    let prefix = '!'
+    let sign_mark = '!'
   endif
   let splitter = '|'
   if empty(name)
-    return '  '.prefix.icon.splitter.dir.' '
+    return a:prefix.sign_mark.icon.splitter.dir.' '
   else
-    return '  '.prefix.icon.splitter.name.splitter.' '.dir
+    return a:prefix.sign_mark.icon.splitter.name.splitter.' '.dir
   endif
 endfunction
 
@@ -1051,12 +1055,11 @@ function! s:SetupChangelistBuffer()
   syntax match Splitter "|" conceal
   syntax match Splitter "\$" conceal
   syntax match Splitter "!" conceal
-  call project#HighlightIcon()
+  setlocal conceallevel=3 
+  setlocal concealcursor=nc
 
   setlocal buftype=nofile
   setlocal nomodifiable
-  setlocal conceallevel=3 
-  setlocal concealcursor=nc
   setlocal nonumber
   setlocal nowrap
 
@@ -1070,24 +1073,27 @@ function! s:WriteChangelist()
   setlocal modifiable
   call execute('normal! gg"_dG', 'silent!')
   call append(0, s:display)
-
-  call clearmatches()
-  let index = 1
-  for line in s:display
-    if line =~ '\$'
-      call matchadd('Comment', '\%'.index.'l')
-    elseif line =~ '!'
-      call matchadd('diffAdded', '\%'.index.'l')
-    endif
-    let index += 1
-  endfor
-  call matchadd('Comment', ' \S*$')
+  call s:HighlightFiles(s:display)
   call matchadd('Comment', '\d\+ files\?')
   call matchadd('Keyword', s:folder_regexp)
-  call project#HighlightIcon()
-
   normal gg
   setlocal nomodifiable
+endfunction
+
+function! s:HighlightFiles(lines)
+  call clearmatches()
+  let index = 1
+  for line in a:lines
+    let line_pattern = '\%'.index.'l'
+    if line =~ '\$'
+      call matchadd('Comment', line_pattern)
+    elseif line =~ '!'
+      call matchadd('diffAdded', line_pattern)
+    endif
+    call matchadd('Comment', line_pattern.' \S*$')
+    let index += 1
+  endfor
+  call project#HighlightIcon()
 endfunction
 
 function! s:Commit()
