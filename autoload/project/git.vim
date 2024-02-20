@@ -338,6 +338,7 @@ function! s:CanShowDiff(file_regexp)
   endif
   let lnum = line('.')
   let no_moving = lnum == s:current_line
+  let s:current_line = lnum
   if no_moving
     return 0
   endif
@@ -348,7 +349,6 @@ function! s:CanShowDiff(file_regexp)
     return 0
   endif
 
-  let s:current_line = lnum
   return 1
 endfunction
 
@@ -665,14 +665,27 @@ function! s:RenameFolderOrRollbackFile()
     let file = s:GetCurrentFile()
     echo 'Rollback changes of '.file.'? (y/n) '
     if nr2char(getchar()) == 'y'
-      let cmd = 'git restore -- '.file
+      if s:IsFileUntracked(file)
+        let cmd = 'rm '.file
+      else
+        let cmd = 'git restore -- '.file
+      endif
       call project#RunShellCmd(cmd)
+      if v:shell_error
+        return
+      endif
       call s:ShowStatus(1)
       call s:CloseBuffer(s:diff_buffer)
     endif
     redraw
     echo
   endif
+endfunction
+
+function! s:IsFileUntracked(file)
+  let cmd = 'git ls-files --error-unmatch '.a:file
+  call project#RunShellCmd(cmd)
+  return v:shell_error
 endfunction
 
 function! s:IsUserFolder(item)
@@ -954,7 +967,11 @@ function! s:GetChangelistFileDisplay(file)
     let dir = substitute(file_directory, project_dir_pat, '', '')
   endif
   let icon = project#GetIcon(filename)
-  return '  '.sign.' '.icon.'|'.name.'| '.dir
+  if empty(name)
+    return '  '.icon.'|'.dir.'| '
+  else
+    return '  '.icon.'|'.name.'| '.dir
+  endif
 endfunction
 
 function! s:UpdateChangelist(run_git = 0)
