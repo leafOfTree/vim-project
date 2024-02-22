@@ -335,6 +335,16 @@ function! s:SetupChangesBuffer(revision)
   setlocal nowrap
   autocmd BufUnload <buffer> call s:CloseChangesBuffer()
   let s:current_line = 0
+  nnoremap<buffer><silent> o :call <SID>OpenChangedFile()<cr>
+endfunction
+
+function! s:OpenChangedFile()
+  let file = s:GetCurrentFile()
+  if empty(file)
+    return
+  endif
+  wincmd k
+  execute 'e '.$vim_project.'/'.file
 endfunction
 
 function! s:CanShowDiff(file_regexp)
@@ -480,18 +490,18 @@ function! s:GetChangedFiles(revision)
 endfunction
 
 function! s:AddToBuffer(revision)
+  setlocal modifiable
   let changed_files = s:GetChangedFiles(a:revision)
-
   if len(changed_files) > 0
     call append(0, changed_files)
     call s:HighlightFiles(changed_files)
   else
     call append(0, 'No files found')
   endif
-
   let brief = s:GenerateBrief(a:revision)
   call append(line('$'), brief)
   normal! gg
+  setlocal nomodifiable
 endfunction
 
 function! s:GenerateBrief(revision)
@@ -637,16 +647,17 @@ endfunction
 function! s:ToggleFolderOrOpenFile()
   let lnum = line('.')
   let item = s:GetCurrentFolder(lnum)
-  if !empty(item)
+  if empty(item)
+    let file = s:GetCurrentFile()
+    if empty(file)
+      return
+    endif
+    wincmd k
+    execute 'e '.$vim_project.'/'.file
+  else
     let item.expand = 1 - item.expand
     call s:ShowStatus()
     execute lnum
-  else
-    let file = s:GetCurrentFile()
-    if !empty(file)
-      wincmd k
-      execute 'e '.$vim_project.'/'.file
-    endif
   endif
 endfunction
 
