@@ -920,10 +920,20 @@ function! s:CloseListBuffer(cmd)
     return
   endif
 
-  echon "\r\r"
-  echon ''
+  call s:ClearMessageArea()
   quit
   wincmd p
+endfunction
+
+function! s:ClearMessageArea()
+  if exists("g:neovide")
+    echon "\r\r"
+    echon ''
+  else
+    call inputsave()
+    call feedkeys(':', 'nx')
+    call inputrestore()
+  endif
 endfunction
 
 function! s:WipeoutListBuffer()
@@ -1263,7 +1273,8 @@ function! project#RunShellCmd(cmd)
     if !empty(output)
       call project#Warn(a:cmd)
       for error in output
-        call project#Warn(error)
+        let formatted_error = substitute(error, '	', '    ', 'g')
+        call project#Warn(formatted_error)
       endfor
       redraw
       execute (len(output) + 1).'messages'
@@ -1280,7 +1291,7 @@ endfunction
 
 
 function! project#HighlightNoResults()
-  call matchadd('Comment', '- No results for:.*')
+  call matchadd('Comment', '^- No results for:.*')
 endfunction
 
 function! project#HasFindInFilesHistory()
