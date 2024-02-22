@@ -18,6 +18,9 @@ function! s:Init(input)
         \'%(contents:subject)', '%(authorname)',  '%(committerdate:relative)'], s:splitter)
   let cmd = "git branch -a --format='".format."'"
   let branches = project#RunShellCmd(cmd)
+  let current = filter(copy(branches), 'v:val[0] == "*"')
+  call filter(branches, 'v:val[0] != "*"')
+  call insert(branches, current[0])
   call insert(branches, s:CreateCustomItem(' ', s:item_splitter))
   call insert(branches, s:CreateCustomItem('+', s:item_new_branch))
   let s:list = s:GetTabulatedList(branches)
@@ -32,6 +35,7 @@ function! s:Update(input)
   call project#HighlightCurrentLine(len(display))
   call project#HighlightInputChars(a:input)
   call project#HighlightNoResults()
+  call s:HighlightSpecialItem()
 endfunction
 
 function! s:Open(branch, open_cmd, input)
@@ -49,9 +53,28 @@ function! s:Open(branch, open_cmd, input)
     return
   endif
 
-  let cmd = 'git checkout '.a:branch.name
+  let name = split(a:branch.name, '/')[-1]
+
+  let check_exist_cmd = 'git show-ref --verify --quiet refs/heads/'.name
+  call project#RunShellCmd(check_exist_cmd)
+  let exist = !v:shell_error
+  if name == 'HEAD' 
+    let cmd = 'git checkout '.a:branch.name
+  elseif exist
+    let cmd = 'git checkout '.name
+  else
+    let cmd = 'git checkout -b '.name.' '.a:branch.name
+  endif
+
   call project#RunShellCmd(cmd)
+  if v:shell_error
+    return
+  endif
   call project#Info('Checked out: '.a:branch.name)
+endfunction
+
+function! s:HighlightSpecialItem()
+  call matchadd('Keyword', '\* \S*')
 endfunction
 
 function! s:CreateCustomItem(head, text)
