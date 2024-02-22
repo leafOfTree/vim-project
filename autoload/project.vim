@@ -920,8 +920,9 @@ function! s:CloseListBuffer(cmd)
     return
   endif
 
+  echon "\r\r"
+  echon ''
   quit
-  redraw
   wincmd p
 endfunction
 
