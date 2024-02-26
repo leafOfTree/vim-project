@@ -249,7 +249,7 @@ function! s:SortByFileThenDirectoryFunc(item1, item2)
   elseif !is_dir1 && is_dir2
     return -1
   endif
-  return a:item2.file > a:item1.file ? 1 : -1
+  return a:item2.file > a:item1.file ? -1 : 1
 endfunction
 
 function! s:GetSearchFilesByDirectory(val, filter)
