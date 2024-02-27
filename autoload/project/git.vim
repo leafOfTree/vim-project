@@ -125,7 +125,7 @@ function! s:ShowDiffOnFileHistory()
   call s:AddDiffDetails(revision.hash, s:current_file)
   call s:AddBrief(revision)
   call s:SetupDiffBuffer(s:current_file)
-  wincmd h
+  wincmd p
 endfunction
 
 function! s:AddDiffDetails(hash, file)
@@ -162,16 +162,27 @@ endfunction
 
 function! s:JumpToSource(file)
   let lnum = line('.')
+  let line_prev2 = s:SearchFileForLine(a:file, lnum - 2)
+  let line_prev1 = s:SearchFileForLine(a:file, lnum - 1)
+  let line = s:SearchFileForLine(a:file, lnum)
+
+  wincmd t
+  execute 'e '.a:file
+  call search('\V'.line_prev2)
+  call search('\V'.line_prev1)
+  call search('\V'.line)
+endfunction
+
+function! s:SearchFileForLine(file, lnum)
+  let lnum = a:lnum
   let line = getline(lnum)
   while (line =~ '^-' || line =~ '^.\s*$') && lnum > 0
     let lnum = lnum - 1
     let line = getline(lnum)
   endwhile
   let line = substitute(line, '^@@ .* @@', '', 'g')
-  let line = line[1:]
-  wincmd k
-  execute 'e '.$vim_project.'/'.a:file
-  call search('\V'.line[1:])
+  let line = escape(line[1:], '\')
+  return line
 endfunction
 
 function! s:OpenFileHistory(revision, cmd, input)
@@ -250,7 +261,7 @@ function! s:ShowCurrentChangedFiles()
   call s:OpenBuffer(s:changes_buffer, 'vertical')
   call s:SetupChangesBuffer(revision)
   call s:AddToBuffer(revision)
-  wincmd h
+  wincmd p
 endfunction
 
 
@@ -344,7 +355,7 @@ function! s:OpenChangedFile()
     return
   endif
   wincmd k
-  execute 'e '.$vim_project.'/'.file
+  execute 'e '.s:GetAbsolutePath(file)
 endfunction
 
 function! s:CanShowDiff(file_regexp)
@@ -376,8 +387,8 @@ function! s:ShowDiffOnChangelist()
   " Avoid E242
   try
     call s:OpenBuffer(s:diff_buffer, 'vertical')
-    call s:SetupDiffBuffer(file)
-    wincmd h
+    call s:SetupDiffBuffer(s:GetAbsolutePath(file))
+    wincmd p
 
     if empty(file)
       call s:CloseBuffer(s:diff_buffer)
@@ -470,13 +481,13 @@ function! s:ShowDiffOnGitLog(hash)
   endif
   let file = s:GetCurrentFile()
   call s:OpenBuffer(s:diff_buffer, 'vertical')
-  call s:SetupDiffBuffer(file)
+  call s:SetupDiffBuffer(s:GetAbsolutePath(file))
   if empty(file)
-    wincmd h
+    wincmd p
     return
   endif
   call s:AddDiffDetails(a:hash, file)
-  wincmd h
+  wincmd p
 endfunction
 
 function! s:GetChangedFiles(revision)
@@ -600,6 +611,10 @@ function! project#git#pull()
   call s:TryPull()
 endfunction
 
+function! s:GetAbsolutePath(file)
+  return $vim_project.'/'.a:file
+endfunction
+
 function! s:GetChangelistFile()
   return $vim_project_config.'/changelist.json'
 endfunction
@@ -653,7 +668,7 @@ function! s:ToggleFolderOrOpenFile()
       return
     endif
     wincmd k
-    execute 'e '.$vim_project.'/'.file
+    execute 'e '.s:GetAbsolutePath(file)
   else
     let item.expand = 1 - item.expand
     call s:ShowStatus()
@@ -979,7 +994,7 @@ function! s:GetChangedFileDisplay(file, prefix = '  ')
   if isdirectory(filename)
     let dir = ''
   else
-    let file_dir = fnamemodify($vim_project.'/'.filename, ':p:h')
+    let file_dir = fnamemodify(s:GetAbsolutePath(filename), ':p:h')
     let project_dir = project#GetProjectDirectory()
     if file_dir == project_dir[0:-2]
       let dir = ''
