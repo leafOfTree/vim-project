@@ -17,8 +17,10 @@ let s:commit_diffs = []
 
 let s:default_folder_name = 'Default'
 let s:untracked_folder_name = 'Untracked'
+let s:staged_folder_name = 'Staged'
 let s:changed_files = []
 let s:untracked_files = []
+let s:staged_files = []
 let s:commit_files = []
 let s:file_regexp = '|\zs.*\ze|'
 let s:directory_regexp = '| \zs.*$'
@@ -31,6 +33,11 @@ let s:changelist_default = [
       \},
       \{
       \ 'name': s:untracked_folder_name,
+      \ 'files': [],
+      \ 'expand': 0,
+      \},
+      \{
+      \ 'name': s:staged_folder_name,
       \ 'files': [],
       \ 'expand': 0,
       \},
@@ -401,7 +408,9 @@ function! s:ShowDiffOnChangelist()
 endfunction
 
 function! s:AddChangeDetails(file)
-  if s:IsUntrackedFile(a:file)
+  if s:IsStagedFile(a:file)
+    let cmd = 'git diff --staged -- '.a:file.''
+  elseif s:IsUntrackedFile(a:file)
     let cmd = 'git diff --no-index -- /dev/null '.a:file.''
   else
     let cmd = 'git diff -- '.a:file
@@ -417,6 +426,11 @@ function! s:IsUntrackedFile(file)
     endif
   endfor
   return 0
+endfunction
+
+function! s:IsStagedFile(file)
+  let folder = s:GetBelongFolder(line('.'))
+  return s:IsStagedFolder(folder)
 endfunction
 
 function! s:RunJob(cmd, exit_cb, buf_nr)
@@ -766,13 +780,22 @@ function! s:NewChangelist()
   endif
 endfunction
 
+function! s:IsInvalidMoveToName(name)
+  return empty(name) || name == s:staged_folder_name
+endfunction
+
 function! s:MoveToChangelist() range
   let lnum = line('.')
+  let belong_folder = s:GetBelongFolder(lnum)
+  if s:IsStagedFolder(belong_folder)
+    return
+  endif
+
   let folder = s:GetCurrentFolder(lnum)
 
   if !empty(folder)
     let name = input('Move to: ', '', 'customlist,VimProjectAllFolderNames')
-    if empty(name)
+    if s:IsInvalidMoveToName(name)
       return
     endif
 
@@ -781,7 +804,7 @@ function! s:MoveToChangelist() range
     let file = s:GetCurrentFile()
     if !empty(file)
       let name = input('Move to: ', '', 'customlist,VimProjectAllFolderNames')
-      if empty(name)
+      if s:IsInvalidMoveToName(name)
         return
       endif
 
@@ -902,7 +925,12 @@ function! s:GetPrefixAndSuffix(folder)
   let suffix = ''
 
   let file_num = 0
-  for file in (s:changed_files + s:untracked_files)
+  if s:IsStagedFolder(a:folder)
+    let affected_files = s:staged_files
+  else
+    let affected_files = s:changed_files + s:untracked_files
+  endif
+  for file in (affected_files)
     if s:HasFile(a:folder.files, file)
       let file_num += 1
     endif
@@ -927,6 +955,9 @@ function! s:UpdatePresetChangelist()
   for file in s:changed_files
     let in_default = 1
     for folder in s:changelist
+      if s:IsStagedFolder(folder)
+        continue
+      endif
       if s:HasFile(folder.files, file)
         let in_default = 0
       endif
@@ -937,7 +968,8 @@ function! s:UpdatePresetChangelist()
     endif
   endfor
 
-  let s:changelist[-1].files = []
+  let untracked_folder = s:FindUntrackedFolder()
+  let untracked_folder.files = []
   for file in s:untracked_files
     let in_untracked = 1
     for folder in s:changelist
@@ -947,22 +979,33 @@ function! s:UpdatePresetChangelist()
     endfor
 
     if in_untracked
-      call add(s:changelist[-1].files, s:GetFilename(file))
+      call add(untracked_folder.files, s:GetFilename(file))
     endif
+  endfor
+
+  let staged_folder = s:FindStagedFolder()
+  let staged_folder.files = []
+  for file in s:staged_files
+    call add(staged_folder.files, s:GetFilename(file))
   endfor
 endfunction
 
 function! s:UpdateChangelistDisplay()
   let s:display = []
   for folder in s:changelist
-    if s:IsUntrackedFolder(folder) && empty(folder.files)
+    if s:IsSpecialFolder(folder) && empty(folder.files)
       continue
     endif
     let [prefix, suffix] = s:GetPrefixAndSuffix(folder)
     let folder_item = prefix.' '.folder.name.' '.suffix
     call add(s:display, folder_item)
     if folder.expand
-      let all_files = s:SortAffectedFiles(s:changed_files + s:untracked_files)
+      if s:IsStagedFolder(folder)
+        let affected_files = s:staged_files
+      else
+        let affected_files = s:changed_files + s:untracked_files
+      endif
+      let all_files = s:SortAffectedFiles(affected_files)
       for file in all_files
         if s:HasFile(folder.files, file)
           let file_item = s:GetChangedFileDisplay(file)
@@ -1022,6 +1065,7 @@ endfunction
 function! s:UpdateChangelist(run_git = 0)
   if a:run_git
     let s:changed_files = project#RunShellCmd('git diff --name-status')
+    let s:staged_files = project#RunShellCmd('git diff --staged --name-status')
     if !empty(s:changed_files) && s:changed_files[0] =~ 'Not a git repository'
       return 0
     endif
@@ -1034,8 +1078,34 @@ function! s:UpdateChangelist(run_git = 0)
   return 1
 endfunction
 
+function! s:IsSpecialFolder(folder)
+  return s:IsStagedFolder(a:folder) || s:IsUntrackedFolder(a:folder)
+endfunction
+
+function! s:FindStagedFolder()
+  for folder in s:changelist
+    if s:IsStagedFolder(folder)
+      return folder
+    endif
+  endfor
+endfunction
+
+function! s:FindUntrackedFolder()
+  for folder in s:changelist
+    if s:IsUntrackedFolder(folder)
+      return folder
+    endif
+  endfor
+endfunction
+
+function! s:IsStagedFolder(folder)
+  let name = a:folder.name
+  return name == s:staged_folder_name
+endfunction
+
 function! s:IsUntrackedFolder(folder)
-  return a:folder.name == s:untracked_folder_name
+  let name = a:folder.name
+  return name == s:untracked_folder_name
 endfunction
 
 function! s:HasFile(files, file)
