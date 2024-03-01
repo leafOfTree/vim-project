@@ -2025,7 +2025,8 @@ function! s:ReadLocalConfig()
   if !empty(local_config)
     for key in s:local_config_keys
       if has_key(local_config, key)
-        if type(local_config[key]) == v:t_list
+        let key_type = type(local_config[key])
+        if key_type == v:t_list || key_type == v:t_dict
           let s:[key] = extend(copy(s:[key]), local_config[key])
         else
           let s:[key] = local_config[key]

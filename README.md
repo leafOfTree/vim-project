@@ -401,7 +401,7 @@ Quit
 
 ### Project local config
 
-These options,  **list types can be extended**,  others overridden, via `g:vim_project_local_config` in the project's `init.vim`. E.g. 
+These options,  **list or dict types are extended**,  others overridden, via `g:vim_project_local_config` in the project's `init.vim`. E.g. 
 
 ```vim
 let g:vim_project_local_config = {
@@ -442,7 +442,7 @@ let g:vim_project_local_config.file_mappings = {
     \'l': ['autoload/project.vim', 'plugin/project.vim'],
     \'t': ['html', 'css'],
     \'c': function('StyleInUpperDir'),
-    \'i': {->$vim_project_config.'/init.vim'},
+    \'i': {-> $vim_project_config.'/init.vim'},
     \'d': {-> expand('%:p:h:h').'/'.expand('%:r').'.css'},
 \}
 ```
