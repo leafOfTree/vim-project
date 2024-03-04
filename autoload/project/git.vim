@@ -478,7 +478,8 @@ function! s:AddChangeDetailsOld(file)
   let changes = project#RunShellCmd(cmd)
   if empty(changes)
     " For untracked files
-    " Have to add ' || true' as 'git diff --no-index' returns 0 for no changes, 1 changes
+    " Have to add ' || true' 
+    " as 'git diff --no-index' returns 0 for no changes, 1 for changes
     let cmd = 'git diff --no-index -- /dev/null '.a:file.' || true'
     let changes = project#RunShellCmd(cmd)
   endif
@@ -781,7 +782,7 @@ function! s:NewChangelist()
 endfunction
 
 function! s:IsInvalidMoveToName(name)
-  return empty(name) || name == s:staged_folder_name
+  return empty(a:name) || a:name == s:staged_folder_name
 endfunction
 
 function! s:MoveToChangelist() range
@@ -1088,6 +1089,10 @@ function! s:FindStagedFolder()
       return folder
     endif
   endfor
+
+  let default_folder = s:changelist_default[-1]
+  call add(s:changelist, default_folder)
+  return default_folder
 endfunction
 
 function! s:FindUntrackedFolder()
@@ -1096,6 +1101,10 @@ function! s:FindUntrackedFolder()
       return folder
     endif
   endfor
+
+  let default_folder = s:changelist_default[-2]
+  call add(s:changelist, default_folder)
+  return default_folder
 endfunction
 
 function! s:IsStagedFolder(folder)
@@ -1124,6 +1133,7 @@ function! s:ShowStatus(run_git = 0)
   let success = s:UpdateChangelist(a:run_git)
   if success
     call s:WriteChangelist()
+    call s:HighlightChangelist()
   endif
 
   let &eventignore = save_eventignore
@@ -1169,11 +1179,15 @@ function! s:WriteChangelist()
   setlocal modifiable
   call execute('normal! gg"_dG', 'silent!')
   call append(0, s:display)
-  call s:HighlightFiles(s:display)
-  call matchadd('Comment', '\d\+ files\?')
-  call matchadd('Keyword', s:folder_regexp)
   normal gg
   setlocal nomodifiable
+endfunction
+
+function! s:HighlightChangelist()
+  call s:HighlightFiles(s:display)
+  call matchadd('Keyword', s:folder_regexp)
+  call matchadd('Comment', '\d\+ files\?')
+  call matchadd('Normal', 'Staged')
 endfunction
 
 function! s:HighlightFiles(lines)
@@ -1213,6 +1227,7 @@ function! s:Commit()
   if empty(commit_files)
     return 
   endif
+  let commit_files = commit_files + s:staged_files
   let s:commit_files = map(copy(commit_files), {idx, file -> s:GetFilename(file)})
   let show_commit_files = map(copy(commit_files), {idx, file -> '#    '.file})
 
