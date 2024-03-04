@@ -1231,7 +1231,7 @@ function! project#Tabulate(list, keys, min_col_width = 0, max_col_width = &colum
         if has_key(item, key)
           let value = item['__'.key]
           if len(value) > a:max_col_width
-            let value = s:Truncate(value, a:max_col_width, '.. ')
+            let value = s:Truncate(value, a:max_col_width, '..')
             let item['__'.key] = value
           endif
           if !has_key(max, key) || len(value) > max[key]

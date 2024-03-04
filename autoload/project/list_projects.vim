@@ -15,7 +15,7 @@ endfunction
 
 function! s:Init(input)
   let projects = project#GetVariable('projects')
-  let max_col_width = project#GetVariable('max_width') / 2 - 10
+  let max_col_width = project#GetVariable('max_width') / 3 - 3
   call project#Tabulate(projects, ['name', 'path', 'note'], 0, max_col_width)
   call s:Update(a:input)
 endfunction
