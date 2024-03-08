@@ -154,19 +154,18 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 
 > You can try adjusting `wildmenu`, `wildmode` for enhanced command-line completion
 
-### :Project `<path>[, option]`
+### :Project `<path>`
 
 `path`: If `path` is relative or a project name , it'll search with both current working directory and `g:vim_project_config.project_base` as path base . In addition, you can use <kbd>Tab</kbd> to auto complete the path.
 
 > Relative means path doesn't start with `/`, `~` or `C:/`.
 
-`option`
-
-- `note`: Description shown on project list.
+Optional: you can add "note" which will be shown on project list by `:Project <path> "note for project"`.
 
 Example
 ```vim
-Project /path/to/demo, { "note": "A demo" }
+Project /path/to/demo
+Project /path/to/demo "This is a demo"
 
 " Current working directory (:pwd) is /path/to
 Project demo
