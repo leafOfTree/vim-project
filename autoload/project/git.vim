@@ -141,7 +141,7 @@ function! s:AddDiffDetails(hash, file)
   if is_diff_line
     let changes = s:commit_diffs[a:hash]
   else
-    let cmd = 'git show --pretty=format:"" '.a:hash.' -- '.a:file
+    let cmd = 'git show --first-parent --pretty=format:"" '.a:hash.' -- '.a:file
     let changes = project#RunShellCmd(cmd)
   endif
 
