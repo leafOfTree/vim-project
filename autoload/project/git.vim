@@ -1144,7 +1144,7 @@ function! s:SetupChangelistBuffer()
   nnoremap<buffer><silent> d :call <SID>DeleteFolder()<cr>
   nnoremap<buffer><silent> c :call <SID>Commit()<cr>
   nnoremap<buffer><silent> u :call <SID>TryPull()<cr>
-  nnoremap<buffer><silent> p :call <SID>TryPush()<cr>
+  nnoremap<buffer><silent> p :call <SID>TryPullThenPush()<cr>
 
   " <silent> may cause cursor not show in nvim
   nnoremap<buffer> r :call <SID>RenameFolderOrRollbackFile()<cr>
@@ -1306,7 +1306,7 @@ function! s:TryCommit()
   quit
   call s:OpenResultWindow(s:commit_result_buffer, cmd, result)
   nnoremap<buffer><silent> u :call <SID>TryPull()<cr>
-  nnoremap<buffer><silent> p :call <SID>TryPush()<cr>
+  nnoremap<buffer><silent> p :call <SID>TryPullThenPush()<cr>
 endfunction
 
 function! s:TryPush()
@@ -1324,6 +1324,15 @@ function! s:TryPush()
     call project#Info('Pushed sucessfully')
   endif
   call s:CloseBuffer(s:commit_result_buffer)
+endfunction
+
+function! s:TryPullThenPush()
+  call s:TryPull()
+  if v:shell_error
+    return
+  endif
+
+  call s:TryPush()
 endfunction
 
 function! s:TryPull()
