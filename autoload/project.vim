@@ -248,9 +248,25 @@ function! s:AdjustIncludeExcludePath(paths, default)
 endfunction
 
 function! s:GetAddArgs(args)
+  if match(a:args, ',\s*\ze{') != -1
+    return s:GetAddArgsLegacy(a:args)
+  endif
+
+  return s:GetAddArgsNew(a:args)
+endfunction
+
+function! s:GetAddArgsLegacy(args)
   let args = split(a:args, ',\s*\ze{')
   let path = args[0]
   let option = len(args) > 1 ? json_decode(args[1]) : {}
+  return [path, option]
+endfunction
+
+function! s:GetAddArgsNew(args)
+  let args = split(a:args, ' *\("\|''\)')
+  let path = args[0]
+  let note = len(args) > 1 ? args[1] : ''
+  let option = { 'note': note }
   return [path, option]
 endfunction
 
