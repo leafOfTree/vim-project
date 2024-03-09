@@ -70,6 +70,12 @@ function! s:Open(branch, open_cmd, input)
   if v:shell_error
     return
   endif
+  let set_upstream_cmd = 'git branch --set-upstream-to '.a:branch.name
+  call project#RunShellCmd(set_upstream_cmd)
+  if v:shell_error
+    return
+  endif
+
   call project#Info('Checked out: '.a:branch.name)
 endfunction
 
