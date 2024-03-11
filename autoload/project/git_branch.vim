@@ -1,10 +1,10 @@
 let s:name = ''
 let s:splitter = ' ||| '
-let s:item_splitter = '-----------------------'
+let s:item_splitter = '----------------------------------------------'
 let s:item_new_branch = 'New Branch'
 
 function! project#git_branch#Show()
-  let prompt = 'Check out a branch:' 
+  let prompt = 'Switch to a branch:' 
 
   call project#PrepareListBuffer(prompt, 'GIT_BRANCH')
   let Init = function('s:Init')
@@ -43,40 +43,51 @@ function! s:Open(branch, open_cmd, input)
     return
   elseif a:branch.head == '+'
     let name = input('New branch name: ', '')
-    let cmd = 'git checkout -b '.name
+    let cmd = 'git switch -c '.name
     call project#RunShellCmd(cmd)
     if v:shell_error
       return
     endif
     redraw
-    call project#Info('Checked out new branch: '.name)
+    call project#Info('Switched to new branch: '.name)
     return
   endif
 
   let name = split(a:branch.name, '/')[-1]
+  let is_head = s:IsHead(name)
+  let name_exist = s:CheckNameExist(name)
 
-  let check_exist_cmd = 'git show-ref --verify --quiet refs/heads/'.name
-  call project#RunShellCmd(check_exist_cmd)
-  let exist = !v:shell_error
-  if name == 'HEAD' 
+  if is_head 
     let cmd = 'git checkout '.a:branch.name
-  elseif exist
-    let cmd = 'git checkout '.name
+  elseif name_exist
+    let cmd = 'git switch '.name
   else
-    let cmd = 'git checkout -b '.name.' '.a:branch.name
+    let cmd = 'git switch -c '.name.' '.a:branch.name
   endif
 
   call project#RunShellCmd(cmd)
   if v:shell_error
     return
   endif
-  let set_upstream_cmd = 'git branch --set-upstream-to '.a:branch.name
-  call project#RunShellCmd(set_upstream_cmd)
-  if v:shell_error
-    return
+  if !is_head
+    let set_upstream_cmd = 'git branch --set-upstream-to '.a:branch.name
+    call project#RunShellCmd(set_upstream_cmd)
+    if v:shell_error
+      return
+    endif
   endif
 
-  call project#Info('Checked out: '.a:branch.name)
+  call project#Info('Switched to: '.a:branch.name)
+endfunction
+
+function! s:IsHead(name)
+  return a:name == 'HEAD'
+endfunction
+
+function! s:CheckNameExist(name)
+  let check_exist_cmd = 'git show-ref --verify --quiet refs/heads/'.a:name
+  call project#RunShellCmd(check_exist_cmd)
+  return !v:shell_error
 endfunction
 
 function! s:HighlightSpecialItem()
