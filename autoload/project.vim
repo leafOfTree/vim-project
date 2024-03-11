@@ -114,6 +114,9 @@ function! s:Prepare()
         \'stop_task':             "\<c-q>",
         \'open_task_terminal':    "\<c-o>",
         \}
+  let s:default.list_mappings_git = {
+        \'checkout_revision':     "\<c-o>",
+        \}
   let s:default.file_open_types = {
         \'':  'edit',
         \'s': 'split',
@@ -127,6 +130,8 @@ function! s:Prepare()
   let s:projects = []
   let s:projects_error = []
   let s:projects_ignore = []
+
+  let s:info_on_close_list = ''
 endfunction
 
 function! s:GetConfig(name, default)
@@ -151,6 +156,7 @@ function! s:MergeUserConfigIntoDefault(user, default)
         \'list_mappings_search_files'
         \'list_mappings_find_in_files'
         \'list_mappings_run_tasks',
+        \'list_mappings_git',
         \]
 
   for key in merge_keys
@@ -196,6 +202,7 @@ function! s:InitConfig()
   let s:list_mappings_search_files = s:config.list_mappings_search_files
   let s:list_mappings_find_in_files = s:config.list_mappings_find_in_files
   let s:list_mappings_run_tasks = s:config.list_mappings_run_tasks
+  let s:list_mappings_git = s:config.list_mappings_git
   let s:open_types = s:config.file_open_types
   let s:tasks = s:config.tasks
   let s:new_tasks = s:config.new_tasks
@@ -543,6 +550,18 @@ endfunction
 
 function! project#Info(msg, ...)
   echom '['.s:name.'] '.a:msg
+endfunction
+
+function! project#SetInfoOnCloseList(msg)
+  let s:info_on_close_list = a:msg
+endfunction
+
+function! project#InfoOnCloseList()
+  if empty(s:info_on_close_list)
+    return
+  endif
+  echom '['.s:name.'] '.s:info_on_close_list
+  let s:info_on_close_list = ''
 endfunction
 
 function! project#InfoEcho(msg)
@@ -1237,14 +1256,16 @@ endfunction
 
 function! s:GetListCommand(char)
   let mappings = {}
-  if s:list_type == 'PROJECTS'
+  if s:IsProjectList()
     let mappings = s:list_mappings_projects
-  elseif s:list_type == 'SEARCH_FILES'
+  elseif s:IsSearchFilesList()
     let mappings = s:list_mappings_search_files
-  elseif s:list_type == 'FIND_IN_FILES'
+  elseif s:IsFindInFilesList()
     let mappings = s:list_mappings_find_in_files
-  elseif s:list_type == 'RUN_TASKS'
+  elseif s:IsRunTasksList()
     let mappings = s:list_mappings_run_tasks
+  elseif s:IsGitLogList() || s:IsGitFileHistoryList()
+    let mappings = s:list_mappings_git
   endif
   " the first takes effect
   let list_mappings = [mappings, s:list_mappings]
@@ -1352,6 +1373,7 @@ function! project#RenderList(Init, Update, Open, Close = v:null)
   if !s:IsOpenCmd(cmd) && a:Close != v:null
     call a:Close()
   endif
+  call project#InfoOnCloseList()
 endfunction
 
 function! s:InitListVariables(Init)
@@ -1461,10 +1483,13 @@ function! s:HandleInput(input, Update, Open)
         if !keep_window
           break
         endif
-      elseif s:IsOpenCmd(cmd)
-        break
       elseif cmd == 'stop_task'
         call project#run_tasks#StopTaskHandler(input)
+      elseif cmd == 'checkout_revision'
+        call project#git#CheckoutRevision()
+        break
+      elseif s:IsOpenCmd(cmd)
+        break
       else
         let input = input.char
       endif
@@ -1536,6 +1561,10 @@ endfunction
 function! s:IsOpenCmd(cmd)
   let open_cmds = ['open', 'open_split', 'open_vsplit', 'open_tabedit', 'run_task', 'open_task_terminal']
   return count(open_cmds, a:cmd) > 0
+endfunction
+
+function! s:IsProjectList()
+  return s:list_type == 'PROJECTS'
 endfunction
 
 function! s:IsFindInFilesList()

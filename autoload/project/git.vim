@@ -626,6 +626,19 @@ function! project#git#pull()
   call s:TryPull()
 endfunction
 
+function! project#git#CheckoutRevision()
+  let target = project#GetTarget()
+  let cmd = 'git checkout '.target.hash
+  call project#RunShellCmd(cmd)
+  if v:shell_error
+    return
+  endif
+
+  call project#SetVariable('offset', 0)
+  let msg = 'Checkouted revision: '.target.hash.'; '.target.message
+  call project#SetInfoOnCloseList(msg)
+endfunction
+
 function! s:GetAbsolutePath(file)
   return $vim_project.'/'.a:file
 endfunction
