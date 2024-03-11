@@ -21,8 +21,8 @@ function! s:Init(input)
   let current = filter(copy(branches), 'v:val[0] == "*"')
   call filter(branches, 'v:val[0] != "*"')
   call insert(branches, current[0])
-  call insert(branches, s:CreateCustomItem(' ', s:item_splitter))
-  call insert(branches, s:CreateCustomItem('+', s:item_new_branch))
+  call insert(branches, s:CreateItem(' ', s:item_splitter))
+  call insert(branches, s:CreateItem('+', s:item_new_branch))
   let s:list = s:GetTabulatedList(branches)
   call s:Update(a:input)
 endfunction
@@ -42,14 +42,7 @@ function! s:Open(branch, open_cmd, input)
   if a:branch.head == '*' || a:branch.name == s:item_splitter
     return
   elseif a:branch.head == '+'
-    let name = input('New branch name: ', '')
-    let cmd = 'git switch -c '.name
-    call project#RunShellCmd(cmd)
-    if v:shell_error
-      return
-    endif
-    redraw
-    call project#Info('Switched to new branch: '.name)
+    call s:CreateNewBranch()
     return
   endif
 
@@ -80,6 +73,21 @@ function! s:Open(branch, open_cmd, input)
   call project#Info('Switched to: '.a:branch.name)
 endfunction
 
+function! s:CreateNewBranch()
+  let name = input('New branch name: ', '')
+  if empty(name)
+    return
+  endif
+
+  let cmd = 'git switch -c '.name
+  call project#RunShellCmd(cmd)
+  if v:shell_error
+    return
+  endif
+  redraw
+  call project#Info('Switched to new branch: '.name)
+endfunction
+
 function! s:IsHead(name)
   return a:name == 'HEAD'
 endfunction
@@ -94,7 +102,7 @@ function! s:HighlightSpecialItem()
   call matchadd('Keyword', '\* \S*')
 endfunction
 
-function! s:CreateCustomItem(head, text)
+function! s:CreateItem(head, text)
   return a:head.s:splitter.a:text.s:splitter.s:splitter.s:splitter.s:splitter
 endfunction
 
