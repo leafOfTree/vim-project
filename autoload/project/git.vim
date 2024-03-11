@@ -635,7 +635,7 @@ function! project#git#CheckoutRevision()
   endif
 
   call project#SetVariable('offset', 0)
-  let msg = 'Checkouted revision: '.target.hash.' - '.target.message
+  let msg = 'Checked out revision: '.target.hash.' - '.target.message
   call project#SetInfoOnCloseList(msg)
 endfunction
 
