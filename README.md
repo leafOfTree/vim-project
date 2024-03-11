@@ -341,6 +341,9 @@ let g:vim_project_config.list_mappings_run_tasks = {
       \'stop_task':             "\<c-q>",
       \'open_task_terminal':    "\<c-o>",
       \}
+let g:vim_project_config.list_mappings_git = {
+      \'checkout_revision':     "\<c-o>",
+      \}
 ```
 
 | Option                        | Description                                                                   |
