@@ -50,7 +50,9 @@ command ProjectGitCommit call project#git#Status()
 
 command ProjectGitStatus call project#git#Status()
 
-command ProjectGitBranches call project#git_branch#Show()
+command ProjectGitBranch call project#git_branch#Show()
+
+command ProjectGitTag call project#git_tag#Show()
 
 command -complete=customlist,project#ListDirs -nargs=1 
       \ ProjectNew call project#new_project#NewProject(<q-args>)
