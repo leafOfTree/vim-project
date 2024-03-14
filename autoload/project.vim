@@ -496,7 +496,7 @@ function! s:InitProjectConfig(project)
           \'" Variables:    $vim_project, $vim_project_config',
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \'',
-          \'" Local config. Those of list types extend global config. Others override',
+          \'" Local config. Those of list or dict types extend global config. Others override',
           \'" let g:vim_project_local_config = {',
           \'"   \''include'': [''./''],',
           \'"   \''exclude'': [''.git'', ''node_modules'', ''.DS_Store''],',
@@ -519,8 +519,6 @@ function! s:InitProjectConfig(project)
           \'"   \}',
           \'',
           \'let g:vim_project_local_config = {',
-          \'\}',
-          \'let g:vim_project_local_config.file_mappings = {',
           \'\}',
           \]
     call writefile(init_content, init_file)
