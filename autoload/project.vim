@@ -286,7 +286,12 @@ function! project#AddProject(args)
 
   let save_path = project#ReplaceHomeWithTide(s:GetFullPath(path))
   if !empty(option)
-    call s:SaveToAddFile(save_path.', '.json_encode(option))
+    let note = get(option, 'note')
+    if !empty(note)
+      call s:SaveToAddFile(save_path.' "'.note.'"')
+    else
+      call s:SaveToAddFile(save_path)
+    endif
   else
     call s:SaveToAddFile(save_path)
   endif

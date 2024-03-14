@@ -1,7 +1,8 @@
+let s:origin_name = ''
 let s:name = ''
 
 function! project#new_project#NewProject(name)
-  let s:name = expand(a:name)
+  call s:ParseName(a:name)
   if !s:IsValidName()
     call project#Warn(s:name.' already exists')
     return 
@@ -14,6 +15,12 @@ function! project#new_project#NewProject(name)
   let Update = function('s:Update')
   let Open = function('s:Open')
   call project#RenderList(Init, Update, Open)
+endfunction
+
+function! s:ParseName(name)
+  let s:origin_name = a:name
+  let args = split(a:name, ' *\("\|''\)')
+  let s:name = expand(args[0])
 endfunction
 
 function! s:GetCwd()
@@ -73,7 +80,7 @@ endfunction
 
 function! s:OnJobEnds(job, status, ...)
   if !empty(s:name) && a:status == 0
-    let error = project#AddProject(s:name)
+    let error = project#AddProject(s:origin_name)
     if empty(error)
       let post_cmd = project#GetVariable('new_tasks_post_cmd')
       if !empty(post_cmd)
