@@ -18,9 +18,11 @@ let s:commit_diffs = []
 let s:default_folder_name = 'Default'
 let s:untracked_folder_name = 'Untracked'
 let s:staged_folder_name = 'Staged'
+let s:unmerged_folder_name = 'Unmerged'
 let s:changed_files = []
 let s:untracked_files = []
 let s:staged_files = []
+let s:unmerged_files = []
 let s:commit_files = []
 let s:file_regexp = '|\zs.*\ze|'
 let s:directory_regexp = '| \zs.*$'
@@ -30,6 +32,11 @@ let s:changelist_default = [
       \ 'name': s:default_folder_name,
       \ 'files': [],
       \ 'expand': 1,
+      \},
+      \{
+      \ 'name': s:unmerged_folder_name,
+      \ 'files': [],
+      \ 'expand': 0,
       \},
       \{
       \ 'name': s:untracked_folder_name,
@@ -677,10 +684,10 @@ function! s:SortChangelist()
 endfunction
 
 function! s:SortChangelistFunc(i1, i2)
-  if a:i1.name == s:default_folder_name || a:i2.name == s:untracked_folder_name
+  if s:IsDefaultFolder(a:i1) || s:IsSpecialFolder(a:i2)
     return -1
   endif
-  if a:i1.name == s:untracked_folder_name || a:i2.name == s:default_folder_name
+  if s:IsSpecialFolder(a:i1) || s:IsDefaultFolder(a:i2)
     return 1
   endif
 
@@ -749,8 +756,7 @@ function! s:IsFileUntracked(file)
 endfunction
 
 function! s:IsUserFolder(item)
-  return !empty(a:item) 
-        \&& a:item.name != s:default_folder_name && a:item.name != s:untracked_folder_name
+  return !empty(a:item) && !s:IsDefaultFolder(a:item) && !s:IsSpecialFolder(a:item)
 endfunction
 
 function! s:DeleteFolder()
@@ -795,13 +801,13 @@ function! s:NewChangelist()
 endfunction
 
 function! s:IsInvalidMoveToName(name)
-  return empty(a:name) || a:name == s:staged_folder_name
+  return empty(a:name) || a:name == s:staged_folder_name || a:name == s:unmerged_folder_name
 endfunction
 
 function! s:MoveToChangelist() range
   let lnum = line('.')
   let belong_folder = s:GetBelongFolder(lnum)
-  if s:IsStagedFolder(belong_folder)
+  if s:IsStagedFolder(belong_folder) || s:IsUnmergedFolder(belong_folder)
     return
   endif
 
@@ -941,6 +947,8 @@ function! s:GetPrefixAndSuffix(folder)
   let file_num = 0
   if s:IsStagedFolder(a:folder)
     let affected_files = s:staged_files
+  elseif s:IsUnmergedFolder(a:folder)
+    let affected_files = s:unmerged_files
   else
     let affected_files = s:changed_files + s:untracked_files
   endif
@@ -966,33 +974,41 @@ function! s:AddUntrackedPrefix(files)
 endfunction
 
 function! s:UpdatePresetChangelist()
+  let unmerged_folder = s:FindUnmergedFolder()
+  let unmerged_folder.files = []
+  for file in s:unmerged_files
+    call add(unmerged_folder.files, s:GetFilename(file))
+  endfor
+
+  let default_folder = s:changelist[0]
+  let default_folder.files = []
   for file in s:changed_files
-    let in_default = 1
+    let included = 0
     for folder in s:changelist
       if s:IsStagedFolder(folder)
         continue
       endif
       if s:HasFile(folder.files, file)
-        let in_default = 0
+        let included = 1
       endif
     endfor
 
-    if in_default
-      call add(s:changelist[0].files, s:GetFilename(file))
+    if !included
+      call add(default_folder.files, s:GetFilename(file))
     endif
   endfor
 
   let untracked_folder = s:FindUntrackedFolder()
   let untracked_folder.files = []
   for file in s:untracked_files
-    let in_untracked = 1
+    let included = 0
     for folder in s:changelist
       if s:HasFile(folder.files, file)
-        let in_untracked = 0
+        let included = 1
       endif
     endfor
 
-    if in_untracked
+    if !included
       call add(untracked_folder.files, s:GetFilename(file))
     endif
   endfor
@@ -1016,6 +1032,8 @@ function! s:UpdateChangelistDisplay()
     if folder.expand
       if s:IsStagedFolder(folder)
         let affected_files = s:staged_files
+      elseif s:IsUnmergedFolder(folder)
+        let affected_files = s:unmerged_files
       else
         let affected_files = s:changed_files + s:untracked_files
       endif
@@ -1078,8 +1096,9 @@ endfunction
 
 function! s:UpdateChangelist(run_git = 0)
   if a:run_git
-    let s:changed_files = project#RunShellCmd('git diff --name-status')
-    let s:staged_files = project#RunShellCmd('git diff --staged --name-status')
+    let s:unmerged_files = project#RunShellCmd('git diff --name-status --diff-filter=U')
+    let s:changed_files = project#RunShellCmd('git diff --name-status --diff-filter=u')
+    let s:staged_files = project#RunShellCmd('git diff --staged --name-status --diff-filter=u')
     if !empty(s:changed_files) && s:changed_files[0] =~ 'Not a git repository'
       return 0
     endif
@@ -1093,17 +1112,19 @@ function! s:UpdateChangelist(run_git = 0)
 endfunction
 
 function! s:IsSpecialFolder(folder)
-  return s:IsStagedFolder(a:folder) || s:IsUntrackedFolder(a:folder)
+  return s:IsStagedFolder(a:folder)
+        \ || s:IsUntrackedFolder(a:folder) 
+        \ || s:IsUnmergedFolder(a:folder)
 endfunction
 
-function! s:FindStagedFolder()
+function! s:FindUnmergedFolder()
   for folder in s:changelist
-    if s:IsStagedFolder(folder)
+    if s:IsUnmergedFolder(folder)
       return folder
     endif
   endfor
 
-  let default_folder = s:changelist_default[-1]
+  let default_folder = s:changelist_default[-3]
   call add(s:changelist, default_folder)
   return default_folder
 endfunction
@@ -1120,14 +1141,32 @@ function! s:FindUntrackedFolder()
   return default_folder
 endfunction
 
+function! s:FindStagedFolder()
+  for folder in s:changelist
+    if s:IsStagedFolder(folder)
+      return folder
+    endif
+  endfor
+
+  let default_folder = s:changelist_default[-1]
+  call add(s:changelist, default_folder)
+  return default_folder
+endfunction
+
+function! s:IsDefaultFolder(folder)
+  return a:folder.name == s:default_folder_name
+endfunction
+
 function! s:IsStagedFolder(folder)
-  let name = a:folder.name
-  return name == s:staged_folder_name
+  return a:folder.name == s:staged_folder_name
 endfunction
 
 function! s:IsUntrackedFolder(folder)
-  let name = a:folder.name
-  return name == s:untracked_folder_name
+  return a:folder.name == s:untracked_folder_name
+endfunction
+
+function! s:IsUnmergedFolder(folder)
+  return a:folder.name == s:unmerged_folder_name
 endfunction
 
 function! s:HasFile(files, file)
@@ -1200,7 +1239,8 @@ function! s:HighlightChangelist()
   call s:HighlightFiles(s:display)
   call matchadd('Keyword', s:folder_regexp)
   call matchadd('Comment', '\d\+ files\?')
-  call matchadd('Normal', 'Staged')
+  call matchadd('Normal', s:staged_folder_name)
+  call matchadd('Normal', s:unmerged_folder_name)
 endfunction
 
 function! s:HighlightFiles(lines)
@@ -1235,13 +1275,12 @@ function! s:Commit()
     let files = [file]
   endif
 
-  let check_files = s:changed_files + s:untracked_files
+  let check_files = s:changed_files + s:untracked_files + s:staged_files + s:unmerged_files
   let commit_files = filter(check_files, {idx, file -> s:HasFile(files, file)}) 
   if empty(commit_files)
     return 
   endif
-  let commit_files = commit_files + s:staged_files
-  let s:commit_files = map(copy(commit_files), {idx, file -> s:GetFilename(file)})
+  let s:commit_files = uniq(map(copy(commit_files), {idx, file -> s:GetFilename(file)}))
   let show_commit_files = map(copy(commit_files), {idx, file -> '#    '.file})
 
   let title = s:GetCommitMessage()
@@ -1290,7 +1329,7 @@ function! s:ShowCommitMessage(title, files)
 
   setlocal buftype=nofile bufhidden=wipe nobuflisted filetype=gitcommit
   syntax match Normal /#\s\{4}\zs.*/ containedin=gitcommitSelected
-  autocmd WinClosed <buffer> ++once  call s:TryCommit()
+  autocmd WinClosed <buffer> ++once call s:TryCommit()
 endfunction
 
 function! s:TryCommit()
