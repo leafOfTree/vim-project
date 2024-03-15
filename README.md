@@ -69,7 +69,8 @@ Project-wide
 
 ## Basic Usage
 
-- `:Project /path/to/project`
+- `:Project <path>`
+- `:ProjectNew <path>`
 - `:ProjectList` 
 - `:ProjectSearchFiles`
 - `:ProjectFindInFiles`
@@ -130,7 +131,7 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 
 ## Workflow
 
-- Add `:Project <path/to/project>`
+- Add `:Project <path>` | `:ProjectNew <path>`
 
 - Open `:ProjectList` | `:ProjectOpen <name>`
 
@@ -140,9 +141,10 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 
 ## Commands
 
-| command                    | description                              |
+| Command                    | Description                              |
 |----------------------------|------------------------------------------|
-| Project `<path>[, option]` | Add project, then open it                |
+| Project `<path>`           | Add existing project, then open it       |
+| ProjectNew `<path>`        | Create new project by running predefined tasks |
 | ProjectList                | Show all projects                        |
 | ProjectSearchFiles         | Search files by name                     |
 | ProjectFindInFiles         | Find given string/regexp (at least 2 chars) in files |
@@ -181,6 +183,43 @@ Project ../to
 
 " g:vim_project_config.project_base is set to ['/path/to']
 Project demo
+```
+
+### :ProjectNew `<path>`
+
+`path`: If `path` is relative or a name, it'll use current working directory as path base. You can use <kbd>Tab</kbd> to auto complete.
+
+`new_tasks` defines tasks to create new project. 
+
+- `name`: task name
+- `cmd`: command to run
+- `arg`: optional, the value is from what user types and will be appended to `cmd`
+
+By default, the configuration is
+
+```vim
+        \'new_tasks': [
+          \{ 'name': 'git', 'cmd': 'git clone', 'args': 'url' },
+          \{ 'name': 'empty', 'cmd': 'mkdir' },
+        \],
+```
+
+Example configuration 
+
+```vim
+let g:vim_project_config = {
+      \...
+      \'new_tasks': [
+        \ { 'name': 'mdbook', 'cmd': 'mdbook init' },
+        \ { 'name': 'vite', 'cmd': 'npm create vite@latest' },
+        \ { 'name': 'create react app', 'cmd': 'npx create-react-app' },
+        \ { 'name': 'spring', 'cmd': 'spring init' },
+        \ { 'name': 'degit', 'cmd': 'degit', 'args': 'url' },
+        \ { 'name': 'git', 'cmd': 'git clone', 'args': 'url' },
+        \ { 'name': 'empty directory', 'cmd': 'mkdir' },
+      \],
+      \...
+
 ```
 
 ### Search files / Find in files
