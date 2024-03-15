@@ -55,7 +55,10 @@ function! s:Prepare()
         \'project_views':                 [],
         \'file_mappings':                 {},
         \'tasks':                         [],
-        \'new_tasks':                     [],
+        \'new_tasks':                     [
+          \{ 'name': 'git', 'cmd': 'git clone', 'args': 'url' },
+          \{ 'name': 'empty', 'cmd': 'mkdir' },
+        \],
         \'new_tasks_post_cmd':            '',
         \'commit_message':                '',
         \'debug':                         0,
