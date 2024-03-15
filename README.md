@@ -84,12 +84,11 @@ See [Config and Keymappings](#config_keymappings) for details.
 
 ## Installation
 
-
 - [fd][4]
-- [rg][5]/[ag][6]
+- [rg][5] or [ag][6]
 - this plugin
 
-It's recommended to install [fd][4] and one of [rg][5]/[ag][6] to improve search performance.
+It's recommended to install [fd][4] and one of [rg][5] or [ag][6] to improve search performance.
 
 You can install this plugin just like others.
 
@@ -115,6 +114,15 @@ You can install this plugin just like others.
 
 <br />
 </details>
+
+### Show file icon
+
+To enable file icon in front of file name, you need to install
+
+- one of [Nerd Fonts][7] and use the font in Vim
+- [nerdfont.vim][8]
+
+<img alt="nerd-font" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/vim-project-nerd-font.png" width="220" />
 
 ## Uninstallation
 
@@ -541,3 +549,5 @@ Thanks to timsofteng for the great idea. It all started with that.
 [4]: https://github.com/sharkdp/fd
 [5]: https://github.com/BurntSushi/ripgrep
 [6]: https://github.com/ggreer/the_silver_searcher
+[7]: https://github.com/ryanoasis/nerd-fonts
+[8]: https://github.com/lambdalisue/nerdfont.vim
