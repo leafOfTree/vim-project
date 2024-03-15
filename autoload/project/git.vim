@@ -1345,7 +1345,7 @@ function! s:TryCommit()
   endif
 
   let files = join(s:commit_files, ' ')
-  let message = join(map(message_lines, {idx, val -> '-m "'.escape(val, '"').'"'}), ' ')
+  let message = join(map(message_lines, {idx, val -> '-m "'.escape(val, '"`').'"'}), ' ')
 
   let option = ''
   if is_amend
