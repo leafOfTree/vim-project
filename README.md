@@ -204,7 +204,9 @@ By default, the configuration is
         \],
 ```
 
-Example configuration 
+`new_tasks_post_cmd` defines comand to run after project is created. By default, it's empty `''`.
+
+Example 
 
 ```vim
 let g:vim_project_config = {
@@ -218,8 +220,8 @@ let g:vim_project_config = {
         \ { 'name': 'git', 'cmd': 'git clone', 'args': 'url' },
         \ { 'name': 'empty directory', 'cmd': 'mkdir' },
       \],
+      \'new_tasks_post_cmd': 'touch README.md && git init && git add . && git commit -m "Init"',
       \...
-
 ```
 
 ### Search files / Find in files
