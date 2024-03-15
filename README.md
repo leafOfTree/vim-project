@@ -48,10 +48,12 @@ Project-wide
 
 * [Basic Usage](#basic-usage)
 * [Installation](#installation)
+  * [Show file icon](#show-file-icon)
 * [Uninstallation](#uninstallation)
 * [Workflow](#workflow)
 * [Commands](#commands)
-  * [:Project `<path>[, option]`](#project-path-option)
+  * [:Project `<path>`](#project-path)
+  * [:ProjectNew `<path>`](#projectnew-path)
   * [Search files / Find in files](#search-files--find-in-files)
     * [Config for search / find](#config-for-search--find)
   * [Run tasks](#run-tasks)
