@@ -321,6 +321,11 @@ You can press
 **Vim terminal**: 
 If you set `cmd` to empty string `''`, it'll call `:terminal` to open a new Vim terminal window.
 
+### Git Integration
+
+- `:ProjectGitLog`: Show git log
+- `:ProjectFileHistory`: Show file history of current opened file
+
 ## Config and Keymappings
 
 The config consists of following two parts
