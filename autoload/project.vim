@@ -1818,8 +1818,13 @@ function! s:RenameProject(project, new_name)
     call s:QuitProject()
   endif
 
-  call s:Info('Renamed '.a:project.name.' to '.a:new_name.' ('.a:project.path.')')
   let new_fullpath = a:project.path.'/'.a:new_name
+  if isdirectory(new_fullpath)
+    call project#Warn(new_fullpath.' already exists')
+    return
+  endif
+
+  call s:Info('Renamed '.a:project.name.' to '.a:new_name.' ('.a:project.path.')')
   call rename(a:project.fullpath, new_fullpath)
   call s:RenamePathInProjectAddConfig(a:project.fullpath, project#ReplaceHomeWithTide(new_fullpath))
 
