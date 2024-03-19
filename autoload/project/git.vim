@@ -152,6 +152,7 @@ function! s:AddDiffDetails(hash, file)
     let changes = project#RunShellCmd(cmd)
   endif
 
+  setlocal modifiable
   call append(0, changes)
   normal! gg
   silent! g/^new file mode/d _
@@ -161,6 +162,7 @@ function! s:AddDiffDetails(hash, file)
   else
     silent! 1,4d _
   endif
+  setlocal nomodifiable
 endfunction
 
 function! s:AddBrief(revision)
@@ -171,6 +173,7 @@ endfunction
 function! s:SetupDiffBuffer(file)
   setlocal buftype=nofile bufhidden=wipe nobuflisted filetype=git
   setlocal nowrap
+  setlocal modifiable
   execute 'nnoremap<buffer><silent> o :call <SID>JumpToSource("'.a:file.'")<cr>'
 endfunction
 
@@ -477,6 +480,7 @@ function! VimProjectAddChangeDetails(job, data, ...)
   silent! g/^new file mode/d _ 
   silent! 1,4d _
   normal! gg
+  setlocal nomodifiable
   call s:SwitchBuffer(s:changelist_buffer)
 endfunction
 
@@ -694,7 +698,7 @@ function! s:SortChangelistFunc(i1, i2)
   return a:i1.name > a:i2.name ? 1 : -1
 endfunction
 
-function! s:ToggleFolderOrOpenFile()
+function! s:OpenFolderOrFile()
   let lnum = line('.')
   let item = s:GetCurrentFolder(lnum)
   if empty(item)
@@ -1192,7 +1196,7 @@ function! s:ShowStatus(run_git = 0)
 endfunction
 
 function! s:SetupChangelistBuffer()
-  nnoremap<buffer><silent> o :call <SID>ToggleFolderOrOpenFile()<cr>
+  nnoremap<buffer><silent> o :call <SID>OpenFolderOrFile()<cr>
   nnoremap<buffer><silent> d :call <SID>DeleteFolder()<cr>
   nnoremap<buffer><silent> c :call <SID>Commit()<cr>
   nnoremap<buffer><silent> u :call <SID>TryPull()<cr>
