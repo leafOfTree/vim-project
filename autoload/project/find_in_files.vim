@@ -157,12 +157,20 @@ function! s:HighlightReplaceChars(search, replace)
   execute 'silent! 1match FirstColumn /'.project#GetVariable('first_column_pattern').'/'
 endfunction
 
+function! project#find_in_files#HasReplace(input)
+  let [search, replace] = s:GetSearchAndReplace(a:input)
+  return !empty(replace)
+endfunction
 
 function! project#find_in_files#ConfirmFindReplace(input)
-  let [current_search, current_replace] = s:ParseInput(a:input)
-  let [search, replace] =
-        \s:TryHistory(current_search, current_replace)
+  let [search, replace] = s:GetSearchAndReplace(a:input)
   call s:RunReplaceAll(search, replace)
+endfunction
+
+function! s:GetSearchAndReplace(input)
+  let [current_search, current_replace] = s:ParseInput(a:input)
+  let [search, replace] = s:TryHistory(current_search, current_replace)
+  return [search, replace] 
 endfunction
 
 function! s:ParseInput(input)

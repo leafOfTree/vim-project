@@ -276,7 +276,11 @@ Both `Search files` and `Find in files`
 
 Please note this feature is not fully tested. It may cause unexpected changes to your files. Always remember to commit your changes before running it. Feel free to open an issue if anything goes wrong.
 
-When `Find in files`, you can press <kbd>c-r</kbd> to start to replace, <kbd>c-y</kbd> to confirm. <kbd>c-d</kbd> to dismiss any item on the list.
+When `Find in files`, you can press 
+
+- <kbd>c-r</kbd> to start to replace
+- <kbd>Enter</kbd> or <kbd>c-y</kbd> to confirm
+- <kbd>c-d</kbd> to dismiss any item on the list
 
 <a name="config_keymappings"></a>
 
@@ -394,7 +398,7 @@ let g:vim_project_config.list_mappings_find_in_files = {
       \'open_tabedit':         "\<c-t>",
       \'replace_prompt':       "\<c-r>",
       \'replace_dismiss_item': "\<c-d>",
-      \'replace_confirm':      "\<c-y>",
+      \'replace_confirm':      "\<cr>",
       \}
 let g:vim_project_config.list_mappings_run_tasks = {
       \'run_task':              "\<cr>",

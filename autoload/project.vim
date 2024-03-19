@@ -1477,7 +1477,8 @@ function! s:HandleInput(input, Update, Open)
         let input = project#find_in_files#AddFindReplaceSeparator(input)
       elseif cmd == 'replace_dismiss_item'
         call project#find_in_files#DismissFindReplaceItem()
-      elseif cmd == 'replace_confirm'
+      elseif (cmd == 'replace_confirm' || s:IsOpenCmd(cmd)) 
+            \&& project#find_in_files#HasReplace(input)
         call project#find_in_files#ConfirmFindReplace(input)
         break
       elseif cmd == 'switch_to_list'
