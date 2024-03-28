@@ -166,8 +166,10 @@ function! s:AddDiffDetails(hash, file)
 endfunction
 
 function! s:AddBrief(revision)
+  setlocal modifiable
   let brief = s:GenerateBrief(a:revision)
   call append(line('$'), brief)
+  setlocal nomodifiable
 endfunction
 
 function! s:SetupDiffBuffer(file)
