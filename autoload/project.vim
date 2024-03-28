@@ -156,8 +156,8 @@ function! s:MergeUserConfigIntoDefault(user, default)
         \'file_open_types',
         \'list_mappings',
         \'list_mappings_projects',
-        \'list_mappings_search_files'
-        \'list_mappings_find_in_files'
+        \'list_mappings_search_files',
+        \'list_mappings_find_in_files',
         \'list_mappings_run_tasks',
         \'list_mappings_git',
         \]
