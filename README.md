@@ -57,6 +57,7 @@ Project-wide
   * [Search files / Find in files](#search-files--find-in-files)
     * [Config for search / find](#config-for-search--find)
   * [Run tasks](#run-tasks)
+  * [Git Integration](#)
 * [Config and Keymappings](#config-and-keymappings)
   * [Config files](#config-files)
   * [Project local config](#project-local-config)
