@@ -209,7 +209,7 @@ By default, the configuration is
         \],
 ```
 
-`new_tasks_post_cmd` defines comand to run after project is created. By default, it's empty `''`.
+`new_tasks_post_cmd` defines the comand to run after project is created. By default, it's empty `''`.
 
 Example 
 
@@ -227,6 +227,22 @@ let g:vim_project_config = {
       \],
       \'new_tasks_post_cmd': 'touch README.md && git init && git add . && git commit -m "Init"',
       \...
+```
+
+`new_tasks_post_cmd` can also be a Function reference (`Funcref`). Its arguments are the project name (`string`), the task (`dict`), and the actual cmd (`string`).
+
+```vim
+function! NewTasksPostCmd(name, task, cmd)
+  if a:task.name == 'git'
+    return
+  endif
+
+  return 'touch README.md && git init && git add . && git commit -m "Init"'
+    \.'git remote add origin https://github.com/username/'.a:name
+endfunction
+
+      ...
+      \'new_tasks_post_cmd': function('NewTasksPostCmd'),
 ```
 
 ### Search files / Find in files

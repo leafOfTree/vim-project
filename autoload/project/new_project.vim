@@ -65,29 +65,41 @@ function! s:Open(item, open_cmd, input)
   let cmd = cmd.' '.s:GetName()
   if has('nvim')
     new
+    let OnExit = function('s:OnJobEnds', [a:item, cmd])
     call termopen(cmd, {
-          \'on_exit': function('s:OnJobEnds'),
+          \'on_exit': OnExit,
           \'cwd': s:GetCwd(),
           \})
     startinsert
   else
     call term_start(cmd, { 
-          \'exit_cb': function('s:OnJobEnds'),
+          \'exit_cb': OnExit,
           \'cwd': s:GetCwd(),
           \})
   endif
 endfunction
 
-function! s:OnJobEnds(job, status, ...)
-  if !empty(s:name) && a:status == 0
-    let error = project#AddProject(s:origin_name)
-    if empty(error)
-      let post_cmd = project#GetVariable('new_tasks_post_cmd')
-      if !empty(post_cmd)
-        call project#RunShellCmd(post_cmd)
-      endif
-    endif
+function! s:OnJobEnds(task, cmd, job, status, ...)
+  if empty(s:name) || a:status != 0
+    return
   endif
+  let error = project#AddProject(s:origin_name)
+  if !empty(error)
+    return
+  endif
+
+  let PostCmd = project#GetVariable('new_tasks_post_cmd')
+  let PostCmd_type = type(PostCmd)
+  if PostCmd_type == type(function('tr'))
+    let run_cmd = PostCmd(s:GetName(), a:task, a:cmd)
+  elseif PostCmd_type == type('')
+    let run_cmd = PostCmd
+  endif
+  if empty(run_cmd)
+    return
+  endif
+
+  call project#RunShellCmd(run_cmd)
 
   if a:status != 0
     call project#Warn('Error on creating ['.s:name.']')
