@@ -99,10 +99,35 @@ function! s:OnJobEnds(task, cmd, job, status, ...)
     return
   endif
 
-  call project#RunShellCmd(run_cmd)
+  call s:RunJob(run_cmd)
 
   if a:status != 0
     call project#Warn('Error on creating ['.s:name.']')
+  endif
+endfunction
+
+function! s:OnJobDone(...)
+  call project#Info('Running post cmd: Done')
+endfunction
+
+function! s:RunJob(cmd, exit_cb)
+  let can_run = exists('*job_start') || exists('*jobstart')
+  if !can_run
+    return
+  endif
+
+  " vim
+  if exists('*job_start')
+    call job_start(a:cmd, { 
+          \'cwd': $vim_project,
+          \'exit_cb': a:exit_cb
+          \})
+  " nvim
+  elseif exists("*jobstart")
+    call jobstart(a:cmd, {
+        \'cwd': $vim_project,
+        \'on_exit': a:exit_cb
+        \})
   endif
 endfunction
 
