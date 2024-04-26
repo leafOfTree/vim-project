@@ -527,6 +527,12 @@ function! s:InitProjectConfig(project)
           \'"   \}',
           \'',
           \'let g:vim_project_local_config = {',
+          \'   \''tasks'': [',
+          \'     \{',
+          \'       \''name'': '''',',
+          \'       \''cmd'': ''''',
+          \'     \},',
+          \'   \],',
           \'\}',
           \]
     call writefile(init_content, init_file)

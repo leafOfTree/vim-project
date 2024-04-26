@@ -13,6 +13,7 @@ function! s:Init(input)
   let tasks = project#GetVariable('tasks')
   let max_col_width = project#GetVariable('max_width') - 10
   call project#Tabulate(tasks, ['name', 'cmd'], 0, max_col_width)
+  call s:FilterEmptyTask(tasks)
   call s:Update(a:input)
 endfunction
 
@@ -32,6 +33,11 @@ function! project#run_tasks#Highlight()
     call hlset(normal_hl)
   endif
   call s:HighlightRunTasksCmdOutput()
+endfunction
+
+function! s:FilterEmptyTask(tasks)
+  call filter(a:tasks, 
+        \{idx, task -> !s:hasEmptyTaskName(task) || !s:hasEmptyTaskCmd(task)})
 endfunction
 
 function! s:StartRunTasksTimers(input)
@@ -305,6 +311,10 @@ endfunction
 
 function! s:hasEmptyTaskCmd(task)
   return !has_key(a:task, 'cmd') || a:task.cmd == ''
+endfunction
+
+function! s:hasEmptyTaskName(task)
+  return !has_key(a:task, 'name') || a:task.name == ''
 endfunction
 
 function! s:GetNvimTaskBufnr(task)
