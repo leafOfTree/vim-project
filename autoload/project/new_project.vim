@@ -63,9 +63,9 @@ function! s:Open(item, open_cmd, input)
   endif
 
   let cmd = cmd.' '.s:GetName()
+  let OnExit = function('s:OnJobEnd', [a:item, cmd])
   if has('nvim')
     new
-    let OnExit = function('s:OnJobEnds', [a:item, cmd])
     call termopen(cmd, {
           \'on_exit': OnExit,
           \'cwd': s:GetCwd(),
@@ -79,7 +79,7 @@ function! s:Open(item, open_cmd, input)
   endif
 endfunction
 
-function! s:OnJobEnds(task, cmd, job, status, ...)
+function! s:OnJobEnd(task, cmd, job, status, ...)
   if empty(s:name) || a:status != 0
     return
   endif
@@ -91,43 +91,18 @@ function! s:OnJobEnds(task, cmd, job, status, ...)
   let PostCmd = project#GetVariable('new_tasks_post_cmd')
   let PostCmd_type = type(PostCmd)
   if PostCmd_type == type(function('tr'))
-    let run_cmd = PostCmd(s:GetName(), a:task, a:cmd)
+    let post_cmd = PostCmd(s:GetName(), a:task, a:cmd)
   elseif PostCmd_type == type('')
-    let run_cmd = PostCmd
+    let post_cmd = PostCmd
   endif
-  if empty(run_cmd)
+  if empty(post_cmd)
     return
   endif
 
-  call s:RunJob(run_cmd)
+  call project#RunShellCmd(post_cmd)
 
   if a:status != 0
     call project#Warn('Error on creating ['.s:name.']')
-  endif
-endfunction
-
-function! s:OnJobDone(...)
-  call project#Info('Running post cmd: Done')
-endfunction
-
-function! s:RunJob(cmd, exit_cb)
-  let can_run = exists('*job_start') || exists('*jobstart')
-  if !can_run
-    return
-  endif
-
-  " vim
-  if exists('*job_start')
-    call job_start(a:cmd, { 
-          \'cwd': $vim_project,
-          \'exit_cb': a:exit_cb
-          \})
-  " nvim
-  elseif exists("*jobstart")
-    call jobstart(a:cmd, {
-        \'cwd': $vim_project,
-        \'on_exit': a:exit_cb
-        \})
   endif
 endfunction
 
