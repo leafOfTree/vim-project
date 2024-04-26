@@ -527,6 +527,8 @@ function! s:InitProjectConfig(project)
           \'"   \}',
           \'',
           \'let g:vim_project_local_config = {',
+          \'   \''include'': [''./''],',
+          \'   \''exclude'': [''.git'', ''node_modules'', ''.DS_Store''],',
           \'   \''tasks'': [',
           \'     \{',
           \'       \''name'': '''',',
