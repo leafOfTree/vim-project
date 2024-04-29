@@ -976,7 +976,7 @@ function! s:GetPrefixAndSuffix(folder)
 endfunction
 
 function! s:AddUntrackedPrefix(files)
-  return map(copy(a:files), {idx, file -> 'U '.file})
+  return map(copy(a:files), {idx, file -> 'U	'.file})
 endfunction
 
 function! s:UpdatePresetChangelist()
@@ -988,7 +988,7 @@ function! s:UpdatePresetChangelist()
 
   let default_folder = s:changelist[0]
   let default_folder.files = []
-  for file in s:changed_files
+  for file in (s:changed_files + s:untracked_files)
     let included = 0
     for folder in s:changelist
       if s:IsStagedFolder(folder)
