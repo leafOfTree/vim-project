@@ -1203,6 +1203,7 @@ function! s:SetupChangelistBuffer()
   nnoremap<buffer><silent> c :call <SID>Commit()<cr>
   nnoremap<buffer><silent> u :call <SID>TryPull()<cr>
   nnoremap<buffer><silent> p :call <SID>TryPullThenPush()<cr>
+  nnoremap<buffer><silent> P :call <SID>TryPush()<cr>
 
   " <silent> may cause cursor not show in nvim
   nnoremap<buffer> r :call <SID>RenameFolderOrRollbackFile()<cr>
