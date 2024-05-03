@@ -123,8 +123,9 @@ You can install this plugin just like others.
 
 To enable file icon in front of file name, you need to install
 
-- one of [Nerd Fonts][7] and use the font in Vim
+- [Nerd Fonts][7] choose one and use it in Vim
 - [nerdfont.vim][8]
+- [glyph-palette.vim][9] (Optional, color icons)
 
 <img alt="nerd-font" src="https://github.com/leafOfTree/leafOfTree.github.io/raw/master/vim-project-nerd-font.png" width="220" />
 
@@ -624,3 +625,4 @@ Thanks to timsofteng for the great idea. It all started with that.
 [6]: https://github.com/ggreer/the_silver_searcher
 [7]: https://github.com/ryanoasis/nerd-fonts
 [8]: https://github.com/lambdalisue/nerdfont.vim
+[9]: https://github.com/lambdalisue/glyph-palette.vim
