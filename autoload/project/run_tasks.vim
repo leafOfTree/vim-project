@@ -276,14 +276,14 @@ function! s:Open(task, open_cmd, input)
       return 0
     endif
 
-    call s:OpenBuiltinTerminal()
+    call s:OpenTerminal()
     return 0
   endif
 
   return s:RunTask(a:task)
 endfunction
 
-function! s:OpenBuiltinTerminal()
+function! s:OpenTerminal()
   if bufexists(s:terminal_bufnr)
     new
     execute 'buffer '.s:terminal_bufnr
@@ -307,6 +307,13 @@ function! s:OpenBuiltinTerminal()
   endif
 
   let s:terminal_bufnr = bufnr()
+endfunction
+
+function! project#run_tasks#WipeoutTerminalBuffer()
+  if bufexists(s:terminal_bufnr)
+    execute 'silent bwipeout! '.s:terminal_bufnr
+    let s:terminal_bufnr = -1
+  endif
 endfunction
 
 function! s:hasEmptyTaskCmd(task)

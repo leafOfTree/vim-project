@@ -992,6 +992,10 @@ function! s:WipeoutListBuffer()
   endif
 endfunction
 
+function! s:WipeoutTerminalBuffer()
+  call project#run_tasks#WipeoutTerminalBuffer()
+endfunction
+
 function! s:WatchOnVimQuit()
   augroup vim-quit
     autocmd! vim-quit
@@ -1898,11 +1902,12 @@ function! s:QuitProject()
     let s:list_history = {}
     let s:project = {}
     call s:UnsetEnvVariables()
-    call s:SyncGlobalVariables()
-
     call s:WipeoutListBuffer()
+    call s:WipeoutTerminalBuffer()
     call project#search_files#reset()
     call project#run_tasks#reset()
+
+    call s:SyncGlobalVariables()
   endif
 endfunction
 
