@@ -1111,7 +1111,6 @@ function! s:UpdateChangelist(run_git = 0)
     endif
     let s:untracked_files = s:AddUntrackedPrefix(
       \project#RunShellCmd('git ls-files --exclude-standard --others --directory'))
-    echom s:untracked_files
   endif
 
   call s:UpdatePresetChangelist()
