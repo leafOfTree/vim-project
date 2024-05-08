@@ -1069,12 +1069,20 @@ endfunction
 
 function! s:GetChangedFileDisplay(file, prefix = '  ')
   let sign = s:GetFileChangeSign(a:file)
-  let filename = s:GetFilename(a:file)
-  let name = fnamemodify(filename, ':t')
+  let sign_mark = ''
+  if sign == 'D'
+    let sign_mark = '$'
+  elseif sign == 'A' || sign == 'U'
+    let sign_mark = '!'
+  endif
+  let splitter = '|'
 
+  let filename = s:GetFilename(a:file)
   if isdirectory(filename)
     let dir = ''
+    let name = filename
   else
+    let name = fnamemodify(filename, ':t')
     let file_dir = fnamemodify(s:GetAbsolutePath(filename), ':p:h')
     let project_dir = project#GetProjectDirectory()
     if file_dir == project_dir[0:-2]
@@ -1086,13 +1094,6 @@ function! s:GetChangedFileDisplay(file, prefix = '  ')
   endif
   let icon = project#GetIcon(filename)
 
-  let sign_mark = ''
-  if sign == 'D'
-    let sign_mark = '$'
-  elseif sign == 'A' || sign == 'U'
-    let sign_mark = '!'
-  endif
-  let splitter = '|'
   if empty(name)
     return a:prefix.sign_mark.icon.splitter.dir.' '
   else
@@ -1109,7 +1110,8 @@ function! s:UpdateChangelist(run_git = 0)
       return 0
     endif
     let s:untracked_files = s:AddUntrackedPrefix(
-      \project#RunShellCmd('git ls-files --exclude-standard --others'))
+      \project#RunShellCmd('git ls-files --exclude-standard --others --directory'))
+    echom s:untracked_files
   endif
 
   call s:UpdatePresetChangelist()
