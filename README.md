@@ -423,8 +423,27 @@ let g:vim_project_config.list_mappings_run_tasks = {
       \'stop_task':             "\<c-q>",
       \'open_task_terminal':    "\<c-o>",
       \}
+
 let g:vim_project_config.list_mappings_git = {
       \'checkout_revision':     "\<c-o>",
+      \}
+let g:vim_project_config.git_diff_mappings = {
+      \'jump_to_source': "\<cr>",
+      \}
+let g:vim_project_config.git_changes_mappings = {
+      \'open_file': "\<cr>",
+      \}
+let g:vim_project_config.git_local_changes_mappings = {
+      \'open_changelist_or_file': "\<cr>",
+      \'delete_changelist': 'd',
+      \'rename_changelist': 'r',
+      \'new_changelist': 'a',
+      \'rollback_file': 'R',
+      \'commit': 'c',
+      \'move_to_changelist': 'm',
+      \'pull': 'u',
+      \'push': 'p',
+      \'pull_and_push': 'P',
       \}
 ```
 
@@ -435,7 +454,7 @@ let g:vim_project_config.list_mappings_git = {
 | use_session                   | Use session                                                                   |
 | open_root_when_use_session    | When session used, always open project root at the beginning                  |
 | check_branch_when_use_session | When session used, keep one for each branch                                   |
-| project_root                  | Relative directory or file as project root                                    |
+| project_root                  | Starting directory or file when fist launching project                        |
 | auto_detect                   | Auto detect projects when opening a file. <br>Choose 'always', 'ask', or 'no' |
 | auto_detect_file              | File used to detect potential projects                                        |
 | auto_load_on_start            | Auto load a project if Vim starts within its directory                        |
