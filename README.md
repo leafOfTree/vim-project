@@ -154,9 +154,9 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 | ProjectFindInFiles         | Find given string/regexp (at least 2 chars) in files |
 | ProjectRun                 | Run a task defined by `tasks` config     |
 | ProjectGitLog              | Show git log                             |
-| ProjectFileHistory         | Show file history                        |
-| ProjectBranch              | Show all git branches                    |
-| ProjectTag                 | Show all git tags                        |
+| ProjectGitFileHistory      | Show file history                        |
+| ProjectGitBranch           | Show all git branches                    |
+| ProjectGitTag              | Show all git tags                        |
 | ProjectRoot                | Open project root                        |
 | ProjectConfig              | Open project config `init.vim` (effective after save) |
 | ProjectAllConfig           | Open all projects config `project.add.vim` |
@@ -348,9 +348,9 @@ If you set `cmd` to empty string `''`, it'll call `:terminal` to open a new Vim 
 ### Git Integration
 
 - `:ProjectGitLog`: Show git log
-- `:ProjectFileHistory`: Show history of current opened file
-- `:ProjectBranch`: Show branches
-- `:ProjectTag`: Show tags
+- `:ProjectGitFileHistory`: Show history of current opened file. Works on visually selected lines.
+- `:ProjectGitBranch`: Show branches
+- `:ProjectGitTag`: Show tags
 
 ## Config and Keymappings
 
