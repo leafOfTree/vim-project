@@ -1514,6 +1514,7 @@ function! s:HandleInput(input, Update, Open)
       elseif cmd == 'replace_dismiss_item'
         call project#find_in_files#DismissFindReplaceItem()
       elseif (cmd == 'replace_confirm' || s:IsOpenCmd(cmd)) 
+            \&& s:IsFindInFilesList()
             \&& project#find_in_files#HasReplace(input)
         call project#find_in_files#ConfirmFindReplace(input)
         break
