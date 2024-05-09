@@ -55,7 +55,7 @@ endfunction
 
 function! s:Open(item, open_cmd, input)
   let cmd = a:item.cmd
-  if s:WithArgs(a:item)
+  if s:HasArgs(a:item)
     let args = input('['.s:GetCwd().'] '.a:item.cmd.' | '.a:item.args.': ')
     if !empty(args)
       let cmd = cmd.' '.args
@@ -106,7 +106,7 @@ function! s:OnJobEnd(task, cmd, job, status, ...)
   endif
 endfunction
 
-function! s:WithArgs(item)
+function! s:HasArgs(item)
   return has_key(a:item, 'args')
 endfunction
 
@@ -114,7 +114,7 @@ function! s:GetNewProjectTaskDisplay(list)
   let display = []
   for item in a:list
     let row = item.__name.'  '.item.__cmd
-    if s:WithArgs(item)
+    if s:HasArgs(item)
       let row = row.'  '.item.__args
     endif
     call add(display, row)

@@ -37,7 +37,7 @@ endfunction
 
 function! s:FilterEmptyTask(tasks)
   call filter(a:tasks, 
-        \{idx, task -> !s:hasEmptyTaskName(task) || !s:hasEmptyTaskCmd(task)})
+        \{idx, task -> !s:HasEmptyName(task) || !s:HasEmptyCmd(task)})
 endfunction
 
 function! s:StartRunTasksTimers(input)
@@ -271,7 +271,7 @@ function! s:Open(task, open_cmd, input)
   endif
 
   " Open vim terminal if the task has empty cmd
-  if s:hasEmptyTaskCmd(a:task)
+  if s:HasEmptyCmd(a:task)
     if a:open_cmd == '@pass'
       return 0
     endif
@@ -280,7 +280,16 @@ function! s:Open(task, open_cmd, input)
     return 0
   endif
 
-  return s:RunTask(a:task)
+  let cmd = a:task.cmd
+  if s:HasArgs(a:task)
+    let args = input(
+          \'[Run task: '.a:task.name.'] '.a:task.cmd.' | '.a:task.args.': ')
+    if !empty(args)
+      let cmd = cmd.' '.args
+    endif
+  endif
+
+  return s:RunTask(a:task, cmd)
 endfunction
 
 function! s:OpenTerminal()
@@ -316,12 +325,16 @@ function! project#run_tasks#WipeoutTerminalBuffer()
   endif
 endfunction
 
-function! s:hasEmptyTaskCmd(task)
+function! s:HasEmptyCmd(task)
   return !has_key(a:task, 'cmd') || a:task.cmd == ''
 endfunction
 
-function! s:hasEmptyTaskName(task)
+function! s:HasEmptyName(task)
   return !has_key(a:task, 'name') || a:task.name == ''
+endfunction
+
+function! s:HasArgs(task)
+  return has_key(a:task, 'args')
 endfunction
 
 function! s:GetNvimTaskBufnr(task)
@@ -392,7 +405,7 @@ endfunction
 " @return:
 "   1: keep current window,
 "   0: exit current window
-function! s:RunTask(task)
+function! s:RunTask(task, full_cmd)
   let cwd = $vim_project
   if has_key(a:task, 'cd')
     let cwd .= '/'.a:task.cd
@@ -413,13 +426,13 @@ function! s:RunTask(task)
     set winheight=20
     let options.on_exit = function('s:OnTaskExit', [a:task])
     " for nvim, bufnr is job id
-    let a:task.bufnr = termopen(a:task.cmd, options)
+    let a:task.bufnr = termopen(a:full_cmd, options)
     hide
   else
     try 
       let options.exit_cb = function('s:OnTaskExit', [a:task])
       let shell_prefix = &shell.' '.&shellcmdflag
-      let cmd = shell_prefix.' "'.a:task.cmd.'"'
+      let cmd = shell_prefix.' "'.a:full_cmd.'"'
       let a:task.bufnr = term_start(cmd, options)
     catch
       call project#Warn(v:exception)
