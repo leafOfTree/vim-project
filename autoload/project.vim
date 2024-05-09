@@ -120,6 +120,24 @@ function! s:Prepare()
   let s:default.list_mappings_git = {
         \'checkout_revision':     "\<c-o>",
         \}
+  let s:default.git_diff_mappings = {
+        \'jump_to_source': "\<cr>",
+        \}
+  let s:default.git_changes_mappings = {
+        \'open_file': "\<cr>",
+        \}
+  let s:default.git_local_changes_mappings = {
+        \'open_changelist_or_file': "\<cr>",
+        \'delete_changelist': 'd',
+        \'rename_changelist': 'r',
+        \'new_changelist': 'a',
+        \'rollback_file': 'R',
+        \'commit': 'c',
+        \'move_to_changelist': 'm',
+        \'pull': 'u',
+        \'push': 'p',
+        \'pull_and_push': 'P',
+        \}
   let s:default.file_open_types = {
         \'':  'edit',
         \'s': 'split',
@@ -160,6 +178,9 @@ function! s:MergeUserConfigIntoDefault(user, default)
         \'list_mappings_find_in_files',
         \'list_mappings_run_tasks',
         \'list_mappings_git',
+        \'git_diff_mappings',
+        \'git_changes_mappings',
+        \'git_local_changes_mappings',
         \]
 
   for key in merge_keys
@@ -206,6 +227,9 @@ function! s:InitConfig()
   let s:list_mappings_find_in_files = s:config.list_mappings_find_in_files
   let s:list_mappings_run_tasks = s:config.list_mappings_run_tasks
   let s:list_mappings_git = s:config.list_mappings_git
+  let s:git_changes_mappings = s:config.git_changes_mappings
+  let s:git_diff_mappings = s:config.git_diff_mappings
+  let s:git_local_changes_mappings = s:config.git_local_changes_mappings
   let s:open_types = s:config.file_open_types
   let s:tasks = s:config.tasks
   let s:new_tasks = s:config.new_tasks

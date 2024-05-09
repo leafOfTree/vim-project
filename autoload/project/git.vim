@@ -176,7 +176,8 @@ function! s:SetupDiffBuffer(file)
   setlocal buftype=nofile bufhidden=wipe nobuflisted filetype=git
   setlocal nowrap
   setlocal modifiable
-  execute 'nnoremap<buffer><silent> o :call <SID>JumpToSource("'.a:file.'")<cr>'
+  let mappings = project#GetVariable('git_diff_mappings')
+  call s:AddMapping(mappings.jump_to_source, '<SID>JumpToSource("'.a:file.'")')
 endfunction
 
 function! s:JumpToSource(file)
@@ -365,7 +366,16 @@ function! s:SetupChangesBuffer(revision)
   setlocal nowrap
   autocmd BufUnload <buffer> call s:CloseChangesBuffer()
   let s:current_line = 0
-  nnoremap<buffer><silent> o :call <SID>OpenChangedFile()<cr>
+  let mappings = project#GetVariable('git_changes_mappings')
+  call s:AddMapping(mappings.open_file, '<SID>OpenChangedFile()')
+endfunction
+
+function! s:AddMapping(key, func)
+  execute 'nnoremap<buffer><silent> '.a:key.' :call '.a:func.'<cr>'
+endfunction
+
+function! s:AddVisualMapping(key, func)
+  execute 'vnoremap<buffer><silent> '.a:key.' :call '.a:func.'<cr>'
 endfunction
 
 function! s:OpenChangedFile()
@@ -717,42 +727,53 @@ function! s:OpenFolderOrFile()
   endif
 endfunction
 
-function! s:RenameFolderOrRollbackFile()
+function! s:RenameFolder()
   let lnum = line('.')
   let item = s:GetCurrentFolder(lnum)
-  if !empty(item)
-    if s:IsUserFolder(item)
-      let name = input('Rename to: ', item.name)
-      if !empty(name)
-        if empty(s:GetChangelistItem(name))
-          let item.name = name
-          call s:SortChangelist()
-          call s:ShowStatus()
-          call search(name)
-        else
-          call project#Warn('Changelist '.name.' exists')
-        endif
-      endif
-    endif
-  else
-    let file = s:GetCurrentFile()
-    echo 'Rollback changes of '.file.'? (y/n) '
-    if nr2char(getchar()) == 'y'
-      if s:IsFileUntracked(file)
-        let cmd = 'rm '.file
-      else
-        let cmd = 'git restore -- '.file
-      endif
-      call project#RunShellCmd(cmd)
-      if v:shell_error
-        return
-      endif
-      call s:ShowStatus(1)
-      call s:CloseBuffer(s:diff_buffer)
-    endif
-    redraw
-    echo
+  if empty(item)
+    return
   endif
+
+  if s:IsUserFolder(item)
+    let name = input('Rename to: ', item.name)
+    if !empty(name)
+      if empty(s:GetChangelistItem(name))
+        let item.name = name
+        call s:SortChangelist()
+        call s:ShowStatus()
+        call search(name)
+      else
+        call project#Warn('Changelist '.name.' exists')
+      endif
+    endif
+  endif
+  redraw
+  echo
+endfunction
+
+function! s:RollbackFile()
+  let file = s:GetCurrentFile()
+  if empty(file)
+    return
+  endif
+
+  echo 'Rollback changes of '.file.'? (y/n) '
+  if nr2char(getchar()) == 'y'
+    if s:IsFileUntracked(file)
+      let cmd = 'rm '.file
+    else
+      let cmd = 'git restore -- '.file
+    endif
+    call project#RunShellCmd(cmd)
+    if v:shell_error
+      return
+    endif
+    call s:ShowStatus(1)
+    call s:CloseBuffer(s:diff_buffer)
+  endif
+
+  redraw
+  echo
 endfunction
 
 function! s:IsFileUntracked(file)
@@ -788,7 +809,7 @@ function! VimProjectAllFolderNames(A, L, P)
   return folder_names
 endfunction
 
-function! s:NewChangelist()
+function! s:NewChangelistFolder()
   let name = input('New changelist name: ')
   if empty(name)
     return
@@ -810,7 +831,7 @@ function! s:IsInvalidMoveToName(name)
   return empty(a:name) || a:name == s:staged_folder_name || a:name == s:unmerged_folder_name
 endfunction
 
-function! s:MoveToChangelist() range
+function! s:MoveToFolder() range
   let lnum = line('.')
   let belong_folder = s:GetBelongFolder(lnum)
   if s:IsStagedFolder(belong_folder) || s:IsUnmergedFolder(belong_folder)
@@ -1199,18 +1220,18 @@ function! s:ShowStatus(run_git = 0)
 endfunction
 
 function! s:SetupChangelistBuffer()
-  nnoremap<buffer><silent> o :call <SID>OpenFolderOrFile()<cr>
-  nnoremap<buffer><silent> d :call <SID>DeleteFolder()<cr>
-  nnoremap<buffer><silent> c :call <SID>Commit()<cr>
-  nnoremap<buffer><silent> u :call <SID>TryPull()<cr>
-  nnoremap<buffer><silent> p :call <SID>TryPullThenPush()<cr>
-  nnoremap<buffer><silent> P :call <SID>TryPush()<cr>
-
-  " <silent> may cause cursor not show in nvim
-  nnoremap<buffer> r :call <SID>RenameFolderOrRollbackFile()<cr>
-  nnoremap<buffer> a :call <SID>NewChangelist()<cr>
-
-  noremap<buffer><silent> m :call <SID>MoveToChangelist()<cr>
+  let mappings = project#GetVariable('git_local_changes_mappings')
+  call s:AddMapping(mappings.open_changelist_or_file, '<SID>OpenFolderOrFile()')
+  call s:AddMapping(mappings.delete_changelist, '<SID>DeleteFolder()')
+  call s:AddMapping(mappings.rename_changelist, '<SID>RenameFolder()')
+  call s:AddMapping(mappings.rollback_file, '<SID>RollbackFile()')
+  call s:AddMapping(mappings.commit, '<SID>Commit()')
+  call s:AddMapping(mappings.pull, '<SID>TryPull()')
+  call s:AddMapping(mappings.push, '<SID>TryPush()')
+  call s:AddMapping(mappings.pull_and_push, '<SID>TryPullThenPush()')
+  call s:AddMapping(mappings.new_changelist, '<SID>NewChangelistFolder()')
+  call s:AddMapping(mappings.move_to_changelist, '<SID>MoveToFolder()')
+  call s:AddVisualMapping(mappings.move_to_changelist, '<SID>MoveToFolder()')
 
   hi DiffBufferModify ctermfg=3 guifg=#b58900
   hi DiffBufferAdd ctermfg=2 guifg=#719e07
