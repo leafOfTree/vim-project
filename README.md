@@ -199,7 +199,7 @@ Project demo
 
 - `name`: task name
 - `cmd`: command to run
-- `arg`: optional, the value is from what user types and will be appended to `cmd`
+- `args`: optional, the value is from what user types and will be appended to `cmd`
 
 By default, the configuration is
 
@@ -308,8 +308,9 @@ When `Find in files`, you can press
 
 - `name`: task name
 - `cmd`: command to run in terminal through shell
-- `cd`: change directory to current project relatively
-- `show`, `hide`: both are a list of patterns to fiter task output
+- `args`: optional, the value is from what user types and will be appended to `cmd`
+- `cd`: optional, change directory to current project relatively
+- `show`, `hide`: optional, both are a list of patterns to fiter task output
 
 For example, with below local config
 
@@ -317,9 +318,10 @@ For example, with below local config
 let g:vim_project_local_config = {
     \'tasks': [
       \{
-        \'name': 'dev',
-        \'cmd' : 'npm run dev',
-        \'cd'  : 'webapp'
+        \'name': 'npm',
+        \'cmd' : 'npm run',
+        \'args': 'script name',
+        \'cd'  : 'webapp',
       \},
       \{ 
         \'name': 'build', 
