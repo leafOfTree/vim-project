@@ -193,7 +193,7 @@ Project demo
 
 ### :ProjectNew `<path>`
 
-`path`: If `path` is relative or a name, it'll use current working directory as path base. You can use <kbd>Tab</kbd> to auto complete.
+`path`: If `path` is relative or a name, `:ProjectNew` will use `new_project_base` or current working directory as path base. You can use <kbd>Tab</kbd> to auto complete.
 
 `new_tasks` defines tasks to create new project. 
 
@@ -208,6 +208,7 @@ By default, the configuration is
           \{ 'name': 'git', 'cmd': 'git clone', 'args': 'url' },
           \{ 'name': 'empty', 'cmd': 'mkdir' },
         \],
+        \`new_project_base`: ''
 ```
 
 `new_tasks_post_cmd` defines the comand to run after project is created. By default, it's empty `''`.
@@ -227,6 +228,7 @@ let g:vim_project_config = {
         \ { 'name': 'empty directory', 'cmd': 'mkdir' },
       \],
       \'new_tasks_post_cmd': 'touch README.md && git init && git add . && git commit -m "Init"',
+      \`new_project_base`: '/path/to/projects',
       \...
 ```
 
@@ -384,6 +386,11 @@ let g:vim_project_config = {
       \'project_views':                 [],
       \'file_mappings':                 {},
       \'tasks':                         [],
+      \'new_tasks':                     [
+        \{ 'name': 'git', 'cmd': 'git clone', 'args': 'url' },
+        \{ 'name': 'empty', 'cmd': 'mkdir' },
+      \],
+      \'new_project_base':              '',
       \'debug':                         0,
       \}
 

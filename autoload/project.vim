@@ -59,6 +59,7 @@ function! s:Prepare()
           \{ 'name': 'git', 'cmd': 'git clone', 'args': 'url' },
           \{ 'name': 'empty', 'cmd': 'mkdir' },
         \],
+        \'new_project_base':              '',
         \'new_tasks_post_cmd':            '',
         \'commit_message':                '',
         \'debug':                         0,
@@ -233,6 +234,7 @@ function! s:InitConfig()
   let s:open_types = s:config.file_open_types
   let s:tasks = s:config.tasks
   let s:new_tasks = s:config.new_tasks
+  let s:new_project_base = s:config.new_project_base
   let s:new_tasks_post_cmd = s:config.new_tasks_post_cmd
   let s:commit_message = s:config.commit_message
   let s:debug = s:config.debug
@@ -479,6 +481,10 @@ function! s:GetFullPath(path)
   let path = substitute(expand(path), '\', '\/', 'g')
   call s:Debug('The full path is '.path)
   return path
+endfunction
+
+function! project#IsRelativePath(path)
+  return s:IsRelativePath(a:path)
 endfunction
 
 function! s:IsRelativePath(path)

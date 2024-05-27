@@ -7,8 +7,8 @@ function! project#new_project#NewProject(name)
     call project#Warn(s:name.' already exists')
     return 
   endif
-
-  let prompt = '['.s:GetCwd().'] create ['.s:GetName().'] by:' 
+  let cwd = s:GetCwd()
+  let prompt = '['.cwd.'] create ['.s:GetName().'] by:' 
 
   call project#PrepareListBuffer(prompt, 'NEW_PROJECT')
   let Init = function('s:Init')
@@ -24,7 +24,12 @@ function! s:ParseName(name)
 endfunction
 
 function! s:GetCwd()
-  return fnamemodify(s:name, ':p:h')
+  let new_project_base = project#GetVariable('new_project_base')
+  if empty(new_project_base) || !project#IsRelativePath(s:name)
+    return fnamemodify(s:name, ':p:h')
+  endif
+
+  return new_project_base
 endfunction
 
 function! s:GetName()
@@ -54,9 +59,10 @@ function! s:Update(input)
 endfunction
 
 function! s:Open(item, open_cmd, input)
+  let cwd = s:GetCwd()
   let cmd = a:item.cmd
   if s:HasArgs(a:item)
-    let args = input('['.s:GetCwd().'] '.a:item.cmd.' | '.a:item.args.': ')
+    let args = input('['.cwd.'] '.a:item.cmd.' | '.a:item.args.': ')
     if !empty(args)
       let cmd = cmd.' '.args
     endif
@@ -68,13 +74,13 @@ function! s:Open(item, open_cmd, input)
     new
     call termopen(cmd, {
           \'on_exit': OnExit,
-          \'cwd': s:GetCwd(),
+          \'cwd': cwd,
           \})
     startinsert
   else
     call term_start(cmd, { 
           \'exit_cb': OnExit,
-          \'cwd': s:GetCwd(),
+          \'cwd': cwd,
           \})
   endif
 endfunction
