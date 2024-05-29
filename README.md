@@ -193,7 +193,11 @@ Project demo
 
 ### :ProjectNew `<path>`
 
-`path`: If `path` is relative or a name, `:ProjectNew` will use `new_project_base` or current working directory as path base. You can use <kbd>Tab</kbd> to auto complete.
+`:ProjectNew` will use `new_project_base` or else current working directory as path base location except for a absolute `path`.
+
+- `path` can be a relative path or a name. you can use <kbd>Tab</kbd> to auto complete.
+
+- If `path` is a git url, the command will use `git clone <url>` to create a new project.
 
 `new_tasks` defines tasks to create new project. 
 
