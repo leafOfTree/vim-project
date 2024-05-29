@@ -3,18 +3,29 @@ let s:name = ''
 
 function! project#new_project#NewProject(name)
   call s:ParseName(a:name)
+  if s:IsUrlName()
+    call s:RunGitCloneUrl()
+    return
+  endif
+
   if !s:IsValidName()
     call project#Warn(s:name.' already exists')
     return 
   endif
-  let cwd = s:GetCwd()
-  let prompt = '['.cwd.'] create ['.s:GetName().'] by:' 
 
+  let prompt = '['.s:GetCwd().'] create ['.s:GetName().'] by:' 
   call project#PrepareListBuffer(prompt, 'NEW_PROJECT')
   let Init = function('s:Init')
   let Update = function('s:Update')
   let Open = function('s:Open')
   call project#RenderList(Init, Update, Open)
+endfunction
+
+function! s:RunGitCloneUrl()
+  let s:origin_name = fnamemodify(s:name, ':t')
+  let cmd = 'git clone '.s:name
+  let task = { 'name': 'git', 'cmd': 'git clone' }
+  call s:RunCmd(cmd, task)
 endfunction
 
 function! s:ParseName(name)
@@ -29,7 +40,7 @@ function! s:GetCwd()
     return fnamemodify(s:name, ':p:h')
   endif
 
-  return new_project_base
+  return expand(new_project_base)
 endfunction
 
 function! s:GetName()
@@ -38,6 +49,10 @@ endfunction
 
 function! s:IsValidName()
   return !filereadable(s:name) && !isdirectory(s:name)
+endfunction
+
+function! s:IsUrlName()
+  return match(s:name, '^https\?:') != -1 || match(s:name, '^git:') != -1
 endfunction
 
 function! s:Init(input)
@@ -58,27 +73,31 @@ function! s:Update(input)
   call project#HighlightNoResults()
 endfunction
 
-function! s:Open(item, open_cmd, input)
-  let cwd = s:GetCwd()
-  let cmd = a:item.cmd
-  if s:HasArgs(a:item)
-    let args = input('['.cwd.'] '.a:item.cmd.' | '.a:item.args.': ')
+function! s:Open(task, open_cmd, input)
+  let cmd = a:task.cmd
+  if s:HasArgs(a:task)
+    let args = input('['.s:GetCwd().'] '.a:task.cmd.' | '.a:task.args.': ')
     if !empty(args)
       let cmd = cmd.' '.args
     endif
   endif
 
   let cmd = cmd.' '.s:GetName()
-  let OnExit = function('s:OnJobEnd', [a:item, cmd])
+  call s:RunCmd(cmd, a:task)
+endfunction
+
+function! s:RunCmd(cmd, task)
+  let cwd = s:GetCwd()
+  let OnExit = function('s:OnJobEnd', [a:task, a:cmd])
   if has('nvim')
     new
-    call termopen(cmd, {
+    call termopen(a:cmd, {
           \'on_exit': OnExit,
           \'cwd': cwd,
           \})
     startinsert
   else
-    call term_start(cmd, { 
+    call term_start(a:cmd, { 
           \'exit_cb': OnExit,
           \'cwd': cwd,
           \})
@@ -112,8 +131,8 @@ function! s:OnJobEnd(task, cmd, job, status, ...)
   endif
 endfunction
 
-function! s:HasArgs(item)
-  return has_key(a:item, 'args')
+function! s:HasArgs(task)
+  return has_key(a:task, 'args')
 endfunction
 
 function! s:GetNewProjectTaskDisplay(list)
