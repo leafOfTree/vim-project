@@ -260,6 +260,7 @@ function! s:UpdateLog(input)
   call project#HighlightCurrentLine(len(display))
   if should_reload
     call project#HighlightInputChars(a:input)
+    call project#HighlightNoResults()
   endif
 endfunction
 
