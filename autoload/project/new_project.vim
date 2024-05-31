@@ -22,6 +22,7 @@ function! project#new_project#NewProject(name)
 endfunction
 
 function! s:RunGitCloneUrl()
+  let s:name = substitute(s:name, '?.*$', '', 'g')
   let s:origin_name = fnamemodify(s:name, ':t')
   let cmd = 'git clone '.s:name
   let task = { 'name': 'git', 'cmd': 'git clone' }
