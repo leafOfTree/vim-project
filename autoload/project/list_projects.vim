@@ -58,6 +58,7 @@ endfunction
 function! s:FilterProjects(projects, filter)
   let projects = a:projects
   call s:FilterProjectsByView(projects)
+  call s:RemoveCurrentProject(projects)
 
   if a:filter == ''
     call sort(projects, 's:SortInitialProjectsList')
@@ -66,6 +67,14 @@ function! s:FilterProjects(projects, filter)
   endif
 
   return projects
+endfunction
+
+function! s:RemoveCurrentProject(projects)
+  let project = project#GetVariable('project')
+  if empty(project)
+    return
+  endif
+  call filter(a:projects, {_, value -> value.name != project.name})
 endfunction
 
 function! s:SortInitialProjectsList(a1, a2)
