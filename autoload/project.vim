@@ -1831,7 +1831,7 @@ endfunction
 function! s:ClearCurrentProject()
   if project#ProjectExist()
     call s:QuitProject()
-    silent! %bdelete
+    silent! %bdelete!
   endif
 endfunction
 
