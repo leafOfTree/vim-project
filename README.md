@@ -205,7 +205,7 @@ Project demo
 - `cmd`: command to run
 - `args`: optional, the value is from what user types and will be appended to `cmd`
 
-By default, the configuration is
+By default, the config is
 
 ```vim
         \'new_tasks': [
@@ -215,7 +215,7 @@ By default, the configuration is
         \`new_project_base`: ''
 ```
 
-`new_tasks_post_cmd` defines the comand to run after project is created. By default, it's empty `''`.
+`new_tasks_post_cmd` defines the command to run after project is created. By default, it's empty `''`.
 
 Example 
 
@@ -360,6 +360,33 @@ If you set `cmd` to empty string `''`, it'll call `:terminal` to open a new Vim 
 - `:ProjectGitBranch`: Show branches
 - `:ProjectGitTag`: Show tags
 
+#### Git status and changelist management
+
+- `:ProjectGitStatus`: Show local changes. You can create changelist to organize your local changes. Support basic operations like `commit`, `rollback`, `push`, and `pull`.
+
+Below are git related key mappings for the corresponding diff, changes, and local changes buffer.
+
+```
+let g:vim_project_config.git_diff_mappings = {
+      \'jump_to_source': "\<cr>",
+      \}
+let g:vim_project_config.git_changes_mappings = {
+      \'open_file': "\<cr>",
+      \}
+let g:vim_project_config.git_local_changes_mappings = {
+      \'commit': 'c',
+      \'rollback_file': 'R',
+      \'open_changelist_or_file': "\<cr>",
+      \'new_changelist': 'a',
+      \'move_to_changelist': 'm',
+      \'rename_changelist': 'r',
+      \'delete_changelist': 'd',
+      \'pull': 'u',
+      \'push': 'p',
+      \'pull_and_push': 'P',
+      \}
+```
+
 ## Config and Keymappings
 
 The config consists of following two parts
@@ -395,6 +422,8 @@ let g:vim_project_config = {
         \{ 'name': 'empty', 'cmd': 'mkdir' },
       \],
       \'new_project_base':              '',
+      \'new_tasks_post_cmd':            '',
+      \'commit_message':                '',
       \'debug':                         0,
       \}
 
@@ -440,24 +469,6 @@ let g:vim_project_config.list_mappings_run_tasks = {
 let g:vim_project_config.list_mappings_git = {
       \'checkout_revision':     "\<c-o>",
       \}
-let g:vim_project_config.git_diff_mappings = {
-      \'jump_to_source': "\<cr>",
-      \}
-let g:vim_project_config.git_changes_mappings = {
-      \'open_file': "\<cr>",
-      \}
-let g:vim_project_config.git_local_changes_mappings = {
-      \'open_changelist_or_file': "\<cr>",
-      \'delete_changelist': 'd',
-      \'rename_changelist': 'r',
-      \'new_changelist': 'a',
-      \'rollback_file': 'R',
-      \'commit': 'c',
-      \'move_to_changelist': 'm',
-      \'pull': 'u',
-      \'push': 'p',
-      \'pull_and_push': 'P',
-      \}
 ```
 
 | Option                        | Description                                                                   |
@@ -482,6 +493,7 @@ let g:vim_project_config.git_local_changes_mappings = {
 | file_mappings                 | Keymappings to switch between files quickly                                   |
 | tasks                         | tasks to run using vim 'terminal' feature                                     |
 | project_views                 | Define project views by `[[show-pattern, hide-pattern?], ...]`                |
+| commit_message                | Default commit message. Can be string or Function reference.                  |     
 | debug                         | Show debug messages                                                           |
 
 ### Config files
