@@ -2584,7 +2584,7 @@ function! project#GetProjectDirectory()
   if !has('nvim')
     let path = project#ReplaceHomeWithTide(path)
   endif
-  return project#SetSlashBasedOnOS(path)
+  return path
 endfunction
 
 function! project#SetSlashBasedOnOS(val)

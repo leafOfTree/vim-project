@@ -74,7 +74,7 @@ function! project#git#FileHistory(...)
     let prompt = 'History of '.filename.' L'.join(s:file_history_range, ',').':' 
   endif
 
-  call project#SetVariable('initial_height', winheight(0) - 5)
+  call project#SetVariable('initial_height', winheight(0) - 10)
   call project#PrepareListBuffer(prompt, 'GIT_FILE_HISTORY')
   let Init = function('s:InitFileHistory')
   let Update = function('s:UpdateFileHistory')
@@ -156,6 +156,7 @@ function! s:AddDiffDetails(hash, file)
   call append(0, changes)
   normal! gg
   silent! g/^new file mode/d _
+  silent! %s/$//g
 
   if is_diff_line
     silent! 1,3d _
@@ -221,7 +222,7 @@ function! project#git#Log()
 
   call s:CloseChangesBuffer()
 
-  call project#SetVariable('initial_height', winheight(0) - 5)
+  call project#SetVariable('initial_height', winheight(0) - 10)
   call project#PrepareListBuffer('Search log:', 'GIT_LOG')
   let Init = function('s:InitGitLog')
   let Update = function('s:UpdateGitLog')
@@ -491,27 +492,11 @@ function! VimProjectAddChangeDetails(job, data, ...)
   endif
 
   silent! g/^new file mode/d _ 
+  silent! %s/$//g
   silent! 1,4d _
   normal! gg
   setlocal nomodifiable
   call s:SwitchBuffer(s:changelist_buffer)
-endfunction
-
-function! s:AddChangeDetailsOld(file)
-  let cmd = 'git diff -- '.a:file
-  let changes = project#RunShellCmd(cmd)
-  if empty(changes)
-    " For untracked files
-    " Have to add ' || true' 
-    " as 'git diff --no-index' returns 0 for no changes, 1 for changes
-    let cmd = 'git diff --no-index -- /dev/null '.a:file.' || true'
-    let changes = project#RunShellCmd(cmd)
-  endif
-
-  call append(0, changes)
-  normal! gg
-  silent! g/^new file mode/d _
-  silent! 1,4d _
 endfunction
 
 function! s:ShowDiffOnGitLog(hash)
@@ -1132,7 +1117,7 @@ function! s:UpdateChangelist(run_git = 0)
       return 0
     endif
     let s:untracked_files = s:AddUntrackedPrefix(
-      \project#RunShellCmd('git ls-files --exclude-standard --others --directory'))
+      \project#RunShellCmd('git ls-files --exclude-standard --others'))
   endif
 
   call s:UpdatePresetChangelist()
