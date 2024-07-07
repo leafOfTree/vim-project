@@ -2616,6 +2616,10 @@ function! project#ShortenDate(origin)
   return date
 endfunction
 
+function! project#HideNewlines()
+  silent! %s/$//g
+endfunction
+
 try
   call nerdfont#find('')
   function! project#GetIcon(fullpath)

@@ -155,9 +155,8 @@ function! s:AddDiffDetails(hash, file)
   setlocal modifiable
   call append(0, changes)
   normal! gg
+  call project#HideNewlines()
   silent! g/^new file mode/d _
-  silent! %s/$//g
-
   if is_diff_line
     silent! 1,3d _
   else
@@ -491,8 +490,8 @@ function! VimProjectAddChangeDetails(job, data, ...)
     call append(0, a:data)
   endif
 
+  call project#HideNewlines()
   silent! g/^new file mode/d _ 
-  silent! %s/$//g
   silent! 1,4d _
   normal! gg
   setlocal nomodifiable
