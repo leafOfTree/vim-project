@@ -406,7 +406,7 @@ let g:vim_project_config = {
       \'project_root':                  './',
       \'auto_load_on_start':            0,
       \'include':                       ['./'],
-      \'exclude':                       ['.git', 'node_modules', '.DS_Store'],
+      \'exclude':                       ['.git', 'node_modules', '.DS_Store', '.github', '.next'],
       \'search_include':                [],
       \'find_in_files_include':         [],
       \'search_exclude':                [],
@@ -534,7 +534,7 @@ These options,  **list or dict types are extended**,  others overridden, via `g:
 ```vim
 let g:vim_project_local_config = {
   \'include': ['./'],
-  \'exclude': ['.git', 'node_modules', '.DS_Store'],
+  \'exclude': ['.git', 'node_modules', '.DS_Store', '.github', '.next'],
   \'project_root': './',
   \'use_session': 0,
   \'open_root_when_use_session': 0,
