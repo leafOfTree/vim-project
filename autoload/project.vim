@@ -2613,6 +2613,7 @@ function! project#ShortenDate(origin)
   let date = substitute(date, ' weeks\?', 'w', 'g')
   let date = substitute(date, ' days\?', 'd', 'g')
   let date = substitute(date, ' hours\?', 'h', 'g')
+  let date = substitute(date, ' minutes\?', 'min', 'g')
   return date
 endfunction
 
