@@ -1175,6 +1175,7 @@ function! project#ShowInListBuffer(display, input)
 endfunction
 
 function! s:RemoveExtraBlankLineAtBottom()
+  call s:RemoveNeovideAnimation()
   normal! G"_dd
   normal! gg
   normal! G
@@ -1412,6 +1413,7 @@ function! project#RenderList(Init, Update, Open, Close = v:null)
   call s:ShowInitialInputLine(input)
   let [cmd, input] = s:HandleInput(input, a:Update, a:Open)
   call s:CloseListBuffer(cmd)
+  call s:RecoverNeovideAnimation()
 
   if s:IsOpenCmd(cmd)
     call s:OpenTarget(cmd, input, a:Open)
@@ -1547,14 +1549,12 @@ function! s:HandleInput(input, Update, Open)
       call a:Update(input)
       let s:user_input = input
       call s:ShowInputLine(input)
-      call s:RemoveNeovideAnimation()
     endwhile
   catch /^Vim:Interrupt$/
     call s:Debug('Interrupt')
     let cmd = 'interrupt'
   finally
   endtry
-  call s:RecoverNeovideAnimation()
 
   return [cmd, input]
 endfunction
