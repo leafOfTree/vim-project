@@ -432,11 +432,11 @@ endfunction
 
 function! s:AddChangeDetails(file)
   if s:IsStagedFile(a:file)
-    let cmd = 'git diff --staged -- '.a:file.''
+    let cmd = 'git diff --staged -- "'.a:file.'"'
   elseif s:IsUntrackedFile(a:file)
-    let cmd = 'git diff --no-index -- /dev/null '.a:file.''
+    let cmd = 'git diff --no-index -- /dev/null "'.a:file.'"'
   else
-    let cmd = 'git diff -- '.a:file
+    let cmd = 'git diff -- "'.a:file.'"'
   endif
   let buf_nr = s:GetBufnr(s:diff_buffer)
   call s:RunJob(cmd, 'VimProjectAddChangeDetails', buf_nr)
@@ -1357,7 +1357,7 @@ function! s:TryCommit()
     return
   endif
 
-  let files = join(s:commit_files, ' ')
+  let files = join(map(s:commit_files, {idx, val -> '"'.val.'"'}), ' ')
   let message = join(map(message_lines, {idx, val -> '-m "'.escape(val, '"`').'"'}), ' ')
 
   let option = ''
