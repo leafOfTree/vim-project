@@ -16,7 +16,7 @@ Project-wide
 
 - Search files by name
 - Find in files
-- Find and replace (**experimental**)
+- Find and replace
 - Run tasks
 - Search git log and file history
 - Config
@@ -193,11 +193,11 @@ Project demo
 
 ### :ProjectNew `<path>`
 
-`:ProjectNew` will use `new_project_base` or else current working directory as path base location except for a absolute `path`.
-
 - `path` can be a relative path or a name. you can use <kbd>Tab</kbd> to auto complete.
 
 - If `path` is a git url, the command will use `git clone <url>` to create a new project.
+
+- `path` is based on `new_project_base` or current working directory, unless `path` is absolute.
 
 `new_tasks` defines tasks to create new project. 
 
