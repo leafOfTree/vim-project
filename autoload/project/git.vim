@@ -49,7 +49,7 @@ let s:changelist_default = [
       \ 'expand': 0,
       \},
     \]
-
+let s:item_splitter = '----------------------------------------------------------------------------'
 
 function! project#git#FileHistory(...)
   if !project#ProjectExist()
@@ -540,7 +540,7 @@ endfunction
 
 function! s:GenerateBrief(revision)
   let brief = []
-  call add(brief, '----------------------------------------------------------------------------')
+  call add(brief, s:item_splitter)
   call add(brief, a:revision.message)
   call add(brief, '')
   call add(brief, a:revision.hash.' by '.a:revision.author.' <'.a:revision.email.'> '
@@ -1430,7 +1430,7 @@ endfunction
 
 function! s:OpenResultWindow(title, cmd, result)
   execute 'new '.a:title
-  call append(0, [a:cmd, ''] + a:result)
+  call append(0, [a:cmd, s:item_splitter, ''] + a:result)
   setlocal buftype=nofile
   syntax match Constant /\[\zs\w*\ze .*\]/
   syntax match Keyword /\s\zs\d\+\ze\s\(files\? changed\|insertion\|deletion\)/
