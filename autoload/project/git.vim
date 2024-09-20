@@ -86,7 +86,7 @@ endfunction
 function! s:InitFileHistory(input)
   let range = s:GetLineRange()
   let format = join(["%s", "%aN", "%ae", "%ad", "%h"], s:splitter)
-  let cmd = 'git log --pretty=format:"'.format.'" --date=relative '.range.s:current_file
+  let cmd = 'git log --pretty=format:"'.format.'" --date=relative "'.range.s:current_file.'"'
   let logs = project#RunShellCmd(cmd)
   if empty(range)
     let s:commit_diffs = []
@@ -148,7 +148,7 @@ function! s:AddDiffDetails(hash, file)
   if is_diff_line
     let changes = s:commit_diffs[a:hash]
   else
-    let cmd = 'git show --first-parent --pretty=format:"" '.a:hash.' -- '.a:file
+    let cmd = 'git show --first-parent --pretty=format:"" '.a:hash.' -- "'.a:file.'"'
     let changes = project#RunShellCmd(cmd)
   endif
 
@@ -745,9 +745,9 @@ function! s:RollbackFile()
   echo 'Rollback changes of '.file.'? (y/n) '
   if nr2char(getchar()) == 'y'
     if s:IsFileUntracked(file)
-      let cmd = 'rm '.file
+      let cmd = 'rm "'.file.'"'
     else
-      let cmd = 'git restore -- '.file
+      let cmd = 'git restore -- "'.file.'"'
     endif
     call project#RunShellCmd(cmd)
     if v:shell_error
@@ -762,7 +762,7 @@ function! s:RollbackFile()
 endfunction
 
 function! s:IsFileUntracked(file)
-  let cmd = 'git ls-files --error-unmatch '.a:file
+  let cmd = 'git ls-files --error-unmatch "'.a:file.'"'
   call project#RunShellCmd(cmd)
   return v:shell_error
 endfunction
