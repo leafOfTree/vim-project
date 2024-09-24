@@ -322,12 +322,16 @@ function! s:GetSearchFilesByFilter(input)
   endif
 endfunction
 
+function! s:GetMaxShowFiles()
+  return (s:GetMaxHeight() - 1) * 3
+endfunction
+
 function! s:GetSearchFiles(input)
   let oldfiles = s:GetSearchFilesByOldFiles(a:input)
   let files = s:GetSearchFilesResultList(a:input)
 
-  let max_length = (s:GetMaxHeight() - 1)*3 - len(oldfiles)
-  let files = files[0:max_length]
+  let max_length = s:GetMaxShowFiles()
+  let files = files[0:max_length-1]
   if empty(a:input)
     call s:SortByFileThenDirectory(files)
   endif
@@ -335,11 +339,13 @@ function! s:GetSearchFiles(input)
   call s:UniqueList(files)
 
   if len(files) > max_length
-    let files = files[0:max_length]
+    let files = files[0:max_length-1]
     let files[-1].more = 1
+  else
+    let files[-1].more = 0
   endif
   if len(oldfiles) > 0
-    let oldfiles[len(oldfiles) - 1].recent = 1
+    let oldfiles[len(oldfiles)-1].recent = 1
   endif
 
   call reverse(files)
