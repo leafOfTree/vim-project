@@ -260,10 +260,10 @@ endfunction
 
 It's recommended to install one of [[fd][4], `find`] and one of [[rg][5], [ag][6], `grep`]. They have better performance especially for Windows users and large projects. However, none of them will respect `.gitignore` serving as a search engine for consistency.
 
-To enable `:ProjectFindInFiles` on visually selected word, use `noremap` as follows
+To enable `:ProjectFindInFiles` on both normal and visually selected word, use `noremap` as follows
 
 ```vim
-noremap <c-f> :ProjectFindInFiles<cr>
+noremap <silent> <c-f> :ProjectFindInFiles<cr>
 ```
 
 #### Config for search / find
