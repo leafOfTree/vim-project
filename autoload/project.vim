@@ -121,6 +121,9 @@ function! s:Prepare()
   let s:default.list_mappings_git = {
         \'checkout_revision':     "\<c-o>",
         \}
+  let s:default.list_mappings_git_branch = {
+        \'merge_branch':     "\<c-o>",
+        \}
   let s:default.git_diff_mappings = {
         \'jump_to_source': "\<cr>",
         \}
@@ -179,6 +182,7 @@ function! s:MergeUserConfigIntoDefault(user, default)
         \'list_mappings_find_in_files',
         \'list_mappings_run_tasks',
         \'list_mappings_git',
+        \'list_mappings_git_branch',
         \'git_diff_mappings',
         \'git_changes_mappings',
         \'git_local_changes_mappings',
@@ -228,6 +232,7 @@ function! s:InitConfig()
   let s:list_mappings_find_in_files = s:config.list_mappings_find_in_files
   let s:list_mappings_run_tasks = s:config.list_mappings_run_tasks
   let s:list_mappings_git = s:config.list_mappings_git
+  let s:list_mappings_git_branch = s:config.list_mappings_git_branch
   let s:git_changes_mappings = s:config.git_changes_mappings
   let s:git_diff_mappings = s:config.git_diff_mappings
   let s:git_local_changes_mappings = s:config.git_local_changes_mappings
@@ -1171,12 +1176,12 @@ function! project#ShowInListBuffer(display, input)
   let length = len(a:display)
   call s:AdjustHeight(length, a:input)
   call s:AddEmptyLines(length)
+  call s:RemoveNeovideAnimation()
   call s:RemoveExtraBlankLineAtBottom()
 endfunction
 
 function! s:RemoveExtraBlankLineAtBottom()
-  call s:RemoveNeovideAnimation()
-  normal! G"_dd
+  silent normal! G"_dd
   normal! gg
   normal! G
 endfunction
@@ -1315,6 +1320,8 @@ function! s:GetListCommand(char)
     let mappings = s:list_mappings_run_tasks
   elseif s:IsGitLogList() || s:IsGitFileHistoryList()
     let mappings = s:list_mappings_git
+  elseif s:IsGitBranchList()
+    let mappings = s:list_mappings_git_branch
   endif
   " the first takes effect
   let list_mappings = [mappings, s:list_mappings]
@@ -1362,8 +1369,9 @@ function! project#RunShellCmd(cmd)
         let formatted_error = substitute(error, '	', '    ', 'g')
         call project#Warn(formatted_error)
       endfor
+      call project#Warn('')
       redraw
-      execute (len(output) + 1).'messages'
+      execute (len(output) + 2).'messages'
     endif
     return []
   endif
@@ -1539,6 +1547,9 @@ function! s:HandleInput(input, Update, Open)
         call project#run_tasks#StopTaskHandler(input)
       elseif cmd == 'checkout_revision'
         call project#git#CheckoutRevision()
+        break
+      elseif cmd == 'merge_branch'
+        call project#git#MergeBranch()
         break
       elseif s:IsOpenCmd(cmd)
         break

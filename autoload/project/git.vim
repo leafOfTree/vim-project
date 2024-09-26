@@ -648,6 +648,24 @@ function! project#git#CheckoutRevision()
   call project#SetInfoOnCloseList(msg)
 endfunction
 
+function! project#git#MergeBranch()
+  let show_current_cmd = 'git branch --show-current'
+  let current = project#RunShellCmd(show_current_cmd)[0]
+
+  let target = project#GetTarget()
+  let name = target.name
+  let cmd = 'git merge '.name
+
+  call project#RunShellCmd(cmd)
+  if v:shell_error
+    return
+  endif
+  call project#SetVariable('offset', 0)
+
+  let msg = 'Merged '.name.' into '.current
+  call project#SetInfoOnCloseList(msg)
+endfunction
+
 function! s:GetAbsolutePath(file)
   return $vim_project.'/'.a:file
 endfunction

@@ -366,7 +366,7 @@ If you set `cmd` to empty string `''`, it'll call `:terminal` to open a new Vim 
 
 Below are git related key mappings for the corresponding diff, changes, and local changes buffer.
 
-```
+```vim
 let g:vim_project_config.git_diff_mappings = {
       \'jump_to_source': "\<cr>",
       \}
@@ -470,6 +470,10 @@ let g:vim_project_config.list_mappings_run_tasks = {
 " You can go back to branch head by :ProjectGitBranch
 let g:vim_project_config.list_mappings_git = {
       \'checkout_revision':     "\<c-o>",
+      \}
+
+let g:vim_project_config.list_mappings_git_branch = {
+      \'merge_branch':     "\<c-o>",
       \}
 
 ```
