@@ -379,6 +379,17 @@ function! s:SortFilesList(input, a1, a2)
   let start1 = match(file1, first)
   let start2 = match(file2, first)
   if start1 == start2
+    " Prioritize filename which contains input when input len > 2
+    if len(a:input) > 2
+      let lower_input = tolower(a:input)
+      if stridx(tolower(file1), lower_input) != -1
+        return -1
+      endif
+      if stridx(tolower(file2), lower_input) != -1
+        return 1
+      endif
+    endif
+
     return len(file1) - len(file2)
   elseif start1 != -1 && start2 != -1
     return start1 - start2
