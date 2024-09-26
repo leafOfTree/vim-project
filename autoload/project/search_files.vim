@@ -371,25 +371,33 @@ function! s:SortSearchFilesList(list, input)
   endif
 endfunction
 
+function! s:GetStrIndex(string, substring)
+  return stridx(a:string, a:substring)
+endfunction
+
 function! s:SortFilesList(input, a1, a2)
-  let file1 = a:a1.file
-  let file2 = a:a2.file
-  let first = '\c'.a:input[0]
+  let file1 = tolower(a:a1.file)
+  let file2 = tolower(a:a2.file)
+  let input = tolower(a:input)
+  let first = input[0]
+
+  " Prioritize filename which contains input when input len > 2
+  if len(a:input) > 2
+    let index1 = s:GetStrIndex(file1, input)
+    let index2 = s:GetStrIndex(file2, input)
+
+    if index1 != -1 && index2 != -1
+      return index1 - index2
+    elseif index1 == -1
+      return 1
+    elseif index2 == -1
+      return -1
+    endif
+  endif
 
   let start1 = match(file1, first)
   let start2 = match(file2, first)
   if start1 == start2
-    " Prioritize filename which contains input when input len > 2
-    if len(a:input) > 2
-      let lower_input = tolower(a:input)
-      if stridx(tolower(file1), lower_input) != -1
-        return -1
-      endif
-      if stridx(tolower(file2), lower_input) != -1
-        return 1
-      endif
-    endif
-
     return len(file1) - len(file2)
   elseif start1 != -1 && start2 != -1
     return start1 - start2
