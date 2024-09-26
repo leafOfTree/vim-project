@@ -466,9 +466,12 @@ let g:vim_project_config.list_mappings_run_tasks = {
       \'open_task_terminal':    "\<c-o>",
       \}
 
+" Checkout revision on git log and file history list.
+" You can go back to branch head by :ProjectGitBranch
 let g:vim_project_config.list_mappings_git = {
       \'checkout_revision':     "\<c-o>",
       \}
+
 ```
 
 | Option                        | Description                                                                   |

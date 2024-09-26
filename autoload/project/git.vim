@@ -638,6 +638,7 @@ function! project#git#CheckoutRevision()
   let target = project#GetTarget()
   let cmd = 'git checkout '.target.hash
   call project#RunShellCmd(cmd)
+  checktime
   if v:shell_error
     return
   endif
