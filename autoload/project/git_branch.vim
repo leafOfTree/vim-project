@@ -69,7 +69,6 @@ function! s:Open(branch, open_cmd, input)
       return
     endif
   endif
-
   edit
   call project#Info('Switched to: '.a:branch.name)
 endfunction

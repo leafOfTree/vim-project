@@ -609,6 +609,7 @@ function! project#InfoOnCloseList()
   if empty(s:info_on_close_list)
     return
   endif
+  edit
   echom '['.s:name.'] '.s:info_on_close_list
   let s:info_on_close_list = ''
 endfunction
