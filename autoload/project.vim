@@ -1414,6 +1414,7 @@ function! project#RedrawEmptyInputLine()
 endfunction
 
 function! s:ShowInitialInputLine(input, ...)
+  mode
   call s:ShowInputLine(a:input)
 endfunction
 
