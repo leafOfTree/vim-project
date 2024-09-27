@@ -331,7 +331,9 @@ function! s:GetSearchFiles(input)
   let files = s:GetSearchFilesResultList(a:input)
 
   let max_length = s:GetMaxShowFiles()
-  let files = files[0:max_length-1]
+  if len(files) > max_length
+    let files = files[0:max_length-1]
+  endif
   if empty(a:input)
     call s:SortByFileThenDirectory(files)
   endif
@@ -342,7 +344,9 @@ function! s:GetSearchFiles(input)
     let files = files[0:max_length-1]
     let files[-1].more = 1
   else
-    let files[-1].more = 0
+    if len(files) > 0
+      let files[-1].more = 0
+    endif
   endif
   if len(oldfiles) > 0
     let oldfiles[len(oldfiles)-1].recent = 1
