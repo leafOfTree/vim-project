@@ -73,11 +73,27 @@ function! s:Open(branch, open_cmd, input)
   call project#Info('Switched to: '.a:branch.name)
 endfunction
 
+function! s:GetSafeBranchName(raw_name)
+  let name = substitute(a:raw_name, '[^a-zA-Z0-9_-]', '-', 'g')
+
+  " Remove leading hyphens
+  let name = substitute(name, '^-\+', '', '')
+
+  " Remove trailing hyphens
+  let name = substitute(name, '-\+$', '', '')
+
+  " Replace multiple consecutive hyphens with a single hyphen
+  let name = substitute(name, '-\+', '-', 'g')
+  return name
+endfunction
+
 function! s:CreateNewBranch()
-  let name = input('New branch name: ', '')
-  if empty(name)
+  let raw_name = input('New branch name: ', '')
+  if empty(raw_name)
     return
   endif
+
+  let name = s:GetSafeBranchName(raw_name)
 
   let cmd = 'git switch -c '.name
   call project#RunShellCmd(cmd)
