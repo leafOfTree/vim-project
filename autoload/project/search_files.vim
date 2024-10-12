@@ -96,7 +96,7 @@ function! s:GetSearchFilesByOldFiles(input)
 endfunction
 
 function! s:UseOsSlash(oldfiles)
-  map(oldfiles, {_, val -> { file: val.file, path: project#SetOsSlash(val.path)}})
+  call map(a:oldfiles, {_, val -> { 'file': val.file, 'path': project#SetOsSlash(val.path)}})
 endfunction
 
 function! s:GetOldFiles()
