@@ -91,7 +91,12 @@ function! s:GetSearchFilesByOldFiles(input)
   call s:MapSearchFiles(oldfiles)
   call s:FilterOldFilesByInput(oldfiles, a:input)
   call s:SortSearchFilesList(oldfiles, a:input)
+  call s:UseOsSlash(oldfiles)
   return oldfiles
+endfunction
+
+function! s:UseOsSlash(oldfiles)
+  map(oldfiles, {_, val -> { file: val.file, path: project#SetOsSlash(val.path)}})
 endfunction
 
 function! s:GetOldFiles()

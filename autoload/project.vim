@@ -2600,7 +2600,7 @@ function! project#GetProjectDirectory()
   return path
 endfunction
 
-function! project#SetSlashBasedOnOS(val)
+function! project#SetOsSlash(val)
   if s:is_win_version
     return substitute(a:val, '/', '\', 'g')
   else
