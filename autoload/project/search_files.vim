@@ -14,7 +14,7 @@ function! project#search_files#Run()
   call project#RenderList(Init, Update, Open)
 endfunction
 
-function! project#search_files#reset()
+function! project#search_files#Reset()
   unlet! s:initial_list
 endfunction
 

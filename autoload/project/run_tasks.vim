@@ -479,6 +479,29 @@ function! project#run_tasks#StopTaskHandler(input)
   call project#UpdateOffsetByIndex(index)
 endfunction
 
+function! project#run_tasks#DumpTasks()
+  let tasks = project#GetVariable('tasks')
+  return deepcopy(tasks)
+endfunction
+
+function! project#run_tasks#RebindTasks(old_tasks)
+  let tasks = project#GetVariable('tasks')
+  for old_task in a:old_tasks
+    if has_key(old_task, 'bufnr')
+      for task in tasks
+        if task.name == old_task.name
+          let task.bufnr = old_task.bufnr
+          let task.exit_code = old_task.exit_code
+          let task.finished = old_task.finished
+          let task.duration = old_task.duration
+          let task.started = old_task.started
+          let task.started_rel = old_task.started_rel
+        endif
+      endfor
+    endif
+  endfor
+endfunction
+
 function! s:FilterRunTasks(tasks, filter)
   let regexp_filter = join(split(a:filter, '\zs'), '.*')
 

@@ -823,8 +823,10 @@ endfunction
 function! s:OnInitFileChange()
   redraw
   call s:Info('Config Reloaded')
+  let old_tasks = project#run_tasks#DumpTasks()
   call s:SourceInitFile()
-  call project#search_files#reset()
+  call project#run_tasks#RebindTasks(old_tasks)
+  call project#search_files#Reset()
 endfunction
 
 function! s:SetStartProjectOnBufEnter()
@@ -1948,7 +1950,7 @@ function! s:QuitProject()
     call s:UnsetEnvVariables()
     call s:WipeoutListBuffer()
     call s:WipeoutTerminalBuffer()
-    call project#search_files#reset()
+    call project#search_files#Reset()
     call project#run_tasks#reset()
 
     call s:SyncGlobalVariables()
