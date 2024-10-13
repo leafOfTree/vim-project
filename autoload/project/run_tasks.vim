@@ -388,6 +388,8 @@ function! s:GetTaskStatus(task)
 
   if has('nvim')
     let status_code = jobwait([a:task.bufnr], 0)[0]
+    " Fix cursor flashing after nvim v0.10
+    redraw
     if status_code == -1
       return 'running'
     else
