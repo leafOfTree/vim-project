@@ -73,7 +73,11 @@ function! s:GetTaskStatusLine(task, status)
 
   let width = &columns
   let left = '  ['.a:status.'] '.icon
-  let right = a:task.duration.'s'
+  if has_key(a:task, 'duration')
+    let right = a:task.duration.'s'
+  else
+    let right = ''
+  endif
   if a:status == 'finished'
     let right = 'At '.a:task.finished.', '.right
   endif
