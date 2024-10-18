@@ -1399,7 +1399,7 @@ function! s:ShowInputLine(input)
   redraw
   " Fix cursor flashing when in terminal,
   echo ''
-  " The second space is unicode that looks like space
+  " The second space is unicode space that looks like space
   let input = substitute(a:input, ' $', ' ', '')
   echo s:prefix.' '.input
 endfunction
