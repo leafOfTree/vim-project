@@ -1131,7 +1131,6 @@ function! s:UpdateChangelist(run_git = 0)
   if a:run_git
     let s:unmerged_files = project#RunShellCmd('git diff --name-status --diff-filter=U')
     let s:changed_files = project#RunShellCmd('git diff --name-status --diff-filter=u')
-    echom s:changed_files
     let s:staged_files = project#RunShellCmd('git diff --staged --name-status --diff-filter=u')
     if !empty(s:changed_files) && s:changed_files[0] =~ 'Not a git repository'
       return 0
@@ -1287,7 +1286,6 @@ function! s:HighlightFiles(lines)
     if line =~ '\$'
       call matchadd('Comment', line_pattern)
     elseif line =~ '!'
-      echom line_pattern
       call matchadd('diffAdded', line_pattern)
     endif
     call matchadd('Comment', line_pattern.' \S*$')
