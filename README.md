@@ -151,6 +151,7 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 | ProjectNew `<path>`        | Create new project by running predefined tasks |
 | ProjectList                | Show all projects                        |
 | ProjectSearchFiles         | Search files by name                     |
+| ProjectSearchFilesRest     | Reset search files, useful when new files added outside |
 | ProjectFindInFiles         | Find given string/regexp (at least 2 chars) in files |
 | ProjectRun                 | Run a task defined by `tasks` config     |
 | ProjectGitLog              | Show git log                             |
