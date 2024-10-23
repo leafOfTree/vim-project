@@ -11,11 +11,10 @@ function! project#search_files#Run()
   let Init = function('s:Init')
   let Update = function('s:Update')
   let Open = function('s:Open')
-  let Close = function('s:Close')
-  call project#RenderList(Init, Update, Open, Close)
+  call project#RenderList(Init, Update, Open)
 endfunction
 
-function! s:Reset()
+function! project#search_files#Reset()
   unlet! s:initial_list
 endfunction
 
@@ -40,10 +39,6 @@ function! s:Open(target, open_cmd, input)
   let cmd = cmd == '' ? 'edit' : cmd
   let file = $vim_project.'/'.a:target.path.'/'.a:target.file
   execute cmd.' '.file
-endfunction
-
-function! s:Close()
-  call s:Reset()
 endfunction
 
 function! s:GetRecentIndex(list)
