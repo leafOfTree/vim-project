@@ -284,7 +284,6 @@ function! s:AdjustIncludeExcludePath(paths, default)
     let paths = a:default
   endif
   call s:RemoveListTrailingSlash(paths)
-  call s:RemoveListHeadingDotSlash(paths)
   return paths
 endfunction
 
@@ -1980,10 +1979,10 @@ function! project#ShowProjectInfo()
     call s:Info('config_home: '.s:config.config_home)
     call s:Info('project_base: '.join(s:config.project_base, ', '))
     call s:Info('Include: '.string(s:include))
-    call s:Info('Search Include: '.string(s:search_include))
-    call s:Info('Find in files Include: '.string(s:find_in_files_include))
     call s:Info('Exclude: '.string(s:exclude))
+    call s:Info('Search Include: '.string(s:search_include))
     call s:Info('Search Exclude: '.string(s:search_exclude))
+    call s:Info('Find in files Include: '.string(s:find_in_files_include))
     call s:Info('Find in files Exclude: '.string(s:find_in_files_exclude))
   else
     call project#Warn('Open a project first')
@@ -2003,11 +2002,11 @@ endfunction
 function! s:ShowProjectConfig()
   for key in sort(keys(s:config))
     if has_key(s:, key)
-      let value = s:[key]
+      let Value = s:[key]
     else
-      let value = s:config[key]
+      let Value = s:config[key]
     endif
-    call s:Info(key.': '.string(value))
+    call s:Info(key.': '.string(Value))
   endfor
 endfunction
 
