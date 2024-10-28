@@ -483,7 +483,7 @@ let g:vim_project_config.list_mappings_git_branch = {
 |-------------------------------|-------------------------------------------------------------------------------|
 | config_home                   | The directory for all config files                                            |
 | project_base                  | A list of base directories used for path in `:Project path`                   |
-| use_session                   | Use session                                                                   |
+| use_session                   | Read and write separate session for each project                              | 
 | open_root_when_use_session    | When session used, always open project root at the beginning                  |
 | check_branch_when_use_session | When session used, keep one for each branch                                   |
 | project_root                  | Starting directory or file when fist launching project                        |
@@ -517,7 +517,7 @@ The config files are located at `~/.vim/vim-project-config/`, where `~/.vim/vim-
      | <project-name>/
          | init.vim
          | quit.vim
-         | sessions/              " session for each branch
+         | sessions/              " session for each branch when use_session is '1'
              | master.vim
              | dev.vim
 
@@ -595,7 +595,17 @@ let g:vim_project_config.file_open_types = {
 
 ### Session options
 
-See `:h sessionoptions`.
+To read and write separate session for each project, you can add
+
+```vim
+let g:vim_project_config = {
+      \...
+      \'use_session': 1,
+      \...
+      \}
+```
+
+See `:h sessionoptions` for what to save and restore.
 
 ### Project views
 
