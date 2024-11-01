@@ -74,7 +74,7 @@ function! s:RemoveCurrentProject(projects)
   if empty(project)
     return
   endif
-  call filter(a:projects, {_, value -> value.name != project.name})
+  call filter(a:projects, {_, value -> value.fullpath != project.fullpath})
 endfunction
 
 function! s:SortInitialProjectsList(a1, a2)
