@@ -147,8 +147,8 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 
 | Command                    | Description                              |
 |----------------------------|------------------------------------------|
-| Project `<path>`           | Add existing project, then open it       |
-| ProjectNew `<path>`        | Create new project by running predefined tasks |
+| Project `<path>`           | Add an existing folder at `path` as project, then open it |
+| ProjectNew `<path>`        | Create a new folder as project at `path` by running predefined tasks |
 | ProjectList                | Show all projects                        |
 | ProjectSearchFiles         | Search files by name                     |
 | ProjectSearchFilesRest     | Reset search files, useful when new files added outside |
@@ -499,7 +499,8 @@ let g:vim_project_config.list_mappings_git_branch = {
 | search_exclude                | Excluding folders/files for search files                                      |
 | find_in_files_exclude         | Excluding folders/files for find in files                                     |
 | file_mappings                 | Keymappings to switch between files quickly                                   |
-| tasks                         | tasks to run using vim 'terminal' feature                                     |
+| tasks                         | Tasks to run using vim 'terminal' feature                                     |
+| new_project_base              | The base directory used for `:ProjectNew path`.                               |
 | project_views                 | Define project views by `[[show-pattern, hide-pattern?], ...]`                |
 | commit_message                | Default commit message. Can be string or Function reference.                  |     
 | debug                         | Show debug messages                                                           |
