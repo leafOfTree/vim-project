@@ -402,6 +402,7 @@ let g:vim_project_config = {
       \'config_home':                   '~/.vim/vim-project-config',
       \'project_base':                  ['~'],
       \'use_session':                   0,
+      \'use_viminfo':                   0,
       \'open_root_when_use_session':    0,
       \'check_branch_when_use_session': 0,
       \'project_root':                  './',
@@ -483,7 +484,8 @@ let g:vim_project_config.list_mappings_git_branch = {
 |-------------------------------|-------------------------------------------------------------------------------|
 | config_home                   | The directory for all config files                                            |
 | project_base                  | A list of base directories used for path in `:Project path`                   |
-| use_session                   | Read and write separate session for each project                              | 
+| use_session                   | Save and load project-local session                                          | 
+| use_viminfo                   | Save and load project-local viminfo (or shada for neovim)                    | 
 | open_root_when_use_session    | When session used, always open project root at the beginning                  |
 | check_branch_when_use_session | When session used, keep one for each branch                                   |
 | project_root                  | Starting directory or file when fist launching project                        |
@@ -521,20 +523,25 @@ The config files are located at `~/.vim/vim-project-config/`, where `~/.vim/vim-
          | sessions/              " session for each branch when use_session is '1'
              | master.vim
              | dev.vim
+         | viminfo/               " viminfo file when use_viminfo is '1'
+             | main.shada         " for neovim
+             | .viminfo           " for vim
 
 ```
 
 Open
 
-- Load session
-- Source project's `init.vim`
+- Load project viminfo (when enabled)
+- Load project session (when enabled)
+- Source project `init.vim`
 
 Quit
 
-- Save session
-- Source project's `quit.vim`
+- Save project viminfo (when enabled)
+- Save project session (when enabled)
+- Source project `quit.vim`
 
-`init.vim` will get reloaded once you change and save it.
+`init.vim` will get automatically reloaded after you change it.
 
 ### Project local config
 

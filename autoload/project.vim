@@ -39,6 +39,7 @@ function! s:Prepare()
         \'config_home':                   '~/.vim/vim-project-config',
         \'project_base':                  ['~'],
         \'use_session':                   0,
+        \'use_viminfo':                   0,
         \'open_root_when_use_session':    0,
         \'check_branch_when_use_session': 0,
         \'project_root':                 './',
@@ -76,6 +77,7 @@ function! s:Prepare()
         \'file_mappings',
         \'tasks',
         \'use_session',
+        \'use_viminfo',
         \'open_root_when_use_session',
         \'check_branch_when_use_session',
         \'commit_message',
@@ -209,6 +211,7 @@ function! s:InitConfig()
   let s:open_root_when_use_session = s:config.open_root_when_use_session
   let s:check_branch_when_use_session = s:config.check_branch_when_use_session
   let s:use_session = s:config.use_session
+  let s:use_viminfo = s:config.use_viminfo
   let s:project_root = s:config.project_root
   let s:project_base = s:RemoveListTrailingSlash(s:config.project_base)
   let s:include = s:config.include
@@ -550,6 +553,7 @@ function! s:InitProjectConfig(project)
           \'"   \],',
           \'"   \''project_root'': ''./'',',
           \'"   \''use_session'': 0,',
+          \'"   \''use_viminfo'': 0,',
           \'"   \''open_root_when_use_session'': 0,',
           \'"   \''check_branch_when_use_session'': 0,',
           \'"   \}',
@@ -1833,6 +1837,7 @@ function! s:LoadProject()
   call s:SourceInitFile()
   call s:WatchOnInitFileChange()
   call s:FindBranch()
+  call s:LoadViminfo()
   call s:LoadSession()
 endfunction
 
@@ -1941,6 +1946,7 @@ endfunction
 function! s:QuitProject()
   if project#ProjectExist()
     call s:Info('Quitted ['.s:project.name.']')
+    call s:SaveViminfo()
     call s:SaveSession()
     call s:SourceQuitFile()
     call s:UnwatchOnInitFileChange()
@@ -2192,22 +2198,62 @@ function! s:FindBranch()
 endfunction
 
 function! s:GetSessionFolder()
-  if project#ProjectExist()
-    let config = s:GetProjectConfigPath(s:config_home, s:project)
-    return config.'/sessions'
-  else
-    return ''
+  let config = s:GetProjectConfigPath(s:config_home, s:project)
+  return config.'/sessions'
+endfunction
+
+function! s:GetSessionFile()
+  let config = s:GetProjectConfigPath(s:config_home, s:project)
+  return config.'/sessions/'.s:branch.'.vim'
+endfunction
+
+function! s:LoadViminfo()
+  if !s:use_viminfo
+    return
+  endif
+
+  let file = s:GetViminfoFile()
+  if filereadable(file)
+    call s:Debug('Load viminfo file: '.file)
+    if has('nvim')
+      execute 'rshada! '.file
+    else
+      execute 'rviminfo! '.file
+    endif
   endif
 endfunction
 
-
-function! s:GetSessionFile()
-  if project#ProjectExist()
-    let config = s:GetProjectConfigPath(s:config_home, s:project)
-    return config.'/sessions/'.s:branch.'.vim'
-  else
-    return ''
+function! s:SaveViminfo()
+  if !s:use_viminfo
+    return
   endif
+
+  let folder = s:GetViminfoFolder()
+  if !isdirectory(folder) && exists('*mkdir')
+    call mkdir(folder, 'p')
+  endif
+
+  let file = s:GetViminfoFile()
+  call s:Debug('Save viminfo to: '.file)
+  if has('nvim')
+    execute 'wshada! '.file
+  else
+    execute 'wviminfo! '.file
+  endif
+endfunction
+
+function! s:GetViminfoFile()
+  let config = s:GetProjectConfigPath(s:config_home, s:project)
+  if has('nvim')
+    return config.'/viminfo/main.shada'
+  else
+    return config.'/viminfo/.viminfo'
+  endif
+endfunction
+
+function! s:GetViminfoFolder()
+  let config = s:GetProjectConfigPath(s:config_home, s:project)
+  return config.'/viminfo'
 endfunction
 
 function! s:LoadSession()
@@ -2220,7 +2266,7 @@ function! s:LoadSession()
     call s:Debug('Load session file: '.file)
     execute 'source '.file
   else
-    call s:Debug('Not session file found: '.file)
+    call s:Debug('No session file found: '.file)
   endif
 endfunction
 
