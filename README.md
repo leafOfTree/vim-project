@@ -601,9 +601,24 @@ let g:vim_project_config.file_open_types = {
       \}
 ```
 
+### Viminfo (Shada for neovim)
+
+Viminfo can be used to keep registers, marks, v:oldfiles, etc.
+
+To load and save project-local viminfo, you can add
+
+```vim
+
+let g:vim_project_config = {
+      \...
+      \'use_viminfo': 1,
+      \...
+      \}
+```
+
 ### Session options
 
-To read and write separate session for each project, you can add
+To load and save project-local session, you can add
 
 ```vim
 let g:vim_project_config = {
