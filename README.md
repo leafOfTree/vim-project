@@ -616,6 +616,17 @@ let g:vim_project_config = {
       \}
 ```
 
+You may disable global viminfo to make each project more isolated
+
+```vim
+
+if has('nvim')
+  set shada=""
+else
+  set viminfo=""
+endif
+```
+
 ### Session options
 
 To load and save project-local session, you can add
