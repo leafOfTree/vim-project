@@ -485,6 +485,10 @@ function! VimProjectAddChangeDetails(job, data, ...)
   if error
     return
   endif
+  if &modifiable == 0
+    set modifiable
+    normal! ggdG
+  endif
 
   if has('nvim')
     call append(0, a:data)
@@ -1093,11 +1097,12 @@ endfunction
 
 function! s:GetChangedFileDisplay(file, prefix = '  ')
   let sign = s:GetFileChangeSign(a:file)
+  " sign_mark is used by s:HighlightFiles
   let sign_mark = ''
-  if sign == 'D'
-    let sign_mark = '$'
-  elseif sign == 'A' || sign == 'U'
-    let sign_mark = '!'
+  if sign == 'D' 
+    let sign_mark = '$'  " $ Deleted - Comment
+  elseif sign == 'A' || sign == '?' 
+    let sign_mark = '!'  " ! Add or untrack - diffAdded
   endif
   let splitter = '|'
 
@@ -1129,19 +1134,41 @@ endfunction
 
 function! s:UpdateChangelist(run_git = 0)
   if a:run_git
-    let s:unmerged_files = project#RunShellCmd('git diff --name-status --diff-filter=U')
-    let s:changed_files = project#RunShellCmd('git diff --name-status --diff-filter=u')
-    let s:staged_files = project#RunShellCmd('git diff --staged --name-status --diff-filter=u')
-    if !empty(s:changed_files) && s:changed_files[0] =~ 'Not a git repository'
-      return 0
-    endif
-    let s:untracked_files = s:AddUntrackedPrefix(
-      \project#RunShellCmd('git ls-files --exclude-standard --others'))
+    call s:ParseGitStatus()
   endif
 
   call s:UpdatePresetChangelist()
   call s:UpdateChangelistDisplay()
   return 1
+endfunction
+
+function! s:ParseGitStatus()
+  let output = project#RunShellCmd('git status --porcelain')
+  let s:staged_files = []
+  let s:changed_files = []
+  let s:untracked_files = []
+  let s:unmerged_files = []
+
+  for line in output
+    let status = strpart(line, 0, 2)
+    let filepath = strpart(line, 3)
+
+    if status[0] != ' ' && status[0] != '?' && status[0] != 'U' " Staged files
+      call add(s:staged_files, status[0].' '.filepath)
+    endif
+
+    if status[0] == ' ' && status[1] != ' ' " Changed but unstaged files
+      call add(s:changed_files, status[1].' '.filepath)
+    endif
+
+    if status == '??' " Untracked files
+      call add(s:untracked_files, '? '.filepath)
+    endif
+
+    if status == 'UU' " Merge conflicts
+      call add(s:unmerged_files, 'U '.filepath)
+    endif
+  endfor
 endfunction
 
 function! s:IsSpecialFolder(folder)
