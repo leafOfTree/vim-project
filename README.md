@@ -171,6 +171,9 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 
 > You can try adjusting `wildmenu`, `wildmode` for enhanced command-line completion
 
+> [!IMPORTANT]
+> If some commands run much slower than its equivalent in terminal, consider resetting `shell` to `sh`. You can also try `set shell=/bin/bash`.
+
 ### :Project `<path>`
 
 `path`: If `path` is relative or a project name , it'll search with both current working directory and `g:vim_project_config.project_base` as path base . In addition, you can use <kbd>Tab</kbd> to auto complete the path.
@@ -361,7 +364,8 @@ If you set `cmd` to empty string `''`, it'll call `:terminal` to open a new Vim 
 - `:ProjectGitBranch`: Show branches
 - `:ProjectGitTag`: Show tags
 
-> If these commands run much slower than in terminal, consider `set shell=/bin/bash` for vim.
+> [!IMPORTANT]
+> If some commands run much slower than its equivalent in terminal, consider resetting `shell` to `sh`. You can also try `set shell=/bin/bash`.
 
 #### Git status and changelist management
 
