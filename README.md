@@ -119,6 +119,10 @@ You can install this plugin just like others.
 <br />
 </details>
 
+
+> [!IMPORTANT]
+> If some commands run much slower in vim than its equivalent in terminal, consider resetting `shell` to `sh`. You can also try `set shell=/bin/bash`.
+
 ### Show file icon
 
 To enable file icon in front of file name, you need to install
@@ -170,9 +174,6 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 | ProjectIgnore `<path>`     | Ignore project for auto detection        |
 
 > You can try adjusting `wildmenu`, `wildmode` for enhanced command-line completion
-
-> [!IMPORTANT]
-> If some commands run much slower than its equivalent in terminal, consider resetting `shell` to `sh`. You can also try `set shell=/bin/bash`.
 
 ### :Project `<path>`
 
