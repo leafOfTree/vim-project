@@ -119,9 +119,8 @@ You can install this plugin just like others.
 <br />
 </details>
 
-
 > [!IMPORTANT]
-> If some commands run much slower in vim than its equivalent in terminal, consider resetting `shell` to `sh`. You can also try `set shell=/bin/bash`.
+> If some commands run much slower in vim than its equivalent in terminal, try resetting `shell` to `sh` or `cmd.exe`.
 
 ### Show file icon
 
@@ -366,7 +365,7 @@ If you set `cmd` to empty string `''`, it'll call `:terminal` to open a new Vim 
 - `:ProjectGitTag`: Show tags
 
 > [!IMPORTANT]
-> If some commands run much slower than its equivalent in terminal, consider resetting `shell` to `sh`. You can also try `set shell=/bin/bash`.
+> If some commands run much slower in vim than its equivalent in terminal, try resetting `shell` to `sh` or `cmd.exe`.
 
 #### Git status and changelist management
 
