@@ -361,6 +361,8 @@ If you set `cmd` to empty string `''`, it'll call `:terminal` to open a new Vim 
 - `:ProjectGitBranch`: Show branches
 - `:ProjectGitTag`: Show tags
 
+> If those commands run much slower than in terminal, consider `set shell=/bin/bash` for vim.
+
 #### Git status and changelist management
 
 - `:ProjectGitStatus`: Show local changes. You can create changelist to organize your local changes. Support basic operations like `commit`, `rollback`, `push`, and `pull`.
