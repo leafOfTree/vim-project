@@ -86,7 +86,7 @@ endfunction
 function! s:InitFileHistory(input)
   let range = s:GetLineRange()
   let format = join(["%s", "%aN", "%ae", "%ad", "%h"], s:splitter)
-  let cmd = 'git log --pretty=format:"'.format.'" --date=relative "'.range.s:current_file.'"'
+  let cmd = 'git log --pretty=format:"'.format.'" --date=relative '.range.s:current_file
   let logs = project#RunShellCmd(cmd)
   if empty(range)
     let s:commit_diffs = []
