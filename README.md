@@ -362,7 +362,7 @@ If you set `cmd` to empty string `''`, it'll call `:terminal` to open a new Vim 
 ### Git Integration
 
 - `:ProjectGitLog`: Show git log
-- `:ProjectGitFileHistory`: Show history of current opened file. Works on visually selected lines.
+- `:ProjectGitFileHistory`: Show history of current opened file. Also Works on visually selected lines.
 - `:ProjectGitBranch`: Show branches
 - `:ProjectGitTag`: Show tags
 
