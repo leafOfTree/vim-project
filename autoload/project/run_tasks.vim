@@ -497,11 +497,15 @@ function! project#run_tasks#RebindTasks(old_tasks)
       for task in tasks
         if task.name == old_task.name
           let task.bufnr = old_task.bufnr
-          let task.exit_code = old_task.exit_code
-          let task.finished = old_task.finished
-          let task.duration = old_task.duration
           let task.started = old_task.started
           let task.started_rel = old_task.started_rel
+          let task.duration = old_task.duration
+          if has_key(old_task, 'exit_code')
+            let task.exit_code = old_task.exit_code
+          endif
+          if has_key(old_task, 'finished')
+            let task.finished = old_task.finished
+          endif
         endif
       endfor
     endif
