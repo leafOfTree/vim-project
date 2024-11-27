@@ -290,6 +290,8 @@ Both `Search files` and `Find in files`
     - `search_exclude`
     - `find_in_files_exclude`
 
+> you can use glob patterns like `dist`, `*.png`,  or `**/dist`.
+
 `Find in files`
 
 - Match case
