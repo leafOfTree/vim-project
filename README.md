@@ -199,9 +199,10 @@ Project demo
 
 - `path` can be a relative path or a name. you can use <kbd>Tab</kbd> to auto complete.
 
-- If `path` is a git url, the command will use `git clone <url>` to create a new project.
+- If `path` is a relative path, it's based on `new_project_base` (if not empty) or current working directory
 
-- `path` is based on `new_project_base` or current working directory, unless `path` is absolute.
+- If `path` is a git url, `ProjectNew` will use `git clone <url>` to create a new project.
+
 
 `new_tasks` defines tasks to create new project. 
 
