@@ -79,7 +79,9 @@ function! s:GetTaskStatusLine(task, status)
     let right = ''
   endif
   if a:status == 'finished'
-    let right = 'At '.a:task.finished.', '.right
+    if has_key(a:task, 'finished')
+      let right = 'At '.a:task.finished.', '.right
+    endif
   endif
   let padding_number = width - strwidth(left) - strwidth(right) - 2
   let padding = ''
