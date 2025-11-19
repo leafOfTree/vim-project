@@ -293,6 +293,8 @@ Both `Search files` and `Find in files`
 
 > you can use glob patterns like `dist`, `*.png`,  or `**/dist`.
 
+> `include` defaults to `[]`, which searches everything
+
 `Find in files`
 
 - Match case
@@ -416,7 +418,7 @@ let g:vim_project_config = {
       \'check_branch_when_use_session': 0,
       \'project_root':                  './',
       \'auto_load_on_start':            0,
-      \'include':                       ['./'],
+      \'include':                       [],
       \'exclude':                       ['.git', 'node_modules', '.DS_Store', '.github', '.next'],
       \'search_include':                [],
       \'find_in_files_include':         [],
@@ -558,7 +560,7 @@ These options,  **list or dict types are extended**,  others overridden, via `g:
 
 ```vim
 let g:vim_project_local_config = {
-  \'include': ['./'],
+  \'include': [],
   \'exclude': ['.git', 'node_modules', '.DS_Store', '.github', '.next'],
   \'project_root': './',
   \'use_session': 0,
