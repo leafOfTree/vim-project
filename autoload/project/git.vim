@@ -361,7 +361,7 @@ function! s:SetupChangesBuffer(revision)
   syntax match Splitter "\$" conceal
   syntax match Splitter "!" conceal
   setlocal conceallevel=3 
-  setlocal concealcursor=nc
+  setlocal concealcursor=nvc
 
   setlocal buftype=nofile bufhidden=wipe nobuflisted
   setlocal nowrap
@@ -1259,6 +1259,7 @@ function! s:SetupChangelistBuffer()
   call s:AddMapping(mappings.rename_changelist, '<SID>RenameFolder()')
   call s:AddMapping(mappings.rollback_file, '<SID>RollbackFile()')
   call s:AddMapping(mappings.commit, '<SID>Commit()')
+  call s:AddVisualMapping(mappings.commit, '<SID>Commit()')
   call s:AddMapping(mappings.pull, '<SID>TryPull()')
   call s:AddMapping(mappings.push, '<SID>TryPush()')
   call s:AddMapping(mappings.pull_and_push, '<SID>TryPullThenPush()')
@@ -1276,7 +1277,7 @@ function! s:SetupChangelistBuffer()
   syntax match Splitter "\$" conceal
   syntax match Splitter "!" conceal
   setlocal conceallevel=3 
-  setlocal concealcursor=nc
+  setlocal concealcursor=nvc
 
   setlocal buftype=nofile
   setlocal nomodifiable
@@ -1321,7 +1322,7 @@ function! s:HighlightFiles(lines)
   call project#HighlightIcon()
 endfunction
 
-function! s:Commit()
+function! s:Commit() range
   let files = []
 
   let lnum = line('.')
@@ -1334,7 +1335,10 @@ function! s:Commit()
     let folder = s:GetBelongFolder(lnum)
     let files = folder.files
   else
-    let files = [file]
+    let files = []
+    for lnum in range(a:firstline, a:lastline)
+      call add(files, s:GetFileByLine(lnum))
+    endfor
   endif
 
   let check_files = s:changed_files + s:untracked_files + s:staged_files + s:unmerged_files
@@ -1360,13 +1364,14 @@ function! s:GetCommitMessage()
   let folder_name = !empty(folder) ? s:RemoveFolderNamePrefix(folder.name) : ''
 
   let title = ''
-  let Message = project#GetVariable('commit_message')
+  let CustomMessage = project#GetVariable('commit_message')
 
-  if !empty(Message)
-    if type(Message) == type(function('tr'))
-      let title = Message(folder_name)
-    elseif type(Message) == type('')
-      let title = Message
+
+  if !empty(CustomMessage)
+    if type(CustomMessage) == type(function('tr'))
+      let title = CustomMessage(folder_name)
+    elseif type(CustomMessage) == type('')
+      let title = CustomMessage
     endif
   endif
 
