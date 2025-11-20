@@ -493,8 +493,7 @@ function! s:GetRgCmd(pattern, flags)
   call filter(include, {_, val -> val != '.'})
 
   if len(include)
-    let include_pattern = map(include, 
-          \{_, val -> val.'/**' })
+    let include_pattern = map(include, {_, val -> val.'/**' })
     let include_arg = '-g "{'.join(include_pattern, ',').'}"'
   else
     let include_arg = '-g "{**}"'
@@ -630,6 +629,10 @@ function! s:GetSearchFlags(search)
   return flags
 endfunction
 
+function! s:RemoveLeadingDot(val)
+  return substitute(a:val, '^./\?', '', 'g')
+endfunction
+
 function! s:RemoveSearchFlags(search)
   return substitute(a:search, '\\C\|\\E\|\\\@<!\\$', '', 'g')
 endfunction
@@ -680,9 +683,11 @@ function! s:ReplaceEscapedChar(chars, idx, char, from, to)
 endfunction
 
 function! s:GetInclude()
-  return copy(project#GetVariable('find_in_files_include'))
+  let include = copy(project#GetVariable('find_in_files_include'))
+  return map(include, {_, val -> s:RemoveLeadingDot(val)})
 endfunction
 
 function! s:GetExclude()
-  return copy(project#GetVariable('find_in_files_exclude'))
+  let exclude = copy(project#GetVariable('find_in_files_exclude'))
+  return map(exclude, {_, val -> s:RemoveLeadingDot(val)})
 endfunction
