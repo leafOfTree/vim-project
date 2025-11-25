@@ -490,7 +490,7 @@ endfunction
 function! s:GetRgCmd(pattern, flags)
   let include = s:GetInclude()
   " Remove '.', as rg does not support '{./**}'
-  call filter(include, {_, val -> val != '.'})
+  call filter(include, {_, val -> !empty(val) && val != '.' && val != './'})
 
   if len(include)
     let include_pattern = map(include, {_, val -> val.'/**' })
@@ -683,11 +683,9 @@ function! s:ReplaceEscapedChar(chars, idx, char, from, to)
 endfunction
 
 function! s:GetInclude()
-  let include = copy(project#GetVariable('find_in_files_include'))
-  return map(include, {_, val -> s:RemoveLeadingDot(val)})
+  return copy(project#GetVariable('find_in_files_include'))
 endfunction
 
 function! s:GetExclude()
-  let exclude = copy(project#GetVariable('find_in_files_exclude'))
-  return map(exclude, {_, val -> s:RemoveLeadingDot(val)})
+  return copy(project#GetVariable('find_in_files_exclude'))
 endfunction
