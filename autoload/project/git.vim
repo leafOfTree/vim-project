@@ -758,26 +758,36 @@ function! s:RenameFolder()
   echo
 endfunction
 
-function! s:RollbackFile()
-  let file = s:GetCurrentFile()
-  if empty(file)
+function! s:RollbackFile() range
+  let files = []
+  for lnum in range(a:firstline, a:lastline)
+    let file = s:GetFileByLine(lnum)
+    if !empty(file)
+      call add(files, file)
+    endif
+  endfor
+  if empty(files)
     return
   endif
 
-  echo 'Rollback changes of '.file.'? (y/n) '
+  echo 'Rollback changes of ['.join(files, ', ').']? (y/n) '
+  let saved_pos = getpos('.')
   if nr2char(getchar()) == 'y'
-    if s:IsFileUntracked(file)
-      let cmd = 'rm "'.file.'"'
-    else
-      let cmd = 'git restore -- "'.file.'"'
-    endif
-    call project#RunShellCmd(cmd)
-    if v:shell_error
-      return
-    endif
-    call s:ShowStatus(1)
-    call s:CloseBuffer(s:diff_buffer)
+    for file in files
+      if s:IsFileUntracked(file)
+        let cmd = 'rm -r "'.file.'"'
+      else
+        let cmd = 'git restore -- "'.file.'"'
+      endif
+      call project#RunShellCmd(cmd)
+      if v:shell_error
+        return
+      endif
+      call s:ShowStatus(1)
+      call s:CloseBuffer(s:diff_buffer)
+    endfor
   endif
+  call setpos('.', saved_pos)
 
   redraw
   echo
@@ -785,7 +795,7 @@ endfunction
 
 function! s:IsFileUntracked(file)
   let cmd = 'git ls-files --error-unmatch "'.a:file.'"'
-  call project#RunShellCmd(cmd)
+  call project#RunShellCmd(cmd, 0)
   return v:shell_error
 endfunction
 
@@ -1258,6 +1268,7 @@ function! s:SetupChangelistBuffer()
   call s:AddMapping(mappings.delete_changelist, '<SID>DeleteFolder()')
   call s:AddMapping(mappings.rename_changelist, '<SID>RenameFolder()')
   call s:AddMapping(mappings.rollback_file, '<SID>RollbackFile()')
+  call s:AddVisualMapping(mappings.rollback_file, '<SID>RollbackFile()')
   call s:AddMapping(mappings.commit, '<SID>Commit()')
   call s:AddVisualMapping(mappings.commit, '<SID>Commit()')
   call s:AddMapping(mappings.pull, '<SID>TryPull()')

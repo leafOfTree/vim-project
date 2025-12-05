@@ -1357,7 +1357,7 @@ function! s:HasFile(list, file)
   return 0
 endfunction
 
-function! project#RunShellCmd(cmd)
+function! project#RunShellCmd(cmd, warning=1)
   let cd_option = s:is_win_version ? '/d' : ''
   let cmd = 'cd '.cd_option.' '.$vim_project.' && '.a:cmd
   try
@@ -1369,7 +1369,7 @@ function! project#RunShellCmd(cmd)
   endtry
 
   if v:shell_error
-    if !empty(output)
+    if !empty(output) && a:warning
       call project#Warn(a:cmd)
       for error in output
         let formatted_error = substitute(error, '	', '    ', 'g')
