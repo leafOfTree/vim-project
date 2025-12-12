@@ -200,8 +200,10 @@ function! s:SearchFileForLine(file, lnum)
     let lnum = lnum - 1
     let line = getline(lnum)
   endwhile
-  let line = substitute(line, '^@@ .* @@', '', 'g')
-  let line = escape(line[1:], '\')
+  let line = substitute(line, '^@@.*@@', '', 'g')
+  let line = substitute(line, '^ *', '', 'g')
+  let line = substitute(line, '^+\{1,}', '', 'g')
+  let line = escape(line, '\')
   return line
 endfunction
 
