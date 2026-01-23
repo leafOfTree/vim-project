@@ -143,6 +143,8 @@ function! s:Prepare()
         \'pull': 'u',
         \'push': 'p',
         \'pull_and_push': 'P',
+        \'shelf': 's',
+        \'unshelf': 'b',
         \}
   let s:default.file_open_types = {
         \'':  'edit',
@@ -526,7 +528,7 @@ endfunction
 
 function! s:InitProjectConfig(project)
   let name = a:project.name
-  let config = s:GetProjectConfigPath(s:config_home, a:project)
+  let config = project#GetProjectConfigPath(s:config_home, a:project)
 
   if !isdirectory(config) && exists('*mkdir')
     " Create project-specific config files
@@ -638,7 +640,7 @@ function! s:DebugWarn(msg)
   endif
 endfunction
 
-function! s:GetProjectConfigPath(config_home, project)
+function! project#GetProjectConfigPath(config_home, project)
   let id = a:project.path
   let id = project#ReplaceHomeWithTide(id)
   let id = substitute(id, '[/:]', '_', 'g')
@@ -1892,16 +1894,16 @@ function! s:RenameProject(project, new_name)
   call rename(a:project.fullpath, new_fullpath)
   call s:RenamePathInProjectAddConfig(a:project.fullpath, project#ReplaceHomeWithTide(new_fullpath))
 
-  let config_path = s:GetProjectConfigPath(s:config_home, a:project)
+  let config_path = project#GetProjectConfigPath(s:config_home, a:project)
   let a:project.name = a:new_name
-  let new_config_path = s:GetProjectConfigPath(s:config_home, a:project)
+  let new_config_path = project#GetProjectConfigPath(s:config_home, a:project)
   call rename(config_path, new_config_path)
 endfunction
 
 function! s:SetEnvVariables()
   let $vim_project = s:project.fullpath
   let $vim_project_config =
-        \s:GetProjectConfigPath(s:config_home, s:project)
+        \project#GetProjectConfigPath(s:config_home, s:project)
 endfunction
 
 function! s:UnsetEnvVariables()
@@ -1928,7 +1930,7 @@ endfunction
 
 function! project#OpenProjectConfig()
   if project#ProjectExist()
-    let config = s:GetProjectConfigPath(s:config_home, s:project)
+    let config = project#GetProjectConfigPath(s:config_home, s:project)
     execute 'tabedit '.config.'/'.s:init_file
   else
     call project#Warn('Open a project first')
@@ -2164,7 +2166,7 @@ endfunction
 
 function! s:SourceFile(file)
   let name = s:project.name.'-'.s:project.path
-  let config = s:GetProjectConfigPath(s:config_home, s:project)
+  let config = project#GetProjectConfigPath(s:config_home, s:project)
   let file = config.'/'.a:file
   if filereadable(file)
     call s:Debug('Source file: '.file)
@@ -2198,12 +2200,12 @@ function! s:FindBranch()
 endfunction
 
 function! s:GetSessionFolder()
-  let config = s:GetProjectConfigPath(s:config_home, s:project)
+  let config = project#GetProjectConfigPath(s:config_home, s:project)
   return config.'/sessions'
 endfunction
 
 function! s:GetSessionFile()
-  let config = s:GetProjectConfigPath(s:config_home, s:project)
+  let config = project#GetProjectConfigPath(s:config_home, s:project)
   return config.'/sessions/'.s:branch.'.vim'
 endfunction
 
@@ -2243,7 +2245,7 @@ function! s:SaveViminfo()
 endfunction
 
 function! s:GetViminfoFile()
-  let config = s:GetProjectConfigPath(s:config_home, s:project)
+  let config = project#GetProjectConfigPath(s:config_home, s:project)
   if has('nvim')
     return config.'/viminfo/main.shada'
   else
@@ -2252,7 +2254,7 @@ function! s:GetViminfoFile()
 endfunction
 
 function! s:GetViminfoFolder()
-  let config = s:GetProjectConfigPath(s:config_home, s:project)
+  let config = project#GetProjectConfigPath(s:config_home, s:project)
   return config.'/viminfo'
 endfunction
 
@@ -2323,10 +2325,10 @@ function! s:SaveSession()
   if project#ProjectExist()
     call s:BeforeSaveSession()
 
-    let folder = s:GetSessionFolder()
-    if !isdirectory(folder) && exists('*mkdir')
-      call mkdir(folder, 'p')
-    endif
+  let folder = s:GetSessionFolder()
+  if !isdirectory(folder) && exists('*mkdir')
+    call mkdir(folder, 'p')
+  endif
 
     let file = s:GetSessionFile()
     call s:Debug('Save session to: '.file)

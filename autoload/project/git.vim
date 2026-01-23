@@ -760,6 +760,45 @@ function! s:RenameFolder()
   echo
 endfunction
 
+function! s:GetShelfFolder(name)
+  let config_home = project#GetVariable('config_home')
+  let project = project#GetVariable('project')
+  let config = project#GetProjectConfigPath(config_home, project)
+  return config.'/shelf/'.a:name
+endfunction
+
+function! s:ShelfFile() range
+  let files = []
+  for lnum in range(a:firstline, a:lastline)
+    let file = s:GetFileByLine(lnum)
+    if !empty(file)
+      call add(files, file)
+    endif
+  endfor
+  if empty(files)
+    return
+  endif
+
+  let name = input('Shelf ['.join(files, ', ').'] to: ')
+  if !empty(name)
+    let folder = s:GetShelfFolder(name)
+    if !isdirectory(folder) && exists('*mkdir')
+      call mkdir(folder, 'p')
+    endif
+
+    for file in files
+      let cmd = 'git diff "'.file.'" > '.folder.'/'.file.'.patch'
+      " echom cmd
+      call project#RunShellCmd(cmd)
+      if v:shell_error
+        return
+      endif
+      call s:ShowStatus(1)
+      call s:CloseBuffer(s:diff_buffer)
+    endfor
+  endif
+endfunction
+
 function! s:RollbackFile() range
   let files = []
   for lnum in range(a:firstline, a:lastline)
@@ -772,8 +811,8 @@ function! s:RollbackFile() range
     return
   endif
 
-  echo 'Rollback changes of ['.join(files, ', ').']? (y/n) '
   let saved_pos = getpos('.')
+  echo 'Rollback changes of ['.join(files, ', ').']? (y/n) '
   if nr2char(getchar()) == 'y'
     for file in files
       if s:IsFileUntracked(file)
@@ -1279,6 +1318,8 @@ function! s:SetupChangelistBuffer()
   call s:AddMapping(mappings.new_changelist, '<SID>NewChangelistFolder()')
   call s:AddMapping(mappings.move_to_changelist, '<SID>MoveToFolder()')
   call s:AddVisualMapping(mappings.move_to_changelist, '<SID>MoveToFolder()')
+  call s:AddMapping(mappings.shelf, '<SID>ShelfFile()')
+  call s:AddMapping(mappings.unshelf, '<SID>ShelfFile()')
 
   hi DiffBufferModify ctermfg=3 guifg=#b58900
   hi DiffBufferAdd ctermfg=2 guifg=#719e07
