@@ -417,7 +417,6 @@ function! s:ShowDiffOnChangelist()
 
   let file = s:GetCurrentFile()
   " Avoid E242
-  echom 'show '.file
   try
     call s:OpenBuffer(s:diff_buffer, 'vertical')
     call s:SetupDiffBuffer(s:GetAbsolutePath(file))
@@ -463,7 +462,7 @@ function! s:IsStagedFile(file)
 endfunction
 
 function! s:TryGetDiffFile(file)
-  let is_shelf = s:Match(a:file, '\.diff$')
+  let is_shelf = s:Match(a:file, '\.\(diff\|patch\)$')
   if !is_shelf
     return 0
   endif
@@ -638,7 +637,9 @@ function! project#git#Status()
   " Manually trigger some events first
   silent doautocmd BufLeave
   silent doautocmd FocusLost
-  call s:LoadChangelist()
+  if !s:OnChangelistBuffer()
+    call s:LoadChangelist()
+  endif
   call s:ShowStatus(1)
 endfunction
 
@@ -710,6 +711,7 @@ function! s:ReadChangelistFile()
 endfunction
 
 function! s:WriteChangelistFile()
+  call filter(s:changelist, {idx, v -> !s:IsShelfFolder(v) })
   let changelist_string = json_encode(s:changelist)
   let content = split(changelist_string, '\(]\|}\),\zs')
   call writefile(content, s:GetChangelistFile())
@@ -758,16 +760,16 @@ endfunction
 
 function! s:RenameFolder()
   let lnum = line('.')
-  let item = s:GetCurrentFolder(lnum)
-  if empty(item)
+  let folder = s:GetCurrentFolder(lnum)
+  if empty(folder)
     return
   endif
 
-  if s:IsUserFolder(item)
-    let name = input('Rename to: ', item.name)
+  if s:IsUserFolder(folder)
+    let name = input('Rename to: ', folder.name)
     if !empty(name)
       if empty(s:GetChangelistItem(name))
-        let item.name = name
+        let folder.name = name
         call s:SortChangelist()
         call s:ShowStatus()
         call search(name)
@@ -800,31 +802,25 @@ function! s:ShelfFile() range
   endif
 
   let name = input('Shelf ['.join(files, ', ').'] to: ')
-  if !empty(name)
-    let folder = s:GetShelfFolder().name
-    if !isdirectory(folder) && exists('*mkdir')
-      call mkdir(folder, 'p')
-    endif
-
-    for file in files
-      let cmd = 'git diff "'.file.'" > '.folder.'/'.file.'.diff'
-      call project#RunShellCmd(cmd)
-      if v:shell_error
-        return
-      endif
-
-      let diff_files = map(files, {idx, v -> v.'.diff'})
-      let target = {
-            \'name': '[Shelf] '.name,
-            \'files': diff_files,
-            \'expand': 1
-            \}
-
-      call add(s:changelist, target)
-      call s:ShowStatus(1)
-      call s:CloseBuffer(s:diff_buffer)
-    endfor
+  if empty(name)
+    return
   endif
+
+  let folder = s:GetShelfFolder().name
+  if !isdirectory(folder) && exists('*mkdir')
+    call mkdir(folder, 'p')
+  endif
+
+  for file in files
+    let cmd = 'git diff "'.file.'" > '.folder.'/'.file.'.diff'
+    call project#RunShellCmd(cmd)
+    if v:shell_error
+      return
+    endif
+  endfor
+
+  call s:ShowStatus(1)
+  call s:CloseBuffer(s:diff_buffer)
 endfunction
 
 function! s:RollbackFile() range
@@ -843,7 +839,10 @@ function! s:RollbackFile() range
   echo 'Rollback changes of ['.join(files, ', ').']? (y/n) '
   if nr2char(getchar()) == 'y'
     for file in files
-      if s:IsFileUntracked(file)
+      let diff_file = s:TryGetDiffFile(file)
+      if !empty(diff_file)
+        let cmd = 'rm '.diff_file
+      elseif s:IsFileUntracked(file)
         let cmd = 'git clean -fd "'.file.'"'
       else
         let cmd = 'git restore -- "'.file.'"'
@@ -868,13 +867,20 @@ function! s:IsFileUntracked(file)
   return v:shell_error
 endfunction
 
-function! s:IsUserFolder(item)
-  return !empty(a:item) && !s:IsDefaultFolder(a:item) && !s:IsSpecialFolder(a:item)
+function! s:IsUserFolder(folder)
+  return !empty(a:folder) && !s:IsDefaultFolder(a:folder) && !s:IsSpecialFolder(a:folder)
 endfunction
 
 function! s:DeleteFolder()
   let lnum = line('.')
   let folder = s:GetCurrentFolder(lnum)
+  if s:IsShelfFolder(folder)
+    let shelf_folder = s:GetShelfFolder()
+    let folder_path = shelf_folder.'/'.folder.name
+    let cmd = 'rm -fr '.folder_path
+    call project#RunShellCmd(cmd)
+  endif
+
   if s:IsUserFolder(folder)
     call remove(s:changelist, index(s:changelist, folder))
   endif
@@ -886,7 +892,8 @@ function! VimProjectAllFolderNames(A, L, P)
   let lnum = line('.')
   let folder = s:GetBelongFolder(lnum)
 
-  let folder_names = map(copy(s:changelist), {idx, v -> v.name})
+  let changelist = filter(copy(s:changelist), {idex, v -> !s:IsShelfFolder(v)})
+  let folder_names = map(changelist, {idx, v -> v.name})
   call filter(folder_names, {idx, v -> 
         \v != s:untracked_folder_name 
         \&& v != s:unmerged_folder_name 
@@ -1073,7 +1080,7 @@ function! s:GetPrefixAndSuffix(folder)
     endif
   endfor
 
-  if has_key(a:folder, 'is_shelf')
+  if s:IsShelfFolder(a:folder)
     let file_num = len(a:folder.files)
   endif
 
@@ -1151,14 +1158,14 @@ function! s:UpdateFolderOrNew(name, files)
         \ 'name': a:name,
         \ 'files': a:files,
         \ 'expand': 0,
-        \ 'is_shelf': 1,
+        \ 'shelf': 1,
         \}
 
   call add(s:changelist, new)
 endfunction
 
 function! s:IsShelfFolder(folder)
-  return has_key(a:folder, 'is_shelf')
+  return has_key(a:folder, 'shelf')
 endfunction
 
 function! s:UpdateShelfChangelist()
@@ -1377,6 +1384,11 @@ function! s:HasFile(files, file)
   return count(a:files, filename)
 endfunction
 
+function! s:OnChangelistBuffer()
+  let num = s:GetBufWinnr(s:changelist_buffer)
+  return num != -1
+endfunction
+
 function! s:ShowStatus(run_git = 0)
   call s:CloseBuffer(s:commit_result_buffer)
 
@@ -1384,8 +1396,7 @@ function! s:ShowStatus(run_git = 0)
   let save_eventignore = &eventignore
   set eventignore=all
 
-  let num = s:GetBufWinnr(s:changelist_buffer)
-  let on_changelist_buffer = num != -1
+  let on_changelist_buffer = s:OnChangelistBuffer()
   if on_changelist_buffer
     let lnum = line('.')
   endif
