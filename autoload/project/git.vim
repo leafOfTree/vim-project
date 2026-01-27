@@ -19,6 +19,7 @@ let s:default_folder_name = 'Default'
 let s:untracked_folder_name = 'Untracked'
 let s:staged_folder_name = 'Staged'
 let s:unmerged_folder_name = 'Unmerged'
+let s:shelf_folder_prefix = '📚'
 let s:changed_files = []
 let s:untracked_files = []
 let s:staged_files = []
@@ -26,7 +27,7 @@ let s:unmerged_files = []
 let s:commit_files = []
 let s:file_regexp = '|\zs.*\ze|'
 let s:directory_regexp = '| \zs.*$'
-let s:folder_regexp = '^\S\s\zs.\+\ze\s\($\|\d\+\sfile\)'
+let s:folder_regexp = '^\S\s.*|\zs.\+\ze\s\($\|\d\+\sfile\)'
 let s:changelist_default = [
       \{
       \ 'name': s:default_folder_name,
@@ -1092,6 +1093,9 @@ function! s:GetPrefixAndSuffix(folder)
     let suffix = file_num.' files'
   endif
 
+  if s:IsShelfFolder(a:folder)
+    let prefix = prefix.' '.s:shelf_folder_prefix
+  endif
   return [prefix, suffix]
 endfunction
 
@@ -1192,7 +1196,7 @@ function! s:UpdateChangelistDisplay()
       continue
     endif
     let [prefix, suffix] = s:GetPrefixAndSuffix(folder)
-    let folder_item = prefix.' '.folder.name.' '.suffix
+    let folder_item = prefix.' |'.folder.name.' '.suffix
     call add(s:display, folder_item)
     if folder.expand
       if s:IsStagedFolder(folder)
