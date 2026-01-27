@@ -434,7 +434,10 @@ function! s:ShowDiffOnChangelist()
 endfunction
 
 function! s:AddChangeDetails(file)
-  if s:IsStagedFile(a:file)
+  let diff_file = s:TryGetDiffFile(a:file)
+  if !empty(diff_file)
+    let cmd = 'cat '.diff_file
+  elseif s:IsStagedFile(a:file)
     let cmd = 'git diff --staged -- "'.a:file.'"'
   elseif s:IsUntrackedFile(a:file)
     let cmd = 'git diff --no-index -- /dev/null "'.a:file.'"'
@@ -457,6 +460,22 @@ endfunction
 function! s:IsStagedFile(file)
   let folder = s:GetBelongFolder(line('.'))
   return s:IsStagedFolder(folder)
+endfunction
+
+function! s:TryGetDiffFile(file)
+  let is_shelf = s:Match(a:file, '\.diff$')
+  if !is_shelf
+    return 0
+  endif
+  let shelf_folder = s:GetShelfFolder()
+  let folder = s:GetBelongFolder(line('.'))
+  let shelf_file = shelf_folder.'/'.folder.name.'/'.a:file
+  let has_shelf_file = filereadable(shelf_file)
+  if has_shelf_file
+    return shelf_file
+  endif
+
+  return 0
 endfunction
 
 function! s:RunJob(cmd, exit_cb, buf_nr)
@@ -788,16 +807,16 @@ function! s:ShelfFile() range
     endif
 
     for file in files
-      let cmd = 'git diff "'.file.'" > '.folder.'/'.file.'.patch'
+      let cmd = 'git diff "'.file.'" > '.folder.'/'.file.'.diff'
       call project#RunShellCmd(cmd)
       if v:shell_error
         return
       endif
 
-      let patch_files = map(files, {idx, v -> v.'.patch'})
+      let diff_files = map(files, {idx, v -> v.'.diff'})
       let target = {
             \'name': '[Shelf] '.name,
-            \'files': patch_files,
+            \'files': diff_files,
             \'expand': 1
             \}
 
@@ -825,7 +844,7 @@ function! s:RollbackFile() range
   if nr2char(getchar()) == 'y'
     for file in files
       if s:IsFileUntracked(file)
-        let cmd = 'rm -r "'.file.'"'
+        let cmd = 'git clean -fd "'.file.'"'
       else
         let cmd = 'git restore -- "'.file.'"'
       endif
@@ -1246,20 +1265,13 @@ function! s:GetChangedFileDisplay(file, prefix = '  ')
 endfunction
 
 function! s:GetShelfFileDisplay(file, prefix = '  ')
-  let sign = s:GetFileChangeSign(a:file)
   " sign_mark is used by s:HighlightFiles
   let sign_mark = ''
-  if sign == 'D' 
-    let sign_mark = '$'  " $ Deleted - Comment
-  elseif sign == 'A' || sign == '?' 
-    let sign_mark = '!'  " ! Add or untrack - diffAdded
-  endif
   let splitter = '|'
 
   let icon = project#GetIcon(a:file)
 
-  " Use unicode space for highlight 
-  return a:prefix.sign_mark.icon.splitter.a:file.' '
+  return a:prefix.sign_mark.icon.splitter.a:file.splitter.' '
 endfunction
 
 function! s:UpdateChangelist(run_git = 0)
