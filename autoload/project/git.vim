@@ -390,7 +390,7 @@ function! s:OpenChangedFile()
   execute 'e '.s:GetAbsolutePath(file)
 endfunction
 
-function! s:CanShowDiff(file_regexp)
+function! s:CanShowDiff()
   if mode() != 'n'
     return 0
   endif
@@ -401,7 +401,7 @@ function! s:CanShowDiff(file_regexp)
     return 0
   endif
 
-  let file = s:GetCurrentMatchstr(a:file_regexp)
+  let file = s:GetCurrentMatchstr(s:file_regexp)
   let num = s:GetBufWinnr(s:diff_buffer)
   if empty(file) && num == -1
     return 0
@@ -411,12 +411,13 @@ function! s:CanShowDiff(file_regexp)
 endfunction
 
 function! s:ShowDiffOnChangelist()
-  if !s:CanShowDiff(s:file_regexp)
+  if !s:CanShowDiff()
     return
   endif
 
   let file = s:GetCurrentFile()
   " Avoid E242
+  echom 'show '.file
   try
     call s:OpenBuffer(s:diff_buffer, 'vertical')
     call s:SetupDiffBuffer(s:GetAbsolutePath(file))
@@ -505,7 +506,7 @@ function! VimProjectAddChangeDetails(job, data, ...)
 endfunction
 
 function! s:ShowDiffOnGitLog(hash)
-  if !s:CanShowDiff(s:file_regexp)
+  if !s:CanShowDiff()
     return
   endif
   let file = s:GetCurrentFile()
@@ -760,11 +761,11 @@ function! s:RenameFolder()
   echo
 endfunction
 
-function! s:GetShelfFolder(name)
+function! s:GetShelfFolder()
   let config_home = project#GetVariable('config_home')
   let project = project#GetVariable('project')
   let config = project#GetProjectConfigPath(config_home, project)
-  return config.'/shelf/'.a:name
+  return config.'/shelf/'
 endfunction
 
 function! s:ShelfFile() range
@@ -781,18 +782,26 @@ function! s:ShelfFile() range
 
   let name = input('Shelf ['.join(files, ', ').'] to: ')
   if !empty(name)
-    let folder = s:GetShelfFolder(name)
+    let folder = s:GetShelfFolder().name
     if !isdirectory(folder) && exists('*mkdir')
       call mkdir(folder, 'p')
     endif
 
     for file in files
       let cmd = 'git diff "'.file.'" > '.folder.'/'.file.'.patch'
-      " echom cmd
       call project#RunShellCmd(cmd)
       if v:shell_error
         return
       endif
+
+      let patch_files = map(files, {idx, v -> v.'.patch'})
+      let target = {
+            \'name': '[Shelf] '.name,
+            \'files': patch_files,
+            \'expand': 1
+            \}
+
+      call add(s:changelist, target)
       call s:ShowStatus(1)
       call s:CloseBuffer(s:diff_buffer)
     endfor
@@ -861,6 +870,8 @@ function! VimProjectAllFolderNames(A, L, P)
   let folder_names = map(copy(s:changelist), {idx, v -> v.name})
   call filter(folder_names, {idx, v -> 
         \v != s:untracked_folder_name 
+        \&& v != s:unmerged_folder_name 
+        \&& v != s:staged_folder_name
         \&& v != folder.name
         \&& v =~ a:A
         \})
@@ -1043,6 +1054,10 @@ function! s:GetPrefixAndSuffix(folder)
     endif
   endfor
 
+  if has_key(a:folder, 'is_shelf')
+    let file_num = len(a:folder.files)
+  endif
+
   if !file_num
     let prefix = empty
   elseif file_num == 1
@@ -1065,6 +1080,21 @@ function! s:UpdatePresetChangelist()
     call add(unmerged_folder.files, s:GetFilename(file))
   endfor
 
+  let untracked_folder = s:FindUntrackedFolder()
+  let untracked_folder.files = []
+  for file in s:untracked_files
+    let included = 0
+    for folder in s:changelist
+      if s:HasFile(folder.files, file)
+        let included = 1
+      endif
+    endfor
+
+    if !included
+      call add(untracked_folder.files, s:GetFilename(file))
+    endif
+  endfor
+
   let default_folder = s:changelist[0]
   let default_folder.files = []
   for file in (s:changed_files + s:untracked_files)
@@ -1083,25 +1113,49 @@ function! s:UpdatePresetChangelist()
     endif
   endfor
 
-  let untracked_folder = s:FindUntrackedFolder()
-  let untracked_folder.files = []
-  for file in s:untracked_files
-    let included = 0
-    for folder in s:changelist
-      if s:HasFile(folder.files, file)
-        let included = 1
-      endif
-    endfor
-
-    if !included
-      call add(untracked_folder.files, s:GetFilename(file))
-    endif
-  endfor
-
   let staged_folder = s:FindStagedFolder()
   let staged_folder.files = []
   for file in s:staged_files
     call add(staged_folder.files, s:GetFilename(file))
+  endfor
+endfunction
+
+function! s:UpdateFolderOrNew(name, files)
+  for folder in s:changelist
+    if folder.name == a:name
+      let folder.files = a:files
+      return
+    endif
+  endfor
+
+  let new = {
+        \ 'name': a:name,
+        \ 'files': a:files,
+        \ 'expand': 0,
+        \ 'is_shelf': 1,
+        \}
+
+  call add(s:changelist, new)
+endfunction
+
+function! s:IsShelfFolder(folder)
+  return has_key(a:folder, 'is_shelf')
+endfunction
+
+function! s:UpdateShelfChangelist()
+  let shelf_folder = s:GetShelfFolder()
+  if !isdirectory(shelf_folder)
+    return
+  endif
+  let cmd = 'ls '.shelf_folder
+  let folder_names = project#RunShellCmd(cmd)
+  for folder_name in folder_names
+    let folder_path = shelf_folder.folder_name
+    if isdirectory(folder_path)
+      let folder_path_cmd = 'ls '.folder_path
+      let files = project#RunShellCmd(folder_path_cmd)
+      call s:UpdateFolderOrNew(folder_name, files)
+    endif
   endfor
 endfunction
 
@@ -1122,13 +1176,21 @@ function! s:UpdateChangelistDisplay()
       else
         let affected_files = s:changed_files + s:untracked_files
       endif
-      let all_files = s:SortAffectedFiles(affected_files)
-      for file in all_files
-        if s:HasFile(folder.files, file)
-          let file_item = s:GetChangedFileDisplay(file)
+
+      if s:IsShelfFolder(folder)
+        for file in folder.files
+          let file_item = s:GetShelfFileDisplay(file)
           call add(s:display, file_item)
-        endif
-      endfor
+        endfor
+      else
+        let all_files = s:SortAffectedFiles(affected_files)
+        for file in all_files
+          if s:HasFile(folder.files, file)
+            let file_item = s:GetChangedFileDisplay(file)
+            call add(s:display, file_item)
+          endif
+        endfor
+      endif
     endif
     call add(s:display, '')
   endfor
@@ -1183,12 +1245,30 @@ function! s:GetChangedFileDisplay(file, prefix = '  ')
   endif
 endfunction
 
+function! s:GetShelfFileDisplay(file, prefix = '  ')
+  let sign = s:GetFileChangeSign(a:file)
+  " sign_mark is used by s:HighlightFiles
+  let sign_mark = ''
+  if sign == 'D' 
+    let sign_mark = '$'  " $ Deleted - Comment
+  elseif sign == 'A' || sign == '?' 
+    let sign_mark = '!'  " ! Add or untrack - diffAdded
+  endif
+  let splitter = '|'
+
+  let icon = project#GetIcon(a:file)
+
+  " Use unicode space for highlight 
+  return a:prefix.sign_mark.icon.splitter.a:file.' '
+endfunction
+
 function! s:UpdateChangelist(run_git = 0)
   if a:run_git
     call s:ParseGitStatus()
   endif
 
   call s:UpdatePresetChangelist()
+  call s:UpdateShelfChangelist()
   call s:UpdateChangelistDisplay()
   return 1
 endfunction
@@ -1292,6 +1372,12 @@ function! s:ShowStatus(run_git = 0)
   let save_eventignore = &eventignore
   set eventignore=all
 
+  let num = s:GetBufWinnr(s:changelist_buffer)
+  let on_changelist_buffer = num != -1
+  if on_changelist_buffer
+    let lnum = line('.')
+  endif
+
   call s:OpenBuffer(s:changelist_buffer, 'belowright')
   call s:SetupChangelistBuffer()
   let success = s:UpdateChangelist(a:run_git)
@@ -1301,6 +1387,10 @@ function! s:ShowStatus(run_git = 0)
   endif
 
   let &eventignore = save_eventignore
+
+  if on_changelist_buffer
+    execute lnum
+  endif
 endfunction
 
 function! s:SetupChangelistBuffer()
