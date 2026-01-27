@@ -156,7 +156,7 @@ function! s:AddDiffDetails(hash, file)
   setlocal modifiable
   call append(0, changes)
   normal! gg
-  call project#HideNewlines()
+  call project#RemoveEmptyLines()
   silent! g/^new file mode/d _
   if is_diff_line
     silent! 1,3d _
@@ -417,16 +417,16 @@ function! s:ShowDiffOnChangelist()
   endif
 
   let file = s:GetCurrentFile()
+  if empty(file)
+    call s:CloseBuffer(s:diff_buffer)
+    return
+  endif
   " Avoid E242
   try
     call s:OpenBuffer(s:diff_buffer, 'vertical')
     call s:SetupDiffBuffer(s:GetAbsolutePath(file))
     wincmd p
 
-    if empty(file)
-      call s:CloseBuffer(s:diff_buffer)
-      return
-    endif
     call s:AddChangeDetails(file)
   catch
     call project#Warn(v:exception)
@@ -437,6 +437,8 @@ function! s:AddChangeDetails(file)
   let diff_file = s:TryGetDiffFile(a:file)
   if !empty(diff_file)
     let cmd = 'cat '.diff_file
+  elseif isdirectory(s:GetAbsolutePath(a:file))
+    let cmd = 'ls -F '.a:file
   elseif s:IsStagedFile(a:file)
     let cmd = 'git diff --staged -- "'.a:file.'"'
   elseif s:IsUntrackedFile(a:file)
@@ -516,9 +518,12 @@ function! VimProjectAddChangeDetails(job, data, ...)
     call append(0, a:data)
   endif
 
-  call project#HideNewlines()
-  silent! g/^new file mode/d _ 
-  silent! 1,4d _
+  call project#RemoveEmptyLines()
+  silent! 1,g/^new file mode/d _ | break
+  silent! 1,g/^diff --git/d _ | break
+  silent! 1,g/^index /d _ | break
+  silent! 1,g/^--- a/d _ | break
+  silent! 1,g/^+++ b/d _ | break
   normal! gg
   setlocal nomodifiable
   call s:SwitchBuffer(s:changelist_buffer)

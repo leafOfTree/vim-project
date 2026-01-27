@@ -2680,7 +2680,7 @@ function! project#ShortenDate(origin)
   return date
 endfunction
 
-function! project#HideNewlines()
+function! project#RemoveEmptyLines()
   silent! %s/$//g
 endfunction
 

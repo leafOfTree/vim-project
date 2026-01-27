@@ -107,7 +107,7 @@ endfunction
 
 function! s:ShowResult(display, search, replace, full_input, id)
   call project#ShowInListBuffer(a:display, a:search)
-  call project#HideNewlines()
+  call project#RemoveEmptyLines()
   call project#HighlightCurrentLine(len(a:display))
   call s:HighlightSearchAsPattern(a:search)
   call s:HighlightReplaceChars(a:search, a:replace)
