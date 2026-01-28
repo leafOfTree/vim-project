@@ -816,7 +816,8 @@ function! s:ShelfFile() range
     return
   endif
 
-  let name = input('Shelf ['.join(files, ', ').'] to: ')
+  let prompt = 'Shelf ['.join(files, ', ').'] to: '
+  let name = input(prompt, '', 'customlist,VimProjectShelfFolderNames')
   if empty(name)
     return
   endif
@@ -913,9 +914,8 @@ function! s:DeleteFolder()
   execute lnum
 endfunction
 
-function! VimProjectAllFolderNames(A, L, P)
-  let lnum = line('.')
-  let folder = s:GetBelongFolder(lnum)
+function! VimProjectUserFolderNames(A, L, P)
+  let folder = s:GetBelongFolder(line('.'))
 
   let changelist = filter(copy(s:changelist), {idex, v -> !s:IsShelfFolder(v)})
   let folder_names = map(changelist, {idx, v -> v.name})
@@ -926,6 +926,15 @@ function! VimProjectAllFolderNames(A, L, P)
         \&& v != folder.name
         \&& v =~ a:A
         \})
+  return folder_names
+endfunction
+
+function! VimProjectShelfFolderNames(A, L, P)
+  let folder = s:GetBelongFolder(line('.'))
+
+  let changelist = filter(copy(s:changelist), {idex, v -> s:IsShelfFolder(v)})
+  let folder_names = map(changelist, {idx, v -> v.name})
+  call filter(folder_names, {idx, v -> v =~ a:A})
   return folder_names
 endfunction
 
@@ -961,7 +970,7 @@ function! s:MoveToFolder() range
   let folder = s:GetCurrentFolder(lnum)
 
   if !empty(folder)
-    let name = input('Move to: ', '', 'customlist,VimProjectAllFolderNames')
+    let name = input('Move to: ', '', 'customlist,VimProjectUserFolderNames')
     if s:IsInvalidMoveToName(name)
       return
     endif
@@ -970,7 +979,7 @@ function! s:MoveToFolder() range
   else
     let file = s:GetCurrentFile()
     if !empty(file)
-      let name = input('Move to: ', '', 'customlist,VimProjectAllFolderNames')
+      let name = input('Move to: ', '', 'customlist,VimProjectUserFolderNames')
       if s:IsInvalidMoveToName(name)
         return
       endif
