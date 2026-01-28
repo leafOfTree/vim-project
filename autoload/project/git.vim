@@ -1181,7 +1181,7 @@ function! s:UpdateFolderOrNew(name, files)
 endfunction
 
 function! s:IsShelfFolder(folder)
-  return has_key(a:folder, 'shelf')
+  return !empty(a:folder) && has_key(a:folder, 'shelf')
 endfunction
 
 function! s:UpdateShelfChangelist()
@@ -1448,7 +1448,9 @@ function! s:SetupChangelistBuffer()
   call s:AddMapping(mappings.move_to_changelist, '<SID>MoveToFolder()')
   call s:AddVisualMapping(mappings.move_to_changelist, '<SID>MoveToFolder()')
   call s:AddMapping(mappings.shelf, '<SID>ShelfFile()')
+  call s:AddVisualMapping(mappings.shelf, '<SID>ShelfFile()')
   call s:AddMapping(mappings.unshelf, '<SID>ShelfFile()')
+  call s:AddVisualMapping(mappings.unshelf, '<SID>ShelfFile()')
 
   hi DiffBufferModify ctermfg=3 guifg=#b58900
   hi DiffBufferAdd ctermfg=2 guifg=#719e07
