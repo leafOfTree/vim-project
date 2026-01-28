@@ -145,7 +145,7 @@ endfunction
 
 function! s:AddDiffDetails(hash, file)
   let changes = []
-  let is_diff_line = !empty(s:commit_diffs)
+  let is_diff_line = !empty(s:commit_diffs) && has_key(s:commit_diffs, a:hash)
   if is_diff_line
     let changes = s:commit_diffs[a:hash]
   else
@@ -818,6 +818,7 @@ function! s:ShelfFile() range
   endif
 
   for file in files
+    " TODO: fix file under a directory abc/def/name.txt
     let cmd = 'git diff "'.file.'" > '.folder.'/'.file.'.diff'
     call project#RunShellCmd(cmd)
     if v:shell_error
@@ -1022,9 +1023,17 @@ function! s:GetCurrentFile()
   return s:GetFileByLine(line('.'))
 endfunction
 
+function! s:GetDirectoryByLine(lnum)
+  return s:GetMatchstrByLine(a:lnum, s:directory_regexp)
+endfunction
+
+function! s:GetFilenameByLine(lnum)
+  return s:GetMatchstrByLine(a:lnum, s:file_regexp)
+endfunction
+
 function! s:GetFileByLine(lnum)
-  let name = s:GetMatchstrByLine(a:lnum, s:file_regexp)
-  let directory = s:GetMatchstrByLine(a:lnum, s:directory_regexp)
+  let name = s:GetFilenameByLine(a:lnum)
+  let directory = s:GetDirectoryByLine(a:lnum)
   if empty(directory)
     return name
   endif
@@ -1541,7 +1550,6 @@ function! s:GetCommitMessage()
 
   let title = ''
   let CustomMessage = project#GetVariable('commit_message')
-
 
   if !empty(CustomMessage)
     if type(CustomMessage) == type(function('tr'))
