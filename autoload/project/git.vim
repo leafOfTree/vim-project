@@ -19,7 +19,11 @@ let s:default_folder_name = 'Default'
 let s:untracked_folder_name = 'Untracked'
 let s:staged_folder_name = 'Staged'
 let s:unmerged_folder_name = 'Unmerged'
+
 let s:shelf_folder_prefix = '📚'
+let s:shelf_path_spliter = '#'
+let s:shelf_path_file_spliter = '@'
+
 let s:changed_files = []
 let s:untracked_files = []
 let s:staged_files = []
@@ -823,20 +827,20 @@ function! s:ShelfFile() range
   endif
 
   for file in files
-    " TODO: fix file under a directory abc/def/name.txt
     let segments = split(file, '/\|\\')
     let diff_cmd = s:GetDiffCmd(file)
     if len(segments) == 1
       let cmd = diff_cmd.' > '.folder.'/'.file.'.diff'
     else
-      let directory = segments[:-2]
+      let dir = segments[:-2]
       let filename = segments[-1]
-      let diff_file = join(directory, '_').'@'.filename
+      let diff_file = join(dir, s:shelf_path_spliter)
+            \.s:shelf_path_file_spliter.filename
       let cmd = diff_cmd.' > '.folder.'/'.diff_file.'.diff'
     endif
     call project#RunShellCmd(cmd)
     if v:shell_error
-      return
+      break
     endif
   endfor
 
@@ -1307,10 +1311,15 @@ function! s:GetShelfFileDisplay(file, prefix = '  ')
   " sign_mark is used by s:HighlightFiles
   let sign_mark = ''
   let splitter = '|'
-
   let icon = project#GetIcon(a:file)
-
-  return a:prefix.sign_mark.icon.splitter.a:file.splitter.' '
+  let segments = split(a:file, s:shelf_path_file_spliter)
+  if len(segments) == 1
+    return a:prefix.sign_mark.icon.splitter.a:file.splitter.' '
+  else
+    let dir = substitute(segments[0], s:shelf_path_spliter, '/', '')
+    let filename = segments[1]
+    return a:prefix.sign_mark.icon.splitter.filename.splitter.' '.dir
+  endif
 endfunction
 
 function! s:UpdateChangelist(run_git = 0)
