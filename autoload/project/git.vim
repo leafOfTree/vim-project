@@ -427,18 +427,25 @@ function! s:ShowDiffOnChangelist()
   endtry
 endfunction
 
+function! s:GetDiffCmd(file)
+  if s:IsStagedFile(a:file)
+    let cmd = 'git diff --staged -- "'.a:file.'"'
+  elseif s:IsUntrackedFile(a:file)
+    let cmd = 'git diff --no-index -- /dev/null "'.a:file.'"'
+  else
+    let cmd = 'git diff -- "'.a:file.'"'
+  endif
+  return cmd
+endfunction
+
 function! s:AddChangeDetails(file)
   let diff_file = s:TryGetDiffFile(a:file)
   if !empty(diff_file)
     let cmd = 'cat '.diff_file
   elseif isdirectory(s:GetAbsolutePath(a:file))
     let cmd = 'ls -F '.a:file
-  elseif s:IsStagedFile(a:file)
-    let cmd = 'git diff --staged -- "'.a:file.'"'
-  elseif s:IsUntrackedFile(a:file)
-    let cmd = 'git diff --no-index -- /dev/null "'.a:file.'"'
   else
-    let cmd = 'git diff -- "'.a:file.'"'
+    let cmd = s:GetDiffCmd(a:file)
   endif
   let buf_nr = s:GetBufnr(s:diff_buffer)
   call s:RunJob(cmd, 'VimProjectAddChangeDetails', buf_nr)
@@ -817,7 +824,16 @@ function! s:ShelfFile() range
 
   for file in files
     " TODO: fix file under a directory abc/def/name.txt
-    let cmd = 'git diff "'.file.'" > '.folder.'/'.file.'.diff'
+    let segments = split(file, '/\|\\')
+    let diff_cmd = s:GetDiffCmd(file)
+    if len(segments) == 1
+      let cmd = diff_cmd.' > '.folder.'/'.file.'.diff'
+    else
+      let directory = segments[:-2]
+      let filename = segments[-1]
+      let diff_file = join(directory, '_').'@'.filename
+      let cmd = diff_cmd.' > '.folder.'/'.diff_file.'.diff'
+    endif
     call project#RunShellCmd(cmd)
     if v:shell_error
       return
