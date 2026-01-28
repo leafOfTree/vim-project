@@ -155,14 +155,8 @@ function! s:AddDiffDetails(hash, file)
 
   setlocal modifiable
   call append(0, changes)
+  call s:ClearDiffHeaders()
   normal! gg
-  call project#RemoveEmptyLines()
-  silent! g/^new file mode/d _
-  if is_diff_line
-    silent! 1,3d _
-  else
-    silent! 1,4d _
-  endif
   setlocal nomodifiable
 endfunction
 
@@ -504,6 +498,15 @@ function! s:RunJob(cmd, exit_cb, buf_nr)
   endif
 endfunction
 
+function! s:ClearDiffHeaders()
+  call project#RemoveEmptyLines()
+  silent! 1,g/^new file mode/d _ | break
+  silent! 1,g/^diff --git/d _ | break
+  silent! 1,g/^index /d _ | break
+  silent! 1,g/^--- /d _ | break
+  silent! 1,g/^+++ /d _ | break
+endfunction
+
 function! VimProjectAddChangeDetails(job, data, ...)
   let error = s:SwitchBuffer(s:diff_buffer)
   if error
@@ -518,12 +521,7 @@ function! VimProjectAddChangeDetails(job, data, ...)
     call append(0, a:data)
   endif
 
-  call project#RemoveEmptyLines()
-  silent! 1,g/^new file mode/d _ | break
-  silent! 1,g/^diff --git/d _ | break
-  silent! 1,g/^index /d _ | break
-  silent! 1,g/^--- a/d _ | break
-  silent! 1,g/^+++ b/d _ | break
+  call s:ClearDiffHeaders()
   normal! gg
   setlocal nomodifiable
   call s:SwitchBuffer(s:changelist_buffer)
