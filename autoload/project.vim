@@ -144,7 +144,7 @@ function! s:Prepare()
         \'push': 'p',
         \'pull_and_push': 'P',
         \'shelf': 's',
-        \'unshelf': 'b',
+        \'unshelf': 'S',
         \}
   let s:default.file_open_types = {
         \'':  'edit',
@@ -1372,12 +1372,12 @@ function! project#RunShellCmd(cmd, warning=1)
 
   if v:shell_error
     if !empty(output) && a:warning
+      call project#Warn('----------------------------------------')
       call project#Warn(a:cmd)
       for error in output
         let formatted_error = substitute(error, '	', '    ', 'g')
         call project#Warn(formatted_error)
       endfor
-      call project#Warn('')
       redraw
       execute (len(output) + 2).'messages'
     endif

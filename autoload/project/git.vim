@@ -322,11 +322,11 @@ function! s:SwitchBuffer(search)
 endfunction
 
 function! s:GetBufWinnr(search)
-  return bufwinnr(escape(a:search, '[]'))
+  return bufwinnr('^'.escape(a:search, '[]').'$')
 endfunction
 
 function! s:GetBufnr(search)
-  return bufnr(escape(a:search, '[]'))
+  return bufnr('^'.escape(a:search, '[]').'$')
 endfunction
 
 function! s:CloseBuffer(name)
@@ -469,20 +469,20 @@ function! s:IsStagedFile(file)
   return s:IsStagedFolder(folder)
 endfunction
 
+function! s:IsShelfFile(file)
+  return s:Match(a:file, '\.\(diff\|patch\)$')
+endfunction
+
 function! s:TryGetDiffFile(file)
-  let is_shelf = s:Match(a:file, '\.\(diff\|patch\)$')
-  if !is_shelf
-    return 0
+  if !s:IsShelfFile(a:file)
+    return ''
   endif
-  let shelf_folder = s:GetShelfFolder()
-  let folder = s:GetBelongFolder(line('.'))
-  let shelf_file = shelf_folder.'/'.folder.name.'/'.a:file
-  let has_shelf_file = filereadable(shelf_file)
-  if has_shelf_file
-    return shelf_file
+  let diff_file = s:GetDiffFileByLine(line('.'))
+  if filereadable(diff_file)
+    return diff_file
   endif
 
-  return 0
+  return ''
 endfunction
 
 function! s:RunJob(cmd, exit_cb, buf_nr)
@@ -758,16 +758,22 @@ endfunction
 
 function! s:OpenFolderOrFile()
   let lnum = line('.')
-  let item = s:GetCurrentFolder(lnum)
-  if empty(item)
+  let folder = s:GetCurrentFolder(lnum)
+  if empty(folder)
     let file = s:GetCurrentFile()
     if empty(file)
       return
     endif
+
+    let diff_file = s:TryGetDiffFile(file)
     wincmd k
-    execute 'e '.s:GetAbsolutePath(file)
+    if empty(diff_file)
+      execute 'e '.s:GetAbsolutePath(file)
+    else
+      execute 'e '.diff_file
+    endif
   else
-    let item.expand = 1 - item.expand
+    let folder.expand = 1 - folder.expand
     call s:ShowStatus()
     execute lnum
   endif
@@ -801,7 +807,11 @@ function! s:GetShelfFolder()
   let config_home = project#GetVariable('config_home')
   let project = project#GetVariable('project')
   let config = project#GetProjectConfigPath(config_home, project)
-  return config.'/shelf/'
+  return config.'/shelf'
+endfunction
+
+function! s:GetDiffFilePath(dir, filename)
+  return join(a:dir, s:shelf_path_spliter).s:shelf_path_file_spliter.a:filename
 endfunction
 
 function! s:ShelfFile() range
@@ -835,8 +845,7 @@ function! s:ShelfFile() range
     else
       let dir = segments[:-2]
       let filename = segments[-1]
-      let diff_file = join(dir, s:shelf_path_spliter)
-            \.s:shelf_path_file_spliter.filename
+      let diff_file = s:GetDiffFilePath(dir, filename)
       let cmd = diff_cmd.' > '.folder.'/'.diff_file.'.diff'
     endif
     call project#RunShellCmd(cmd)
@@ -847,6 +856,38 @@ function! s:ShelfFile() range
 
   call s:ShowStatus(1)
   call s:CloseBuffer(s:diff_buffer)
+endfunction
+
+function! s:GetDiffFileByLine(lnum)
+  let folder = s:GetBelongFolder(a:lnum)
+  let folder_name = folder.name
+  let dir = split(s:GetDirectoryByLine(a:lnum), '/\|\\')
+  let filename = s:GetFilenameByLine(a:lnum)
+  if len(dir) == 0
+    let diff_file = filename
+  else
+    let diff_file = s:GetDiffFilePath(dir, filename)
+  endif
+  let shelf_folder = s:GetShelfFolder()
+  return shelf_folder.'/'.folder_name.'/'.diff_file
+endfunction
+
+function! s:UnshelfFile() range
+  let lnum = line('.')
+  let folder = s:GetCurrentFolder(lnum)
+  if empty(folder)
+    let lines = range(a:firstline, a:lastline)
+    let files = map(lines, {idx, v -> s:GetDiffFileByLine(v)})
+    let diff_files = join(files, ' ')
+  else
+    let folder_name = folder.name
+    let files = folder.files
+    let shelf_folder = s:GetShelfFolder()
+    let diff_files = join(map(copy(files), {idx, v -> shelf_folder.'/'.folder_name.'/'.v}), ' ')
+  endif
+  let cmd = 'git apply '.diff_files
+  call project#RunShellCmd(cmd)
+  call s:ShowStatus(1)
 endfunction
 
 function! s:RollbackFile() range
@@ -1221,7 +1262,7 @@ function! s:UpdateShelfChangelist()
   let cmd = 'ls '.shelf_folder
   let folder_names = project#RunShellCmd(cmd)
   for folder_name in folder_names
-    let folder_path = shelf_folder.folder_name
+    let folder_path = shelf_folder.'/'.folder_name
     if isdirectory(folder_path)
       let folder_path_cmd = 'ls '.folder_path
       let files = project#RunShellCmd(folder_path_cmd)
@@ -1483,8 +1524,8 @@ function! s:SetupChangelistBuffer()
   call s:AddVisualMapping(mappings.move_to_changelist, '<SID>MoveToFolder()')
   call s:AddMapping(mappings.shelf, '<SID>ShelfFile()')
   call s:AddVisualMapping(mappings.shelf, '<SID>ShelfFile()')
-  call s:AddMapping(mappings.unshelf, '<SID>ShelfFile()')
-  call s:AddVisualMapping(mappings.unshelf, '<SID>ShelfFile()')
+  call s:AddMapping(mappings.unshelf, '<SID>UnshelfFile()')
+  call s:AddVisualMapping(mappings.unshelf, '<SID>UnshelfFile()')
 
   hi DiffBufferModify ctermfg=3 guifg=#b58900
   hi DiffBufferAdd ctermfg=2 guifg=#719e07
