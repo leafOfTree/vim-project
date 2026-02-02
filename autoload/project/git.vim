@@ -746,10 +746,10 @@ function! s:SortChangelist()
 endfunction
 
 function! s:SortChangelistFunc(i1, i2)
-  if s:IsDefaultFolder(a:i1) || s:IsSpecialFolder(a:i2)
+  if s:IsShelfFolder(a:i2) || s:IsDefaultFolder(a:i1) || s:IsSpecialFolder(a:i2)
     return -1
   endif
-  if s:IsSpecialFolder(a:i1) || s:IsDefaultFolder(a:i2)
+  if s:IsShelfFolder(a:i1) || s:IsSpecialFolder(a:i1) || s:IsDefaultFolder(a:i2)
     return 1
   endif
 
