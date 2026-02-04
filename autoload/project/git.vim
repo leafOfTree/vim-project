@@ -1519,6 +1519,7 @@ function! s:SetupChangelistBuffer()
   call s:AddMapping(mappings.pull, '<SID>TryPull()')
   call s:AddMapping(mappings.push, '<SID>TryPush()')
   call s:AddMapping(mappings.pull_and_push, '<SID>TryPullThenPush()')
+  call s:AddMapping(mappings.force_push, '<SID>TryPush(1)')
   call s:AddMapping(mappings.new_changelist, '<SID>NewChangelistFolder()')
   call s:AddMapping(mappings.move_to_changelist, '<SID>MoveToFolder()')
   call s:AddVisualMapping(mappings.move_to_changelist, '<SID>MoveToFolder()')
@@ -1686,9 +1687,9 @@ function! s:TryCommit()
   nnoremap<buffer><silent> p :call <SID>TryPullThenPush()<cr>
 endfunction
 
-function! s:TryPush()
-  call project#Info('Pushing...')
-  let cmd = 'git push'
+function! s:TryPush(force=0)
+  call project#Info(a:force ? 'Force pushing...' : 'Pushing...')
+  let cmd = a:force ? 'git push -f' : 'git push'
   let result = project#RunShellCmd(cmd)
   if v:shell_error
     return 

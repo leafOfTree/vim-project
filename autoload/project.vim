@@ -143,6 +143,7 @@ function! s:Prepare()
         \'pull': 'u',
         \'push': 'p',
         \'pull_and_push': 'P',
+        \'force_push': 'F',
         \'shelf': 's',
         \'unshelf': 'S',
         \}
