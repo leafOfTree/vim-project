@@ -396,7 +396,7 @@ let g:vim_project_config.git_local_changes_mappings = {
       \'pull': 'u',
       \'push': 'p',
       \'pull_and_push': 'P',
-      \'force_push': 'F',
+      \'force_push': '<NOP>',
       \}
 ```
 
