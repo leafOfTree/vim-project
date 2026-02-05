@@ -1683,8 +1683,12 @@ function! s:TryCommit()
 
   quit
   call s:OpenResultWindow(s:commit_result_buffer, cmd, result)
-  nnoremap<buffer><silent> u :call <SID>TryPull()<cr>
-  nnoremap<buffer><silent> p :call <SID>TryPullThenPush()<cr>
+
+  let mappings = project#GetVariable('git_local_changes_mappings')
+  call s:AddMapping(mappings.pull, '<SID>TryPull()')
+  call s:AddMapping(mappings.push, '<SID>TryPush()')
+  call s:AddMapping(mappings.pull_and_push, '<SID>TryPullThenPush()')
+  call s:AddMapping(mappings.force_push, '<SID>TryPush(1)')
 endfunction
 
 function! s:TryPush(force=0)
