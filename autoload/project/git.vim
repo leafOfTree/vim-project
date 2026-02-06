@@ -832,7 +832,7 @@ function! s:ShelfFile() range
     return
   endif
 
-  let folder = s:GetShelfFolder().name
+  let folder = s:GetShelfFolder().'/'.name
   if !isdirectory(folder) && exists('*mkdir')
     call mkdir(folder, 'p')
   endif
