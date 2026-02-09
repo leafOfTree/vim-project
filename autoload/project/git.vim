@@ -1259,12 +1259,12 @@ function! s:UpdateShelfChangelist()
   if !isdirectory(shelf_folder)
     return
   endif
-  let cmd = 'ls '.shelf_folder
+  let cmd = 'ls -a '.shelf_folder
   let folder_names = project#RunShellCmd(cmd)
   for folder_name in folder_names
     let folder_path = shelf_folder.'/'.folder_name
     if isdirectory(folder_path)
-      let folder_path_cmd = 'ls '.folder_path
+      let folder_path_cmd = 'ls -a '.folder_path
       let files = project#RunShellCmd(folder_path_cmd)
       call s:UpdateFolderOrNew(folder_name, files)
     endif
