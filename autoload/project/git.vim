@@ -21,8 +21,8 @@ let s:staged_folder_name = 'Staged'
 let s:unmerged_folder_name = 'Unmerged'
 
 let s:shelf_folder_prefix = '📚'
-let s:shelf_path_spliter = '#'
-let s:shelf_path_file_spliter = '@'
+let s:shelf_path_spliter = '_'
+let s:shelf_path_file_spliter = '+'
 
 let s:changed_files = []
 let s:untracked_files = []
@@ -770,6 +770,7 @@ function! s:OpenFolderOrFile()
     if empty(diff_file)
       execute 'e '.s:GetAbsolutePath(file)
     else
+      echom 'diff file'.diff_file
       execute 'e '.diff_file
     endif
   else
@@ -1259,12 +1260,12 @@ function! s:UpdateShelfChangelist()
   if !isdirectory(shelf_folder)
     return
   endif
-  let cmd = 'ls -a '.shelf_folder
+  let cmd = 'ls '.shelf_folder
   let folder_names = project#RunShellCmd(cmd)
   for folder_name in folder_names
     let folder_path = shelf_folder.'/'.folder_name
     if isdirectory(folder_path)
-      let folder_path_cmd = 'ls -a '.folder_path
+      let folder_path_cmd = 'ls -A '.folder_path
       let files = project#RunShellCmd(folder_path_cmd)
       call s:UpdateFolderOrNew(folder_name, files)
     endif
