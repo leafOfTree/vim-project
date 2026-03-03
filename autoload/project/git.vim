@@ -1611,9 +1611,9 @@ function! s:Commit() range
   let s:commit_files = uniq(map(copy(commit_files), {idx, file -> s:GetFilename(file)}))
   let show_commit_files = map(copy(commit_files), {idx, file -> '#    '.file})
 
-  let title = s:GetCommitMessage()
+  let message = s:GetCommitMessage()
   quit
-  call s:ShowCommitMessage(title, show_commit_files)
+  call s:ShowCommitMessage(message, show_commit_files)
 endfunction
 
 function! s:RemoveFolderNamePrefix(name)
@@ -1625,24 +1625,28 @@ function! s:GetCommitMessage()
   let folder = s:GetBelongFolder(lnum)
   let folder_name = !empty(folder) ? s:RemoveFolderNamePrefix(folder.name) : ''
 
-  let title = ''
+  let message = ''
   let CustomMessage = project#GetVariable('commit_message')
 
   if !empty(CustomMessage)
-    if type(CustomMessage) == type(function('tr'))
-      let title = CustomMessage(folder_name)
-    elseif type(CustomMessage) == type('')
-      let title = CustomMessage
+    if type(CustomMessage) == v:t_func
+      let message = CustomMessage(folder_name)
+    elseif type(CustomMessage) == v:t_string || type(CustomMessage) == v:t_list
+      let message = CustomMessage
     endif
   endif
 
-  if empty(title) && s:IsUserFolder(folder)
-    let title = folder_name
+  if empty(message) && s:IsUserFolder(folder)
+    let message = folder_name
   endif
-  return title
+
+  if type(message) != v:t_list
+    let message = [message]
+  endif
+  return message
 endfunction
 
-function! s:ShowCommitMessage(title, files)
+function! s:ShowCommitMessage(message, files)
   let preset_message = [
         \'# Please enter the commit message for your changes. Lines starting',
         \"# with '#' will be ignored, and an empty message aborts the commit.",
@@ -1650,7 +1654,7 @@ function! s:ShowCommitMessage(title, files)
         \'# Changes to be committed:'
         \]
   execute 'new '.s:commit_edit_buffer
-  let content = [a:title] + preset_message + a:files
+  let content = a:message + preset_message + a:files
   call append(0, content)
   normal! gg
 

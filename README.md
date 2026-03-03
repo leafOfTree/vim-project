@@ -516,7 +516,7 @@ let g:vim_project_config.list_mappings_git_branch = {
 | tasks                         | Tasks to run using vim 'terminal' feature                                     |
 | new_project_base              | The base directory used for `:ProjectNew path`.                               |
 | project_views                 | Define project views by `[[show-pattern, hide-pattern?], ...]`                |
-| commit_message                | Default commit message. Can be string or Function reference.                  |     
+| commit_message                | Default commit message. String or list of string or function that returns it. |     
 | debug                         | Show debug messages                                                           |
 
 ### Config files
