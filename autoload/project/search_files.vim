@@ -294,7 +294,7 @@ function! s:GetSearchFilesByFilterForDirectory(input)
   return list
 endfunction
 
-function! s:GetSearchFilesByFilterForFullpath(input)
+function! s:GetSearchFilesByFilterForAll(input, include_dir = 0)
   let filter_origin = a:input
   let list = []
   " Match file
@@ -313,6 +313,10 @@ function! s:GetSearchFilesByFilterForFullpath(input)
     let list_extra = filter(copy(s:initial_list), {_, val -> val.file =~ filter_fuzzy})
     call s:SortSearchFilesList(list_extra, a:input)
     let list += list_extra
+  endif
+
+  if !a:include_dir
+    return list
   endif
 
   " Match path and file if list is short
@@ -334,8 +338,8 @@ function! s:GetSearchFilesByFilter(input)
     " Match directory only
     return s:GetSearchFilesByFilterForDirectory(a:input)
   else
-    " Match both directory and filename
-    return s:GetSearchFilesByFilterForFullpath(a:input)
+    " Match filename, directory excluded by default for performance
+    return s:GetSearchFilesByFilterForAll(a:input)
   endif
 endfunction
 
