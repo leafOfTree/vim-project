@@ -1,4 +1,7 @@
 let s:search_files_sort_max = 1000
+let s:prev_list = []
+let s:prev_display = []
+let s:prev_input = ''
 
 function! project#search_files#Run()
   if !project#ProjectExist()
@@ -23,9 +26,18 @@ function! s:Init(input)
 endfunction
 
 function! s:Update(input)
-  let [list, display] = s:GetSearchFilesResult(a:input)
-  call project#SetVariable('input', a:input)
-  call project#SetVariable('list', list)
+  if !empty(a:input) && (a:input == s:prev_input)
+    let list = s:prev_list
+    let display = s:prev_display
+  else
+    let [list, display] = s:GetSearchFilesResult(a:input)
+    let s:prev_list = list
+    let s:prev_display = display
+    let s:prev_input = a:input
+
+    call project#SetVariable('input', a:input)
+    call project#SetVariable('list', list)
+  endif
   call project#ShowInListBuffer(display, a:input)
   call project#HighlightCurrentLine(len(display))
   call project#HighlightInputChars(a:input)
