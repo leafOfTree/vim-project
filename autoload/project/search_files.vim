@@ -26,7 +26,8 @@ function! s:Init(input)
 endfunction
 
 function! s:Update(input)
-  if !empty(a:input) && (a:input == s:prev_input)
+  let use_cache = empty(a:input) ? !empty(s:prev_list) : (a:input == s:prev_input)
+  if use_cache
     let list = s:prev_list
     let display = s:prev_display
   else
