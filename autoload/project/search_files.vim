@@ -297,21 +297,39 @@ endfunction
 
 function! s:GetSearchFilesByFilterForAll(input, include_dir = 0)
   let filter_origin = a:input
+  let max_height = s:GetMaxHeight()
   let list = []
-  " Match file
-  if len(a:input) < 3
-    let filter_start = '^'.filter_origin
-    let list = filter(copy(s:initial_list), {_, val -> val.file =~ filter_start})
+
+  " 1. Prefix match for short input
+  if strlen(filter_origin) < 3
+    let filter_start = '^' . escape(filter_origin, '\')
+    for val in s:initial_list
+      if val.file =~ filter_start
+        call add(list, val)
+      endif
+    endfor
   endif
 
-  if len(list) < s:GetMaxHeight()
-    let list = filter(copy(s:initial_list), {_, val -> val.file =~ filter_origin})
+  " 2. Normal substring match
+  if len(list) < max_height
+    let list = []
+    for val in s:initial_list
+      if stridx(val.file, filter_origin) >= 0
+        call add(list, val)
+      endif
+    endfor
     call s:SortSearchFilesList(list, a:input)
   endif
 
-  if len(list) < s:GetMaxHeight()
-    let filter_fuzzy = join(split(a:input, '\zs'), '.*')
-    let list_extra = filter(copy(s:initial_list), {_, val -> val.file =~ filter_fuzzy})
+  " 3. Fuzzy match
+  if len(list) < 3
+    let filter_fuzzy = join(split(escape(filter_origin, '\'), '\zs'), '.*')
+    let list_extra = []
+    for val in s:initial_list
+      if val.file =~ filter_fuzzy
+        call add(list_extra, val)
+      endif
+    endfor
     call s:SortSearchFilesList(list_extra, a:input)
     let list += list_extra
   endif
