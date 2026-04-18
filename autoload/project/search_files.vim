@@ -35,10 +35,10 @@ function! s:Update(input)
     let s:prev_list = list
     let s:prev_display = display
     let s:prev_input = a:input
-
-    call project#SetVariable('input', a:input)
-    call project#SetVariable('list', list)
   endif
+
+  call project#SetVariable('input', a:input)
+  call project#SetVariable('list', list)
   call project#ShowInListBuffer(display, a:input)
   call project#HighlightCurrentLine(len(display))
   call project#HighlightInputChars(a:input)
