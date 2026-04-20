@@ -2,6 +2,7 @@ let s:search_files_sort_max = 1000
 let s:prev_list = []
 let s:prev_display = []
 let s:prev_input = ''
+let s:update_timer = 0
 
 function! project#search_files#Run()
   if !project#ProjectExist()
@@ -12,7 +13,7 @@ function! project#search_files#Run()
   call project#PrepareListBuffer('Search files by name:', 'SEARCH_FILES')
 
   let Init = function('s:Init')
-  let Update = function('s:Update')
+  let Update = function('s:UpdateTimer')
   let Open = function('s:Open')
   call project#RenderList(Init, Update, Open)
 endfunction
@@ -25,7 +26,20 @@ function! s:Init(input)
   call s:Update(a:input)
 endfunction
 
-function! s:Update(input)
+function! s:UpdateTimer(input)
+  call timer_stop(s:update_timer)
+  if s:ShouldRunWithTimer(a:input)
+    let s:update_timer = timer_start(200, function('s:Update', [a:input]))
+  else
+    call s:Update(a:input)
+  endif
+endfunction
+
+function! s:ShouldRunWithTimer(input)
+  return (s:prev_input != a:input) && !empty(a:input)
+endfunction
+
+function! s:Update(input, id = 0)
   let use_cache = empty(a:input) ? !empty(s:prev_list) : (a:input == s:prev_input)
   if use_cache
     let list = s:prev_list
@@ -45,6 +59,7 @@ function! s:Update(input)
   call project#HighlightNoResults()
   call project#HighlightIcon()
   call project#HighlightExtraInfo()
+  call project#RedrawInputLine()
 endfunction
 
 function! s:Open(target, open_cmd, input)
