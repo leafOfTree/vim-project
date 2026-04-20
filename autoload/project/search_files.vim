@@ -40,7 +40,7 @@ function! s:ShouldRunWithTimer(input)
 endfunction
 
 function! s:Update(input, id = 0)
-  let use_cache = empty(a:input) ? !empty(s:prev_list) : (a:input == s:prev_input)
+  let use_cache = a:input == s:prev_input && !empty(s:prev_list)
   if use_cache
     let list = s:prev_list
     let display = s:prev_display
