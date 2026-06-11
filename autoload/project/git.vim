@@ -175,7 +175,6 @@ function! s:SetupDiffBuffer(file)
   setlocal buftype=nofile bufhidden=wipe nobuflisted filetype=git
   setlocal nowrap
   setlocal modifiable
-  vertical resize 130%
   let mappings = project#GetVariable('git_diff_mappings')
   call s:AddMapping(mappings.jump_to_source, '<SID>JumpToSource("'.a:file.'")')
 endfunction
