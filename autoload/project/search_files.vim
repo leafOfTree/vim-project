@@ -310,7 +310,7 @@ function! s:GetSearchFilesByFilterForDirectory(input)
   return list
 endfunction
 
-function! s:GetSearchFilesByFilterForAll(input, include_dir = 0)
+function! s:GetSearchFilesByFilterForAll(input, match_fullpath = 0)
   let filter_origin = a:input
   let max_height = s:GetMaxHeight()
   let list = []
@@ -325,11 +325,13 @@ function! s:GetSearchFilesByFilterForAll(input, include_dir = 0)
     endfor
   endif
 
-  " 2. Normal substring match
+  " 2. Normal substring match for file and directory
   if len(list) < max_height
     let list = []
     for val in s:initial_list
-      if stridx(val.file, filter_origin) >= 0
+      let match_file_or_path = stridx(val.file, filter_origin) >= 0
+            \|| (empty(val.file) && stridx(val.path, filter_origin) >= 0)
+      if match_file_or_path
         call add(list, val)
       endif
     endfor
@@ -349,17 +351,17 @@ function! s:GetSearchFilesByFilterForAll(input, include_dir = 0)
     let list += list_extra
   endif
 
-  if !a:include_dir
+  if !a:match_fullpath
     return list
   endif
 
-  " Match path and file if list is short
+  " Match fullpath
   if len(list) < s:GetMaxHeight()
     let list_extra = filter(copy(s:initial_list), {_, val -> val.path.val.file =~ filter_origin})
     let list += list_extra
   endif
 
-  " Fuzzy match path and file if list is short
+  " Fuzzy match fullpath
   if len(list) < s:GetMaxHeight()
     let list_extra = filter(copy(s:initial_list), {_, val -> val.path.val.file =~ filter_fuzzy})
     let list += list_extra

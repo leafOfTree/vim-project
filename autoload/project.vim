@@ -275,7 +275,7 @@ function! s:AdjustConfig()
 endfunction
 
 function! s:RemoveListTrailingSlash(list)
-  call map(a:list, {_, val -> s:RemovePathTrailingSlash(val)})
+  call map(a:list, {_, val -> s:RemoveTrailSlash(val)})
   return a:list
 endfunction
 
@@ -476,7 +476,7 @@ function! s:IgnoreProject(path)
   call add(s:projects_ignore, project)
 endfunction
 
-function! s:RemovePathTrailingSlash(path)
+function! s:RemoveTrailSlash(path)
   return substitute(a:path, '[\/\\]$', '', '')
 endfunction
 
@@ -486,7 +486,7 @@ endfunction
 
 function! s:GetFullPath(path)
   let path = a:path
-  let path = s:RemovePathTrailingSlash(path)
+  let path = s:RemoveTrailSlash(path)
   let path = s:GetAbsolutePath(path)
   let path = substitute(expand(path), '\', '\/', 'g')
   call s:Debug('The full path is '.path)
@@ -509,7 +509,7 @@ function! s:GetAbsolutePath(path)
   if s:IsRelativePath(path)
     let base_list = s:GetProjectBase()
     for base in base_list
-      let full_path = s:RemovePathTrailingSlash(expand(fnamemodify(base.'/'.path, ':p')))
+      let full_path = s:RemoveTrailSlash(expand(fnamemodify(base.'/'.path, ':p')))
       if isdirectory(full_path)
         return full_path
       endif
@@ -517,7 +517,7 @@ function! s:GetAbsolutePath(path)
   endif
 
   if s:IsRelativePath(path)
-    let full_path = s:RemovePathTrailingSlash(expand(fnamemodify(getcwd().'/'.path, ':p')))
+    let full_path = s:RemoveTrailSlash(expand(fnamemodify(getcwd().'/'.path, ':p')))
     return full_path
   endif
   return path
