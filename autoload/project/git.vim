@@ -1698,7 +1698,7 @@ endfunction
 
 function! s:TryPush(force=0)
   call project#Info(a:force ? 'Force pushing...' : 'Pushing...')
-  let cmd = a:force ? 'git push -f' : 'git push'
+  let cmd = a:force ? 'git push --force-with-lease' : 'git push'
   let result = project#RunShellCmd(cmd)
   if v:shell_error
     return 
