@@ -423,6 +423,7 @@ function! s:ShowDiffOnChangelist()
   try
     call s:OpenBuffer(s:diff_buffer, 'vertical')
     call s:SetupDiffBuffer(s:GetAbsolutePath(file))
+    vertical resize 130%
     wincmd p
 
     call s:AddChangeDetails(file)
