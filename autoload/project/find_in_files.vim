@@ -53,7 +53,7 @@ function! s:UpdateTimer(input)
   if !s:ShouldRun(a:input) || empty(a:input)
     call s:Update(a:input, 0, 0)
   else
-    let s:update_timer = timer_start(200, function('s:Update', [a:input, 0]))
+    let s:update_timer = timer_start(100, function('s:Update', [a:input, 0]))
   endif
 endfunction
 

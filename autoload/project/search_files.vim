@@ -20,6 +20,9 @@ endfunction
 
 function! project#search_files#Reset()
   unlet! s:initial_list
+  let s:prev_list = []
+  let s:prev_display = []
+  let s:prev_input = ''
 endfunction
 
 function! s:Init(input)
@@ -29,7 +32,7 @@ endfunction
 function! s:UpdateTimer(input)
   call timer_stop(s:update_timer)
   if s:ShouldRunWithTimer(a:input)
-    let s:update_timer = timer_start(200, function('s:Update', [a:input]))
+    let s:update_timer = timer_start(100, function('s:Update', [a:input]))
   else
     call s:Update(a:input)
   endif
