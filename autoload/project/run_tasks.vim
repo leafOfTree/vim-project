@@ -311,14 +311,19 @@ function! s:OpenTerminal()
     return
   endif
 
+  let has_project = !empty($vim_project)
   if has('nvim')
     new
-    cd $vim_project
+    if has_project
+      cd $vim_project
+    endif
     terminal
     startinsert
   else
     terminal ++kill=kill
-    call term_sendkeys(bufnr('%'), "cd $vim_project\<CR>")
+    if has_project
+      call term_sendkeys(bufnr('%'), "cd $vim_project\<CR>")
+    endif
     call term_sendkeys(bufnr('%'), "clear\<CR>")
   endif
 
