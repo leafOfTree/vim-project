@@ -443,17 +443,61 @@ function! s:GetDiffCmd(file)
   return cmd
 endfunction
 
+" List entry names of a directory, like `ls` or, with all, `ls -A`
+function! s:ReadDirectory(path, all = 0)
+  if !isdirectory(a:path)
+    return []
+  endif
+
+  if exists('*readdir')
+    let names = readdir(a:path)
+  else
+    let paths = glob(a:path.'/*', 1, 1) + glob(a:path.'/.*', 1, 1)
+    let names = map(paths, { idx, val -> fnamemodify(val, ':t') })
+    call filter(names, { idx, val -> val != '.' && val != '..' })
+  endif
+
+  if !a:all
+    call filter(names, { idx, val -> val[0] != '.' })
+  endif
+  return sort(names)
+endfunction
+
+" List a directory with a trailing slash on sub directories, like `ls -F`
+function! s:ListDirectory(path)
+  let names = s:ReadDirectory(a:path)
+  return map(names, { idx, val -> isdirectory(a:path.'/'.val) ? val.'/' : val })
+endfunction
+
 function! s:AddChangeDetails(file)
   let diff_file = s:TryGetDiffFile(a:file)
   if !empty(diff_file)
-    let cmd = 'cat '.diff_file
-  elseif isdirectory(s:GetAbsolutePath(a:file))
-    let cmd = 'ls -F '.a:file
-  else
-    let cmd = s:GetDiffCmd(a:file)
+    call s:AddLinesToDiffBuffer(readfile(diff_file))
+    return
   endif
+
+  if isdirectory(s:GetAbsolutePath(a:file))
+    call s:AddLinesToDiffBuffer(s:ListDirectory(s:GetAbsolutePath(a:file)))
+    return
+  endif
+
   let buf_nr = s:GetBufnr(s:diff_buffer)
-  call s:RunJob(cmd, 'VimProjectAddChangeDetails', buf_nr)
+  call s:RunJob(s:GetDiffCmd(a:file), 'VimProjectAddChangeDetails', buf_nr)
+endfunction
+
+function! s:AddLinesToDiffBuffer(lines)
+  let error = s:SwitchBuffer(s:diff_buffer)
+  if error
+    return
+  endif
+
+  setlocal modifiable
+  call execute('normal! gg"_dG', 'silent!')
+  call append(0, a:lines)
+  call s:ClearDiffHeaders()
+  normal! gg
+  setlocal nomodifiable
+  call s:SwitchBuffer(s:changelist_buffer)
 endfunction
 
 function! s:IsUntrackedFile(file)
@@ -910,15 +954,20 @@ function! s:RollbackFile() range
     for file in files
       let diff_file = s:TryGetDiffFile(file)
       if !empty(diff_file)
-        let cmd = 'rm '.diff_file
-      elseif s:IsFileUntracked(file)
-        let cmd = 'git clean -fd "'.file.'"'
+        if delete(diff_file) != 0
+          call project#Warn('Failed to delete '.diff_file)
+          return
+        endif
       else
-        let cmd = 'git restore -- "'.file.'"'
-      endif
-      call project#RunShellCmd(cmd)
-      if v:shell_error
-        return
+        if s:IsFileUntracked(file)
+          let cmd = 'git clean -fd "'.file.'"'
+        else
+          let cmd = 'git restore -- "'.file.'"'
+        endif
+        call project#RunShellCmd(cmd)
+        if v:shell_error
+          return
+        endif
       endif
       call s:ShowStatus(1)
       call s:CloseBuffer(s:diff_buffer)
@@ -946,8 +995,7 @@ function! s:DeleteFolder()
   if s:IsShelfFolder(folder)
     let shelf_folder = s:GetShelfFolder()
     let folder_path = shelf_folder.'/'.folder.name
-    let cmd = 'rm -fr '.folder_path
-    call project#RunShellCmd(cmd)
+    call delete(folder_path, 'rf')
   endif
 
   if s:IsUserFolder(folder)
@@ -1261,14 +1309,10 @@ function! s:UpdateShelfChangelist()
   if !isdirectory(shelf_folder)
     return
   endif
-  let cmd = 'ls '.shelf_folder
-  let folder_names = project#RunShellCmd(cmd)
-  for folder_name in folder_names
+  for folder_name in s:ReadDirectory(shelf_folder)
     let folder_path = shelf_folder.'/'.folder_name
     if isdirectory(folder_path)
-      let folder_path_cmd = 'ls -A '.folder_path
-      let files = project#RunShellCmd(folder_path_cmd)
-      call s:UpdateFolderOrNew(folder_name, files)
+      call s:UpdateFolderOrNew(folder_name, s:ReadDirectory(folder_path, 1))
     endif
   endfor
 endfunction
