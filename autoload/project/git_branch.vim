@@ -16,11 +16,13 @@ endfunction
 function! s:Init(input)
   let format = join(['%(HEAD)', '%(refname:short)', '%(upstream:short)', 
         \'%(contents:subject)', '%(authorname)',  '%(committerdate:relative)'], s:splitter)
-  let cmd = "git branch -a --format='".format."'"
+  let cmd = 'git branch -a --format='.shellescape(format)
   let branches = project#RunShellCmd(cmd)
   let current = filter(copy(branches), 'v:val[0] == "*"')
   call filter(branches, 'v:val[0] != "*"')
-  call insert(branches, current[0])
+  if !empty(current)
+    call insert(branches, current[0])
+  endif
   call insert(branches, s:CreateItem(' ', s:item_splitter))
   call insert(branches, s:CreateItem('+', s:item_new_branch))
   let s:list = s:GetTabulatedList(branches)
