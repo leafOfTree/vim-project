@@ -1,0 +1,289 @@
+" Tests for autoload/project.vim helpers.
+let s:file = 'autoload/project.vim'
+
+function! s:Call(name, ...)
+  return Helper_Call(s:file, a:name, a:000)
+endfunction
+
+" s:max_width is normally set when the list window opens; set it directly
+" for Tabulate tests and return the previous value for restoring.
+function! s:SetMaxWidth(width)
+  let saved = project#Exist('max_width') ? project#GetVariable('max_width') : a:width
+  call project#SetVariable('max_width', a:width)
+  return saved
+endfunction
+
+" ---------------------------------------------------------------- paths
+
+function! Test_IsRelativePath()
+  call assert_equal(1, s:Call('IsRelativePath', 'foo'))
+  call assert_equal(1, s:Call('IsRelativePath', 'foo/bar'))
+  call assert_equal(1, s:Call('IsRelativePath', './foo'))
+  call assert_equal(0, s:Call('IsRelativePath', '/abs/path'))
+  call assert_equal(0, s:Call('IsRelativePath', '~/home/path'))
+  call assert_equal(0, s:Call('IsRelativePath', 'C:\windows\path'))
+  call assert_equal(0, s:Call('IsRelativePath', 'D:/unix/style'))
+endfunction
+
+function! Test_GetFullPath_absolute_path_strips_trailing_slash()
+  call assert_equal('/abs/path', s:Call('GetFullPath', '/abs/path/'))
+  call assert_equal('/abs/path', s:Call('GetFullPath', '/abs/path'))
+endfunction
+
+function! Test_GetFullPath_expands_home()
+  let home = expand('~')
+  call assert_equal(home.'/vim_project_test_nowhere',
+        \ s:Call('GetFullPath', '~/vim_project_test_nowhere/'))
+endfunction
+
+function! Test_GetFullPath_relative_path_resolved_from_project_base()
+  " g:vim_project_config.project_base points at <tmp>/base (see runner.vim)
+  let base = g:vim_project_test_tmp.'/base'
+  call mkdir(base.'/existing-project', 'p')
+  call assert_equal(base.'/existing-project',
+        \ s:Call('GetFullPath', 'existing-project/'))
+endfunction
+
+function! Test_GetFullPath_relative_path_falls_back_to_cwd()
+  let dir = Helper_TmpDir('cwd')
+  let saved = getcwd()
+  try
+    execute 'cd '.fnameescape(dir)
+    " getcwd() may resolve symlinks (e.g. /tmp -> /private/tmp on macOS)
+    call assert_equal(resolve(dir).'/not-created-yet',
+          \ s:Call('GetFullPath', 'not-created-yet'))
+  finally
+    execute 'cd '.fnameescape(saved)
+  endtry
+endfunction
+
+function! Test_ReplaceHomeWithTide()
+  let home = expand('~')
+  call assert_equal('~/repo/x', project#ReplaceHomeWithTide(home.'/repo/x'))
+  call assert_equal('~', project#ReplaceHomeWithTide(home))
+  call assert_equal('/other/path', project#ReplaceHomeWithTide('/other/path'))
+  " Only a leading home directory is replaced
+  call assert_equal('/prefix'.home, project#ReplaceHomeWithTide('/prefix'.home))
+endfunction
+
+" ---------------------------------------------------------------- input
+
+function! Test_ClearCharOfInput_ascii()
+  call assert_equal('ab', s:Call('ClearCharOfInput', 'abc'))
+  call assert_equal('', s:Call('ClearCharOfInput', 'a'))
+  call assert_equal('', s:Call('ClearCharOfInput', ''))
+endfunction
+
+function! Test_ClearCharOfInput_multibyte()
+  " Removes one character, not one byte
+  call assert_equal('中', s:Call('ClearCharOfInput', '中文'))
+  call assert_equal('中文', s:Call('ClearCharOfInput', '中文字'))
+  call assert_equal('abc中', s:Call('ClearCharOfInput', 'abc中文'))
+  call assert_equal('', s:Call('ClearCharOfInput', '中'))
+endfunction
+
+function! Test_ClearWordOfInput()
+  call assert_equal('foo ', s:Call('ClearWordOfInput', 'foo bar'))
+  call assert_equal('foo ', s:Call('ClearWordOfInput', 'foo bar  '))
+  call assert_equal('', s:Call('ClearWordOfInput', 'foo'))
+  call assert_equal('', s:Call('ClearWordOfInput', 'foo   '))
+  " A trailing run of non-word characters is removed as one unit
+  call assert_equal('foo', s:Call('ClearWordOfInput', 'foo ..'))
+  call assert_equal('foo.', s:Call('ClearWordOfInput', 'foo.bar'))
+  call assert_equal('', s:Call('ClearWordOfInput', ''))
+endfunction
+
+" ---------------------------------------------------------------- display
+
+function! Test_Truncate_by_display_width()
+  " ASCII: keeps max_width - placeholder + 1 columns, then the placeholder
+  call assert_equal('abcde..', s:Call('Truncate', 'abcdefgh', 6, '..'))
+  " Wide characters are never split in half
+  call assert_equal('中文..', s:Call('Truncate', '中文字符串', 6, '..'))
+  call assert_equal('中文字..', s:Call('Truncate', '中文字符串', 7, '..'))
+  call assert_equal('a中..', s:Call('Truncate', 'a中文字符', 5, '..'))
+  let result = s:Call('Truncate', '中文字符串', 6, '.. ')
+  call assert_true(strdisplaywidth(result) <= 7, 'width of '.result)
+  call assert_match('\.\. $', result)
+endfunction
+
+function! Test_Tabulate_aligns_columns_by_display_width()
+  let saved = s:SetMaxWidth(200)
+  try
+    let list = [
+          \{'name': '中文名', 'path': '/a'},
+          \{'name': 'ab', 'path': '/longer/path'},
+          \{'name': 'x', 'path': '/b'},
+          \]
+    call project#Tabulate(list, ['name', 'path'])
+
+    " Every column gets the same display width
+    for key in ['name', 'path']
+      let widths = map(copy(list), {_, item -> strdisplaywidth(item['__'.key])})
+      call assert_equal(1, len(uniq(sort(copy(widths)))),
+            \ 'column '.key.' widths: '.string(widths))
+    endfor
+    " 中文名 is 6 columns wide, the widest name, so it gets one trailing space
+    call assert_equal('中文名 ', list[0].__name)
+    call assert_equal('ab     ', list[1].__name)
+    call assert_equal('/longer/path ', list[1].__path)
+  finally
+    call project#SetVariable('max_width', saved)
+  endtry
+endfunction
+
+function! Test_Tabulate_respects_min_col_width()
+  let saved = s:SetMaxWidth(200)
+  try
+    let list = [{'name': 'ab'}, {'name': 'c'}]
+    call project#Tabulate(list, ['name'], 10)
+    call assert_equal(11, strdisplaywidth(list[0].__name))
+    call assert_equal(11, strdisplaywidth(list[1].__name))
+  finally
+    call project#SetVariable('max_width', saved)
+  endtry
+endfunction
+
+function! Test_Tabulate_truncates_wide_values_when_too_wide()
+  " Total width exceeds the list window, so values are cut to max_col_width
+  let saved = s:SetMaxWidth(10)
+  try
+    let list = [{'name': repeat('字', 20)}, {'name': 'short'}]
+    call project#Tabulate(list, ['name'], 0, 8)
+    call assert_equal('字字字..', matchstr(list[0].__name, '^字*\.\.'))
+    call assert_true(strdisplaywidth(list[0].__name) <= 9,
+          \ 'width of '.list[0].__name)
+    call assert_equal(strdisplaywidth(list[0].__name),
+          \ strdisplaywidth(list[1].__name))
+  finally
+    call project#SetVariable('max_width', saved)
+  endtry
+endfunction
+
+function! Test_Tabulate_replaces_home_with_tilde()
+  let saved = s:SetMaxWidth(200)
+  try
+    let list = [{'path': expand('~').'/repo'}]
+    call project#Tabulate(list, ['path'])
+    call assert_equal('~/repo ', list[0].__path)
+  finally
+    call project#SetVariable('max_width', saved)
+  endtry
+endfunction
+
+" ---------------------------------------------------------------- config
+
+function! Test_MergeUserConfigIntoDefault_overrides_only_known_keys()
+  let default = {
+        \'debug': 0,
+        \'exclude': ['.git'],
+        \'list_mappings': {'open': "\<cr>", 'close_list': "\<esc>"},
+        \}
+  let user = {'debug': 1, 'exclude': ['dist'], 'unknown_key': 'ignored'}
+
+  let result = s:Call('MergeUserConfigIntoDefault', user, default)
+
+  call assert_equal(1, result.debug)
+  call assert_equal(['dist'], result.exclude)
+  call assert_false(has_key(result, 'unknown_key'))
+  call assert_equal({'open': "\<cr>", 'close_list': "\<esc>"}, result.list_mappings)
+endfunction
+
+function! Test_MergeUserConfigIntoDefault_merges_nested_mappings()
+  let default = {
+        \'list_mappings': {'open': "\<cr>", 'close_list': "\<esc>", 'clear_char': "\<bs>"},
+        \'list_mappings_projects': {'prev_view': "\<s-tab>", 'next_view': "\<tab>"},
+        \'list_mappings_search_files': {'open_split': "\<c-s>"},
+        \}
+  let user = {
+        \'list_mappings': {'open': 'o', 'extra': 'e'},
+        \'list_mappings_projects': {'next_view': 'n'},
+        \}
+
+  let result = s:Call('MergeUserConfigIntoDefault', user, default)
+
+  " User keys win, default keys survive, unknown nested keys are dropped
+  call assert_equal({'open': 'o', 'close_list': "\<esc>", 'clear_char': "\<bs>"},
+        \ result.list_mappings)
+  call assert_equal({'prev_view': "\<s-tab>", 'next_view': 'n'},
+        \ result.list_mappings_projects)
+  " Untouched nested dicts keep their defaults
+  call assert_equal({'open_split': "\<c-s>"}, result.list_mappings_search_files)
+endfunction
+
+function! Test_MergeUserConfigIntoDefault_against_real_defaults()
+  let default = deepcopy(Helper_ScriptVar(s:file, 'default'))
+  let user = {
+        \'list_mappings_find_in_files': {'replace_confirm': "\<c-x>"},
+        \'git_local_changes_mappings': {'commit': 'C'},
+        \}
+
+  let result = s:Call('MergeUserConfigIntoDefault', user, default)
+
+  call assert_equal("\<c-x>", result.list_mappings_find_in_files.replace_confirm)
+  call assert_equal("\<c-s>", result.list_mappings_find_in_files.open_split)
+  call assert_equal('C', result.git_local_changes_mappings.commit)
+  call assert_equal('p', result.git_local_changes_mappings.push)
+  call assert_equal("\<cr>", result.list_mappings.open)
+endfunction
+
+" ---------------------------------------------------------------- add args
+
+function! Test_GetAddArgs_legacy_json_option()
+  let [path, option] = s:Call('GetAddArgs', '~/repo, {"note": "legacy note"}')
+  call assert_equal('~/repo', path)
+  call assert_equal({'note': 'legacy note'}, option)
+
+  let [path, option] = s:Call('GetAddArgs', '~/repo,{"note":"x","other":1}')
+  call assert_equal('~/repo', path)
+  call assert_equal({'note': 'x', 'other': 1}, option)
+endfunction
+
+function! Test_GetAddArgs_new_quoted_note()
+  let [path, option] = s:Call('GetAddArgs', '~/repo "my note"')
+  call assert_equal('~/repo', path)
+  call assert_equal({'note': 'my note'}, option)
+
+  let [path, option] = s:Call('GetAddArgs', "~/repo 'single quoted'")
+  call assert_equal('~/repo', path)
+  call assert_equal({'note': 'single quoted'}, option)
+endfunction
+
+function! Test_GetAddArgs_path_only()
+  let [path, option] = s:Call('GetAddArgs', '~/repo')
+  call assert_equal('~/repo', path)
+  call assert_equal({'note': ''}, option)
+
+  let [path, option] = s:Call('GetAddArgs', '/path with space/repo')
+  call assert_equal('/path with space/repo', path)
+  call assert_equal({'note': ''}, option)
+endfunction
+
+" ---------------------------------------------------------------- shell
+
+function! Test_RunShellCmd_handles_project_path_with_spaces()
+  let dir = Helper_TmpDir('dir with space')
+  call writefile(['x'], dir.'/marker.txt')
+
+  let saved = $vim_project
+  let $vim_project = dir
+  try
+    let output = project#RunShellCmd('ls')
+    call assert_equal(['marker.txt'], output)
+    call assert_equal(0, v:shell_error)
+  finally
+    let $vim_project = saved
+  endtry
+endfunction
+
+function! Test_RunShellCmd_returns_empty_list_on_error()
+  let saved = $vim_project
+  let $vim_project = Helper_TmpDir('shell-error')
+  try
+    let output = project#RunShellCmd('exit 3', 0)
+    call assert_equal([], output)
+    call assert_notequal(0, v:shell_error)
+  finally
+    let $vim_project = saved
+  endtry
+endfunction
