@@ -2716,8 +2716,7 @@ function! project#ShortenDate(origin)
 endfunction
 
 function! project#RemoveEmptyLines()
-  silent! %s/
-$//g
+  silent! %s/\r$//ge
 endfunction
 
 try
