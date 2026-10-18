@@ -316,6 +316,15 @@ When `Find in files`, you can press
 - <kbd>Enter</kbd> or <kbd>c-y</kbd> to confirm
 - <kbd>c-d</kbd> to dismiss any item on the list
 
+When replacing, the replacement text is inserted literally (`&` and `\1` are not special). To avoid unwanted changes
+
+- a line is only replaced if it still reads as it did in the search result
+- a file with unsaved changes in a buffer is skipped
+- line endings (CRLF / LF) and a missing final newline are kept
+- open buffers of changed files are reloaded
+
+Skipped lines and files are reported after the replacement.
+
 <a name="config_keymappings"></a>
 
 ### Run tasks

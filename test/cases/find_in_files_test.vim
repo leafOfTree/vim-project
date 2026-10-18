@@ -207,3 +207,110 @@ function! Test_grep_commands_do_not_mutate_config_lists()
   call assert_equal(['src'], include)
   call assert_equal(['.git'], exclude)
 endfunction
+
+" ---------------------------------------------------------------- replace
+
+function! Test_ParseGrepLine_keeps_colons_in_text()
+  call assert_equal({'file': 'src/a.rs', 'lnum': '3', 'line': 'use std::io;'},
+        \ s:Call('ParseGrepLine', 'src/a.rs:3:use std::io;'))
+  call assert_equal({'file': 'a.vim', 'lnum': '7', 'line': ':foo::'},
+        \ s:Call('ParseGrepLine', 'a.vim:7::foo::'))
+  " A non-match line, such as an error, is kept for display with lnum 0
+  let item = s:Call('ParseGrepLine', 'Error: too many')
+  call assert_equal(0, item.lnum)
+endfunction
+
+function! Test_GetReplacedLine_inserts_replacement_literally()
+  let pattern = s:Call('GetSearchPattern', 'foo')
+  call assert_equal('a&b bar', s:Call('GetReplacedLine', 'foo bar', pattern, 'a&b', 0))
+  call assert_equal('\1~ bar', s:Call('GetReplacedLine', 'foo bar', pattern, '\1~', 0))
+  " Case-insensitive by default, every occurrence
+  call assert_equal('x x', s:Call('GetReplacedLine', 'foo FOO', pattern, 'x', 0))
+  " add=1 keeps the match before the replacement, for display
+  call assert_equal('foox bar', s:Call('GetReplacedLine', 'foo bar', pattern, 'x', 1))
+endfunction
+
+function! s:Item(file, lnum, line)
+  return {'file': a:file, 'lnum': string(a:lnum), 'line': a:line}
+endfunction
+
+" Write a:lines in binary mode, so "\r" and a missing final newline are kept
+function! s:WriteBinary(dir, name, lines)
+  call writefile(a:lines, a:dir.'/'.a:name, 'b')
+endfunction
+
+function! Test_ReplaceInFiles_is_safe()
+  let dir = Helper_TmpDir('replace')
+  let saved_project = $vim_project
+  let $vim_project = dir
+
+  call s:WriteBinary(dir, 'multi.txt', ['foo 1', 'bar', 'foo 2', ''])
+  call s:WriteBinary(dir, 'crlf.txt', ["foo\r", "keep\r", ''])
+  call s:WriteBinary(dir, 'noeol.txt', ['foo'])
+  call s:WriteBinary(dir, 'stale.txt', ['foo changed', ''])
+  call s:WriteBinary(dir, 'unsaved.txt', ['foo', ''])
+  call s:WriteBinary(dir, 'loaded.txt', ['foo', ''])
+
+  " unsaved.txt has unsaved edits, loaded.txt is open without changes
+  execute 'edit' fnameescape(dir.'/unsaved.txt')
+  call setline(1, 'edited in buffer')
+  let unsaved_bufnr = bufnr('%')
+  execute 'split' fnameescape(dir.'/loaded.txt')
+  let loaded_bufnr = bufnr('%')
+  " ! hides the modified buffer instead of refusing (Vim without 'hidden')
+  only!
+
+  let list = [
+        \{'file': 'multi.txt'},
+        \s:Item('multi.txt', 1, 'foo 1'),
+        \s:Item('multi.txt', 3, 'foo 2'),
+        \{'file': 'crlf.txt'},
+        \s:Item('crlf.txt', 1, 'foo'),
+        \{'file': 'noeol.txt'},
+        \s:Item('noeol.txt', 1, 'foo'),
+        \{'file': 'stale.txt'},
+        \s:Item('stale.txt', 1, 'foo'),
+        \s:Item('stale.txt', 9, 'foo'),
+        \{'file': 'unsaved.txt'},
+        \s:Item('unsaved.txt', 1, 'foo'),
+        \{'file': 'loaded.txt'},
+        \s:Item('loaded.txt', 1, 'foo'),
+        \{'file': 'missing.txt'},
+        \s:Item('missing.txt', 1, 'foo'),
+        \]
+
+  try
+    let groups = s:Call('GroupLineItemsByFile', list)
+    call assert_equal(['multi.txt', 'crlf.txt', 'noeol.txt', 'stale.txt',
+          \ 'unsaved.txt', 'loaded.txt', 'missing.txt'],
+          \ map(copy(groups), {_, g -> g.file}))
+    call assert_equal(2, len(groups[0].items))
+
+    let pattern = s:Call('GetSearchPattern', 'foo')
+    let result = s:Call('ReplaceInFiles', groups, pattern, 'a&b')
+    call s:Call('ReloadChangedBuffers', result.changed)
+
+    call assert_equal(['a&b 1', 'bar', 'a&b 2', ''], readfile(dir.'/multi.txt', 'b'))
+    " CRLF line endings survive
+    call assert_equal(["a&b\r", "keep\r", ''], readfile(dir.'/crlf.txt', 'b'))
+    " No final newline is added
+    call assert_equal(['a&b'], readfile(dir.'/noeol.txt', 'b'))
+    " A line that changed since the search is left alone
+    call assert_equal(['foo changed', ''], readfile(dir.'/stale.txt', 'b'))
+    call assert_equal(['stale.txt:1', 'stale.txt:9', 'missing.txt:1'], result.stale)
+    " A file with unsaved buffer changes is not written; the edit survives
+    call assert_equal(['foo', ''], readfile(dir.'/unsaved.txt', 'b'))
+    call assert_equal(['unsaved.txt'], result.unsaved)
+    call assert_equal(['edited in buffer'], getbufline(unsaved_bufnr, 1, '$'))
+    " An unmodified open buffer is reloaded with the new content
+    call assert_equal(['a&b'], getbufline(loaded_bufnr, 1, '$'))
+
+    call assert_equal(5, result.lines)
+    call assert_equal(4, len(result.changed))
+    call assert_equal([], result.failed)
+  finally
+    let $vim_project = saved_project
+    execute 'silent! bwipeout!' unsaved_bufnr
+    execute 'silent! bwipeout!' loaded_bufnr
+  endtry
+endfunction

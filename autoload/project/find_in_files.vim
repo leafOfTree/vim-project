@@ -252,24 +252,6 @@ function! s:ParseInput(input)
 endfunction
 
 
-function! s:GetTotalReplaceLines()
-  let total = 0
-  for item in s:list
-    if s:IsFileLineItem(item)
-      let total += 1
-    endif
-  endfor
-  return total
-endfunction
-
-function! s:ReplaceLineOfFile(item, pattern, replace)
-  let file = $vim_project.'/'.a:item.file
-  let index = a:item.lnum - 1
-  let lines = readfile(file)
-  let lines[index] = s:GetReplacedLine(lines[index], a:pattern, a:replace, 0)
-  call writefile(lines, file)
-endfunction
-
 function! s:DismissFindReplaceItem()
   let target = project#list#GetTarget()
   if empty(target)
@@ -333,27 +315,152 @@ function! s:RemoveRange(start, end)
 endfunction
 
 function! s:RunReplaceAll(search, replace)
-  let index_line = 0
-  let index_file = 0
-  let total_lines = s:GetTotalReplaceLines()
-  let total_files = len(s:list) - total_lines
   let pattern = s:GetSearchPattern(a:search)
+  let groups = s:GroupLineItemsByFile(s:list)
+  let result = s:ReplaceInFiles(groups, pattern, a:replace)
+  call s:ReloadChangedBuffers(result.changed)
+  " Report after the list has closed
+  call timer_start(100, function('s:ReportReplace', [result]))
+endfunction
 
-  for item in s:list
-    if s:IsFileLineItem(item)
-      call s:ReplaceLineOfFile(item, pattern, a:replace)
-      let index_line += 1
-    else
-      let index_file += 1
+" [{'file': relative path, 'items': [line items]}, ...] in list order
+function! s:GroupLineItemsByFile(list)
+  let groups = []
+  let index_by_file = {}
+  for item in a:list
+    if !s:IsFileLineItem(item)
+      continue
     endif
-    let info_line = 'lines: '.index_line.' of '.total_lines
-    let info_file = 'files: '.index_file.' of '.total_files
+    if !has_key(index_by_file, item.file)
+      let index_by_file[item.file] = len(groups)
+      call add(groups, {'file': item.file, 'items': []})
+    endif
+    call add(groups[index_by_file[item.file]].items, item)
+  endfor
+  return groups
+endfunction
+
+" Replace in each file with one read and one write. A line is only replaced
+" when it still reads as it did in the search result, and a file with
+" unsaved changes in a buffer is left alone. Line endings and a missing
+" final newline are kept by reading and writing in binary mode.
+"
+" Returns {
+"   'lines':   number of lines replaced,
+"   'changed': full paths of files written,
+"   'stale':   'file:lnum' of lines skipped because they changed,
+"   'unsaved': files skipped because of unsaved buffer changes,
+"   'failed':  files that could not be written,
+" }
+function! s:ReplaceInFiles(groups, pattern, replace)
+  let result = {'lines': 0, 'changed': [], 'stale': [], 'unsaved': [], 'failed': []}
+  let total = len(a:groups)
+  let index = 0
+
+  for group in a:groups
+    let index += 1
     redraw
-    call project#InfoEcho('Replaced '.info_file.', '.info_line)
+    call project#InfoEcho('Replacing files: '.index.' of '.total)
+
+    let path = s:GetProjectFilePath(group.file)
+    let bufnr = s:GetLoadedBufnr(path)
+    if bufnr != -1 && getbufvar(bufnr, '&modified')
+      call add(result.unsaved, group.file)
+      continue
+    endif
+    if !filereadable(path)
+      call extend(result.stale, map(copy(group.items), {_, item -> item.file.':'.item.lnum}))
+      continue
+    endif
+
+    let lines = readfile(path, 'b')
+    let replaced = 0
+    for item in group.items
+      let idx = str2nr(item.lnum) - 1
+      if idx < 0 || idx >= len(lines)
+            \|| s:RemoveTrailingCR(lines[idx]) !=# s:RemoveTrailingCR(item.line)
+        call add(result.stale, item.file.':'.item.lnum)
+        continue
+      endif
+
+      let body = s:RemoveTrailingCR(lines[idx])
+      let cr = lines[idx][len(body):]
+      let new_body = s:GetReplacedLine(body, a:pattern, a:replace, 0)
+      if new_body !=# body
+        let lines[idx] = new_body.cr
+        let replaced += 1
+      endif
+    endfor
+
+    if replaced == 0
+      continue
+    endif
+    try
+      if writefile(lines, path, 'b') != 0
+        throw 'write failed'
+      endif
+      let result.lines += replaced
+      call add(result.changed, path)
+    catch
+      call add(result.failed, group.file)
+    endtry
   endfor
 
-  edit
-  call timer_start(100, function('project#Info', ['Replaced '.info_file.', '.info_line]))
+  return result
+endfunction
+
+function! s:RemoveTrailingCR(line)
+  return substitute(a:line, '\r$', '', '')
+endfunction
+
+function! s:GetProjectFilePath(file)
+  return $vim_project.'/'.a:file
+endfunction
+
+" bufnr of the loaded buffer editing a:path, or -1
+function! s:GetLoadedBufnr(path)
+  let target = resolve(fnamemodify(a:path, ':p'))
+  for buf in getbufinfo({'bufloaded': 1})
+    if !empty(buf.name) && resolve(fnamemodify(buf.name, ':p')) ==# target
+      return buf.bufnr
+    endif
+  endfor
+  return -1
+endfunction
+
+" Reload unmodified buffers of written files without the W11 prompt
+function! s:ReloadChangedBuffers(paths)
+  let autoread_save = &g:autoread
+  set autoread
+  try
+    for path in a:paths
+      let bufnr = s:GetLoadedBufnr(path)
+      if bufnr != -1 && !getbufvar(bufnr, '&modified')
+        silent! execute 'checktime' bufnr
+      endif
+    endfor
+  finally
+    let &g:autoread = autoread_save
+  endtry
+endfunction
+
+function! s:ReportReplace(result, ...)
+  let message = 'Replaced '.a:result.lines.' line(s) in '
+        \.len(a:result.changed).' file(s)'
+  call project#Info(message)
+  if !empty(a:result.unsaved)
+    call project#Warn('Skipped files with unsaved changes: '
+          \.join(a:result.unsaved, ', '))
+  endif
+  if !empty(a:result.stale)
+    let shown = a:result.stale[0:4]
+    let more = len(a:result.stale) > 5 ? ', ...' : ''
+    call project#Warn('Skipped '.len(a:result.stale)
+          \.' line(s) changed since the search: '.join(shown, ', ').more)
+  endif
+  if !empty(a:result.failed)
+    call project#Warn('Failed to write: '.join(a:result.failed, ', '))
+  endif
 endfunction
 
 function! s:GetSearchPattern(search)
@@ -431,10 +538,14 @@ function! s:GetDisplayRow(pattern, replace, show_replace, idx, val)
   endif
 endfunction
 
+" a:replace is inserted as typed. With a:add the match is kept in front of
+" it, to show both in the list
 function! s:GetReplacedLine(line, pattern, replace, add)
-  let prefix = a:add ? '\1' : ''
-  let line = substitute(a:line, '\V\('.a:pattern.'\V\)', prefix.a:replace, 'g')
-  return line
+  let replace = a:replace
+  if a:add
+    return substitute(a:line, a:pattern, {m -> m[0].replace}, 'g')
+  endif
+  return substitute(a:line, a:pattern, {m -> replace}, 'g')
 endfunction
 
 function! s:TryExternalGrepProgram()
@@ -597,16 +708,23 @@ endfunction
 function! s:GetResultFromGrepOutput(input, full_input, output)
   let [output, more] = s:SetGrepOutputLength(a:input, a:full_input, a:output)
 
-  let result = map(map(output, {_, val -> split(val, ':')}), {_, val -> {
-        \'file': val[0],
-        \'lnum': val[1],
-        \'line': join(val[2:], ':'),
-        \}})
+  let result = map(output, {_, val -> s:ParseGrepLine(val)})
 
   if more
     let result[0].more = more
   endif
   return result
+endfunction
+
+" Parse 'file:lnum:text'. Text may contain any ':', e.g. 'std::io'
+function! s:ParseGrepLine(line)
+  let parts = matchlist(a:line, '^\(.\{-}\):\(\d\+\):\(.*\)$')
+  if !empty(parts)
+    return {'file': parts[1], 'lnum': parts[2], 'line': parts[3]}
+  endif
+  " Not a match line, e.g. an error message: show it as is
+  let segments = split(a:line, ':', 1)
+  return {'file': segments[0], 'lnum': 0, 'line': join(segments[1:], ':')}
 endfunction
 
 function! s:RunVimGrep(search, flags, full_input)
