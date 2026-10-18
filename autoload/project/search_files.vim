@@ -191,7 +191,7 @@ function! s:StartWith(string, search)
 endfunction
 
 function! s:FilterOldFilesByInput(oldfiles, input)
-  let pattern = join(split(a:input, '\zs'), '.*')
+  let pattern = project#util#FuzzyRegexp(a:input)
   call filter(a:oldfiles,
         \{_, val -> val.file =~ pattern})
 endfunction
@@ -242,7 +242,7 @@ function! s:GetSearchFilesResultList(input)
   if !exists('s:initial_list')
     let list = s:GetSearchFilesAll()
   else
-    let list = s:GetSearchFilesByFilter(a:input)
+    let list = s:GetSearchFilesByFilter(s:initial_list, a:input)
   endif
   return list
 endfunction
@@ -295,16 +295,17 @@ function! s:GetSearchFilesByDirectory(val, filter)
   return isdirectory(fullpath) && file =~ a:filter
 endfunction
 
-function! s:GetSearchFilesByFilterForDirectory(input)
+function! s:GetSearchFilesByFilterForDirectory(initial_list, input)
   let list = []
   let filter = substitute(a:input, '/$', '', '')
-  let list = filter(copy(s:initial_list), {_, val -> s:GetSearchFilesByDirectory(val, filter)})
+  let filter_literal = project#util#LiteralRegexp(filter)
+  let list = filter(copy(a:initial_list), {_, val -> s:GetSearchFilesByDirectory(val, filter_literal)})
 
   if len(list) < s:GetMaxHeight()
     call s:SortSearchFilesList(list, filter)
 
-    let filter_fuzzy = join(split(filter, '\zs'), '.*')
-    let list_extra = filter(copy(s:initial_list), {_, val -> s:GetSearchFilesByDirectory(val, filter_fuzzy)})
+    let filter_fuzzy = project#util#FuzzyRegexp(filter)
+    let list_extra = filter(copy(a:initial_list), {_, val -> s:GetSearchFilesByDirectory(val, filter_fuzzy)})
     call s:SortSearchFilesList(list_extra, filter)
     let list += list_extra
   endif
@@ -312,7 +313,7 @@ function! s:GetSearchFilesByFilterForDirectory(input)
   return list
 endfunction
 
-function! s:GetSearchFilesByFilterForAll(input, ...)
+function! s:GetSearchFilesByFilterForAll(initial_list, input, ...)
   let match_fullpath = get(a:000, 0, 0)
   let filter_origin = a:input
   let max_height = s:GetMaxHeight()
@@ -320,8 +321,8 @@ function! s:GetSearchFilesByFilterForAll(input, ...)
 
   " 1. Prefix match for short input
   if strlen(filter_origin) < 3
-    let filter_start = '^' . escape(filter_origin, '\')
-    for val in s:initial_list
+    let filter_start = '\V\^'.escape(filter_origin, '\')
+    for val in a:initial_list
       if val.file =~ filter_start
         call add(list, val)
       endif
@@ -331,7 +332,7 @@ function! s:GetSearchFilesByFilterForAll(input, ...)
   " 2. Normal substring match for file and directory
   if len(list) < max_height
     let list = []
-    for val in s:initial_list
+    for val in a:initial_list
       let match_file_or_path = stridx(val.file, filter_origin) >= 0
             \|| (empty(val.file) && stridx(val.path, filter_origin) >= 0)
       if match_file_or_path
@@ -342,10 +343,10 @@ function! s:GetSearchFilesByFilterForAll(input, ...)
   endif
 
   " 3. Fuzzy match
+  let filter_fuzzy = project#util#FuzzyRegexp(filter_origin)
   if len(list) < 3
-    let filter_fuzzy = join(split(escape(filter_origin, '\'), '\zs'), '.*')
     let list_extra = []
-    for val in s:initial_list
+    for val in a:initial_list
       if val.file =~ filter_fuzzy
         call add(list_extra, val)
       endif
@@ -360,25 +361,26 @@ function! s:GetSearchFilesByFilterForAll(input, ...)
 
   " Match fullpath
   if len(list) < s:GetMaxHeight()
-    let list_extra = filter(copy(s:initial_list), {_, val -> val.path.val.file =~ filter_origin})
+    let filter_literal = project#util#LiteralRegexp(filter_origin)
+    let list_extra = filter(copy(a:initial_list), {_, val -> val.path.val.file =~ filter_literal})
     let list += list_extra
   endif
 
   " Fuzzy match fullpath
   if len(list) < s:GetMaxHeight()
-    let list_extra = filter(copy(s:initial_list), {_, val -> val.path.val.file =~ filter_fuzzy})
+    let list_extra = filter(copy(a:initial_list), {_, val -> val.path.val.file =~ filter_fuzzy})
     let list += list_extra
   endif
   return list
 endfunction
 
-function! s:GetSearchFilesByFilter(input)
+function! s:GetSearchFilesByFilter(initial_list, input)
   if a:input =~ '[^\\]/$'
     " Match directory only
-    return s:GetSearchFilesByFilterForDirectory(a:input)
+    return s:GetSearchFilesByFilterForDirectory(a:initial_list, a:input)
   else
     " Match filename, directory excluded by default for performance
-    return s:GetSearchFilesByFilterForAll(a:input)
+    return s:GetSearchFilesByFilterForAll(a:initial_list, a:input)
   endif
 endfunction
 
