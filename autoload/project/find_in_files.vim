@@ -5,47 +5,76 @@ let s:search_replace_separator = ' => '
 let s:dismissed_find_replace = 0
 
 function! project#find_in_files#Run(...)
-  if !project#ProjectExist()
-    call project#Warn('Open a project first')
+  if !project#util#RequireProject()
     return
   endif
 
-  call s:SetInitInput(a:000)
-  call project#PrepareListBuffer('Find in files:', 'FIND_IN_FILES')
-
-  let Init = function('s:Init')
-  let Update = function('s:UpdateTimer')
-  let Open = function('s:Open')
-  call project#RenderList(Init, Update, Open)
+  let OpenHandler = function('s:OnOpen')
+  call project#list#Open({
+        \'type': 'FIND_IN_FILES',
+        \'prompt': 'Find in files:',
+        \'mappings': project#config#Get('list_mappings_find_in_files'),
+        \'init_input': s:GetInitInput(a:000),
+        \'Init': function('s:Init'),
+        \'Update': function('s:UpdateTimer'),
+        \'Open': function('s:Open'),
+        \'handlers': {
+        \  'replace_prompt': function('s:OnReplacePrompt'),
+        \  'replace_dismiss_item': function('s:OnReplaceDismiss'),
+        \  'replace_confirm': function('s:OnReplaceConfirm'),
+        \  'open': OpenHandler,
+        \  'open_split': OpenHandler,
+        \  'open_vsplit': OpenHandler,
+        \  'open_tabedit': OpenHandler,
+        \},
+        \'Highlight': function('s:Highlight'),
+        \'save_history': {input -> !empty(input)},
+        \})
 endfunction
 
-function! s:SetInitInput(args)
+function! s:Highlight(state)
+  let a:state.first_column_pattern = '^'.a:state.column_pattern
+  highlight link FirstColumn Keyword
+  highlight link SecondColumn Normal
+endfunction
+
+" The input given as argument, or the visual selection when called on a range
+function! s:GetInitInput(args)
   if len(a:args) != 2
-    return
+    return ''
   endif
 
   let input = a:args[0]
   let range = a:args[1]
 
   if !empty(input)
-    call project#SetVariable('init_input', input)
-    return
+    return input
   endif
 
   if range > 0
     let saved = @z
     normal! gv"zy
-    call project#SetVariable('init_input', @z)
+    let input = @z
     let @z = saved
-    return
+    return input
   endif
+
+  return ''
 endfunction
 
 function! s:Init(input)
   let s:list = []
   let s:dismissed_find_replace = 0
 
-  return s:Update(a:input, 1, 0)
+  call s:Update(a:input, 1, 0)
+
+  " When restored from history, show its results but with an empty input
+  " so that typing starts a new search
+  let state = project#list#State()
+  if state.from_history
+    let state.input = -1
+    return ''
+  endif
 endfunction
 
 function! s:UpdateTimer(input)
@@ -58,14 +87,20 @@ function! s:UpdateTimer(input)
 endfunction
 
 function! s:Update(full_input, is_init, id)
+  " The timer may fire after the list has closed
+  if !project#list#IsCurrentListBuffer()
+    return
+  endif
+
   let should_run = s:ShouldRun(a:full_input)
   let [search, replace] = s:ParseInput(a:full_input)
   let should_redraw = s:ShouldRedrawWithReplace(search, replace)
+  let state = project#list#State()
 
   if should_run
     let s:list = s:GetResult(search, a:full_input)
     let display = s:GetDisplay(s:list, search, replace)
-    call project#SetVariable('input', search)
+    let state.input = search
     if s:IsReplaceInitiallyAdded(a:full_input)
       call s:SetReplace(replace)
     else
@@ -78,7 +113,7 @@ function! s:Update(full_input, is_init, id)
   else
     let display = s:GetDisplay(s:list, search, replace)
   endif
-  call project#SetVariable('list', s:list)
+  let state.list = s:list
 
   " Use timer just for fluent typing. Not necessary
   let use_timer = (should_run || should_redraw) && !empty(a:full_input) && !a:is_init
@@ -106,31 +141,56 @@ function! s:Open(target, open_cmd, input)
 endfunction
 
 function! s:ShowResult(display, search, replace, full_input, id)
-  call project#ShowInListBuffer(a:display, a:search)
-  call project#RemoveEmptyLines()
-  call project#HighlightCurrentLine(len(a:display))
-  call s:HighlightSearchAsPattern(a:search)
-  call s:HighlightReplaceChars(a:search, a:replace)
-  call project#HighlightNoResults()
-  call project#HighlightExtraInfo()
-  call project#HighlightIcon()
-  call project#RedrawInputLine()
-endfunction
-
-function! project#find_in_files#AddFindReplaceSeparator(input)
-  if !project#Include(a:input, s:search_replace_separator)
-    let input = a:input.s:search_replace_separator
-  else
-    let input = a:input
+  if !project#list#IsCurrentListBuffer()
+    return
   endif
 
-  return input
+  call project#list#Show(a:display, a:search)
+  call project#RemoveEmptyLines()
+  call project#list#HighlightCurrentLine(len(a:display))
+  call s:HighlightSearchAsPattern(a:search)
+  call s:HighlightReplaceChars(a:search, a:replace)
+  call project#list#HighlightNoResults()
+  call project#list#HighlightExtraInfo()
+  call project#HighlightIcon()
+  call project#list#RedrawInputLine()
+endfunction
+
+" c-r: append the ' => ' separator so that what follows is the replacement
+function! s:OnReplacePrompt(state)
+  let input = a:state.user_input
+  if !project#Include(input, s:search_replace_separator)
+    let a:state.user_input = input.s:search_replace_separator
+  endif
+endfunction
+
+" c-d: remove the selected line or file from the replace list
+function! s:OnReplaceDismiss(state)
+  call s:DismissFindReplaceItem()
+endfunction
+
+" c-y: replace in all listed lines, then close
+function! s:OnReplaceConfirm(state)
+  if !s:HasReplace(a:state.user_input)
+    return
+  endif
+
+  call s:ConfirmFindReplace(a:state.user_input)
+  return 'close'
+endfunction
+
+" open*: replace first if a replacement was given, then open the target
+function! s:OnOpen(state)
+  if s:HasReplace(a:state.user_input)
+    call s:ConfirmFindReplace(a:state.user_input)
+  endif
+  return 'open'
 endfunction
 
 function! s:TryHistory(search, replace)
-  if project#IsShowHistoryList(a:search) && project#HasFindInFilesHistory()
-    let input = project#GetVariable('list_history').FIND_IN_FILES.input
-    return s:ParseInput(input)
+  let history = project#list#GetHistory('FIND_IN_FILES')
+  if project#list#IsShowHistoryList(a:search) && !empty(history)
+    return s:ParseInput(history.input)
   else
     return [a:search, a:replace]
   endif
@@ -144,7 +204,7 @@ function! s:HighlightSearchAsPattern(search)
   call clearmatches()
   let pattern = s:GetSearchPattern(a:search)
   execute 'silent! 2match InputChar /'.pattern.'/'
-  execute 'silent! 1match FirstColumn /'.project#GetVariable('first_column_pattern').'/'
+  execute 'silent! 1match FirstColumn /'.project#list#State().first_column_pattern.'/'
 endfunction
 
 function! s:HighlightReplaceChars(search, replace)
@@ -155,15 +215,15 @@ function! s:HighlightReplaceChars(search, replace)
   let pattern = s:GetSearchPattern(a:search)
   execute 'silent! 3match BeforeReplace /'.pattern.'/'
   execute 'silent! 2match AfterReplace /'.pattern.'\zs\V'.a:replace.'/'
-  execute 'silent! 1match FirstColumn /'.project#GetVariable('first_column_pattern').'/'
+  execute 'silent! 1match FirstColumn /'.project#list#State().first_column_pattern.'/'
 endfunction
 
-function! project#find_in_files#HasReplace(input)
+function! s:HasReplace(input)
   let [search, replace] = s:GetSearchAndReplace(a:input)
   return !empty(replace)
 endfunction
 
-function! project#find_in_files#ConfirmFindReplace(input)
+function! s:ConfirmFindReplace(input)
   let [search, replace] = s:GetSearchAndReplace(a:input)
   call s:RunReplaceAll(search, replace)
 endfunction
@@ -210,8 +270,8 @@ function! s:ReplaceLineOfFile(item, pattern, replace)
   call writefile(lines, file)
 endfunction
 
-function! project#find_in_files#DismissFindReplaceItem()
-  let target = project#GetTarget()
+function! s:DismissFindReplaceItem()
+  let target = project#list#GetTarget()
   if empty(target)
     return
   endif
@@ -225,16 +285,16 @@ function! project#find_in_files#DismissFindReplaceItem()
 endfunction
 
 function! s:RemoveTarget()
-  let index = project#GetCurrentIndex()
+  let index = project#list#GetCurrentIndex()
   call remove(s:list, index)
   call s:RemoveFileWithoutItem()
   call s:UpdateOffsetAfterRemoveTarget()
 endfunction
 
 function! s:UpdateOffsetAfterRemoveTarget()
-  let offset = project#GetVariable('offset')
-  if offset < len(s:list) - 2
-    call project#SetVariable('offset', offset+1)
+  let state = project#list#State()
+  if state.offset < len(s:list) - 2
+    let state.offset += 1
   endif
 endfunction
 
@@ -249,9 +309,9 @@ function! s:GetNextFileIndex(index)
 endfunction
 
 function! s:RemoveFileWithoutItem()
-  let target = project#GetTarget()
+  let target = project#list#GetTarget()
   if s:IsFileItem(target)
-    let current_index = project#GetCurrentIndex()
+    let current_index = project#list#GetCurrentIndex()
     let next_file_index = s:GetNextFileIndex(current_index)
     if next_file_index - current_index < 2
       call s:RemoveTarget()
@@ -260,10 +320,10 @@ function! s:RemoveFileWithoutItem()
 endfunction
 
 function! s:RemoveFile()
-  let index = project#GetCurrentIndex()
+  let index = project#list#GetCurrentIndex()
   let next_file_index = s:GetNextFileIndex(index)
   call s:RemoveRange(index, next_file_index - 1)
-  call project#UpdateOffsetByIndex(index)
+  call project#list#UpdateOffsetByIndex(index)
 endfunction
 
 function! s:RemoveRange(start, end)
@@ -339,7 +399,7 @@ function! s:GetDisplay(list, search, replace)
   let display = map(copy(a:list),
         \function('s:GetDisplayRow', [pattern, a:replace, show_replace]))
 
-  if project#hasMoreOnList(a:list)
+  if project#HasMoreOnList(a:list)
     let display[0] .= '  ...more'
   endif
 
@@ -379,28 +439,15 @@ endfunction
 
 function! s:TryExternalGrepProgram()
   " Try rg, ag, grep, vimgrep in order
-  let programs = ['rg', 'ag', 'grep']
   let grep_cmd_map = {
         \'rg': function('s:GetRgCmd'),
         \'ag': function('s:GetAgCmd'),
         \'grep': function('s:GetGrepCmd'),
         \}
 
-  let grep_program = ''
-  for program in programs
-    if executable(program)
-      let grep_program = program
-      break
-    endif
-  endfor
-
-  if grep_program != ''
-    let s:grep_cmd_func = grep_cmd_map[grep_program]
-    return grep_program
-  else
-    let s:grep_cmd_func = 0
-    return 'vimgrep'
-  endif
+  let grep_program = project#util#PickExecutable(['rg', 'ag', 'grep'], 'vimgrep')
+  let s:grep_cmd_func = get(grep_cmd_map, grep_program, 0)
+  return grep_program
 endfunction
 
 
@@ -603,6 +650,14 @@ function! s:RunVimGrep(search, flags, full_input)
   return result
 endfunction
 
+function! s:RemoveProjectPath(path)
+  let result = substitute(a:path, $vim_project, '', '')
+  if result != a:path
+    let result = substitute(result, '^/', '', '')
+  endif
+  return result
+endfunction
+
 function! s:IsReplaceInitiallyAdded(input)
   let [_, replace] = s:ParseInput(a:input)
   let has_separator = project#Include(a:input, s:search_replace_separator)
@@ -611,8 +666,9 @@ endfunction
 
 function! s:ShouldRun(input)
   let [search, replace] = s:ParseInput(a:input)
-  let search_changed = project#Exist('input') && search != project#GetVariable('input') 
-        \&& !project#IsShowHistoryList(search)
+  let state = project#list#State()
+  let search_changed = has_key(state, 'input') && search != state.input
+        \&& !project#list#IsShowHistoryList(search)
   let replace_initially_added = s:IsReplaceInitiallyAdded(a:input)
   return search_changed || replace_initially_added
 endfunction
@@ -631,10 +687,6 @@ function! s:GetSearchFlags(search)
   return flags
 endfunction
 
-function! s:RemoveLeadingDot(val)
-  return substitute(a:val, '^./\?', '', 'g')
-endfunction
-
 function! s:RemoveSearchFlags(search)
   return substitute(a:search, '\\C\|\\E\|\\\@<!\\$', '', 'g')
 endfunction
@@ -646,7 +698,7 @@ function! s:ShouldRedrawWithReplace(input, replace)
   if empty(a:replace) && s:GetReplace() == -1
     return 0
   endif
-  return a:replace != s:GetReplace() && !project#IsShowHistoryList(a:input)
+  return a:replace != s:GetReplace() && !project#list#IsShowHistoryList(a:input)
 endfunction
 
 function! s:HasDismissed()
@@ -654,11 +706,12 @@ function! s:HasDismissed()
 endfunction
 
 function! s:SetReplace(replace)
-  call project#SetVariable('replace', a:replace)
+  let state = project#list#State()
+  let state.replace = a:replace
 endfunction
 
 function! s:GetReplace()
-  return project#GetVariable('replace')
+  return project#list#State().replace
 endfunction
 
 function! s:TransformPatternOneByOne(pattern)
@@ -685,9 +738,9 @@ function! s:ReplaceEscapedChar(chars, idx, char, from, to)
 endfunction
 
 function! s:GetInclude()
-  return copy(project#GetVariable('find_in_files_include'))
+  return copy(project#config#Get('find_in_files_include'))
 endfunction
 
 function! s:GetExclude()
-  return copy(project#GetVariable('find_in_files_exclude'))
+  return copy(project#config#Get('find_in_files_exclude'))
 endfunction

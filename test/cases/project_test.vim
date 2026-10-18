@@ -5,11 +5,26 @@ function! s:Call(name, ...)
   return Helper_Call(s:file, a:name, a:000)
 endfunction
 
-" s:max_width is normally set when the list window opens; set it directly
+" The list UI and config merging live in their own scripts
+let s:list_file = 'autoload/project/list.vim'
+let s:config_file = 'autoload/project/config.vim'
+
+function! s:ListCall(name, ...)
+  " Make sure list.vim is autoloaded before looking up its <SNR>
+  call project#list#State()
+  return Helper_Call(s:list_file, a:name, a:000)
+endfunction
+
+function! s:ConfigCall(name, ...)
+  return Helper_Call(s:config_file, a:name, a:000)
+endfunction
+
+" state.max_width is normally set when the list window opens; set it directly
 " for Tabulate tests and return the previous value for restoring.
 function! s:SetMaxWidth(width)
-  let saved = project#Exist('max_width') ? project#GetVariable('max_width') : a:width
-  call project#SetVariable('max_width', a:width)
+  let state = project#list#State()
+  let saved = get(state, 'max_width', a:width)
+  let state.max_width = a:width
   return saved
 endfunction
 
@@ -69,40 +84,40 @@ endfunction
 " ---------------------------------------------------------------- input
 
 function! Test_ClearCharOfInput_ascii()
-  call assert_equal('ab', s:Call('ClearCharOfInput', 'abc'))
-  call assert_equal('', s:Call('ClearCharOfInput', 'a'))
-  call assert_equal('', s:Call('ClearCharOfInput', ''))
+  call assert_equal('ab', s:ListCall('ClearCharOfInput', 'abc'))
+  call assert_equal('', s:ListCall('ClearCharOfInput', 'a'))
+  call assert_equal('', s:ListCall('ClearCharOfInput', ''))
 endfunction
 
 function! Test_ClearCharOfInput_multibyte()
   " Removes one character, not one byte
-  call assert_equal('中', s:Call('ClearCharOfInput', '中文'))
-  call assert_equal('中文', s:Call('ClearCharOfInput', '中文字'))
-  call assert_equal('abc中', s:Call('ClearCharOfInput', 'abc中文'))
-  call assert_equal('', s:Call('ClearCharOfInput', '中'))
+  call assert_equal('中', s:ListCall('ClearCharOfInput', '中文'))
+  call assert_equal('中文', s:ListCall('ClearCharOfInput', '中文字'))
+  call assert_equal('abc中', s:ListCall('ClearCharOfInput', 'abc中文'))
+  call assert_equal('', s:ListCall('ClearCharOfInput', '中'))
 endfunction
 
 function! Test_ClearWordOfInput()
-  call assert_equal('foo ', s:Call('ClearWordOfInput', 'foo bar'))
-  call assert_equal('foo ', s:Call('ClearWordOfInput', 'foo bar  '))
-  call assert_equal('', s:Call('ClearWordOfInput', 'foo'))
-  call assert_equal('', s:Call('ClearWordOfInput', 'foo   '))
+  call assert_equal('foo ', s:ListCall('ClearWordOfInput', 'foo bar'))
+  call assert_equal('foo ', s:ListCall('ClearWordOfInput', 'foo bar  '))
+  call assert_equal('', s:ListCall('ClearWordOfInput', 'foo'))
+  call assert_equal('', s:ListCall('ClearWordOfInput', 'foo   '))
   " A trailing run of non-word characters is removed as one unit
-  call assert_equal('foo', s:Call('ClearWordOfInput', 'foo ..'))
-  call assert_equal('foo.', s:Call('ClearWordOfInput', 'foo.bar'))
-  call assert_equal('', s:Call('ClearWordOfInput', ''))
+  call assert_equal('foo', s:ListCall('ClearWordOfInput', 'foo ..'))
+  call assert_equal('foo.', s:ListCall('ClearWordOfInput', 'foo.bar'))
+  call assert_equal('', s:ListCall('ClearWordOfInput', ''))
 endfunction
 
 " ---------------------------------------------------------------- display
 
 function! Test_Truncate_by_display_width()
   " ASCII: keeps max_width - placeholder + 1 columns, then the placeholder
-  call assert_equal('abcde..', s:Call('Truncate', 'abcdefgh', 6, '..'))
+  call assert_equal('abcde..', s:ListCall('Truncate', 'abcdefgh', 6, '..'))
   " Wide characters are never split in half
-  call assert_equal('中文..', s:Call('Truncate', '中文字符串', 6, '..'))
-  call assert_equal('中文字..', s:Call('Truncate', '中文字符串', 7, '..'))
-  call assert_equal('a中..', s:Call('Truncate', 'a中文字符', 5, '..'))
-  let result = s:Call('Truncate', '中文字符串', 6, '.. ')
+  call assert_equal('中文..', s:ListCall('Truncate', '中文字符串', 6, '..'))
+  call assert_equal('中文字..', s:ListCall('Truncate', '中文字符串', 7, '..'))
+  call assert_equal('a中..', s:ListCall('Truncate', 'a中文字符', 5, '..'))
+  let result = s:ListCall('Truncate', '中文字符串', 6, '.. ')
   call assert_true(strdisplaywidth(result) <= 7, 'width of '.result)
   call assert_match('\.\. $', result)
 endfunction
@@ -115,20 +130,22 @@ function! Test_Tabulate_aligns_columns_by_display_width()
           \{'name': 'ab', 'path': '/longer/path'},
           \{'name': 'x', 'path': '/b'},
           \]
-    call project#Tabulate(list, ['name', 'path'])
+    let columns = project#list#Tabulate(list, ['name', 'path'])
 
+    " The items themselves are left untouched
+    call assert_false(has_key(list[0], '__name'))
     " Every column gets the same display width
     for key in ['name', 'path']
-      let widths = map(copy(list), {_, item -> strdisplaywidth(item['__'.key])})
+      let widths = map(copy(columns), {_, column -> strdisplaywidth(column[key])})
       call assert_equal(1, len(uniq(sort(copy(widths)))),
             \ 'column '.key.' widths: '.string(widths))
     endfor
     " 中文名 is 6 columns wide, the widest name, so it gets one trailing space
-    call assert_equal('中文名 ', list[0].__name)
-    call assert_equal('ab     ', list[1].__name)
-    call assert_equal('/longer/path ', list[1].__path)
+    call assert_equal('中文名 ', columns[0].name)
+    call assert_equal('ab     ', columns[1].name)
+    call assert_equal('/longer/path ', columns[1].path)
   finally
-    call project#SetVariable('max_width', saved)
+    call s:SetMaxWidth(saved)
   endtry
 endfunction
 
@@ -136,11 +153,11 @@ function! Test_Tabulate_respects_min_col_width()
   let saved = s:SetMaxWidth(200)
   try
     let list = [{'name': 'ab'}, {'name': 'c'}]
-    call project#Tabulate(list, ['name'], 10)
-    call assert_equal(11, strdisplaywidth(list[0].__name))
-    call assert_equal(11, strdisplaywidth(list[1].__name))
+    let columns = project#list#Tabulate(list, ['name'], 10)
+    call assert_equal(11, strdisplaywidth(columns[0].name))
+    call assert_equal(11, strdisplaywidth(columns[1].name))
   finally
-    call project#SetVariable('max_width', saved)
+    call s:SetMaxWidth(saved)
   endtry
 endfunction
 
@@ -149,14 +166,14 @@ function! Test_Tabulate_truncates_wide_values_when_too_wide()
   let saved = s:SetMaxWidth(10)
   try
     let list = [{'name': repeat('字', 20)}, {'name': 'short'}]
-    call project#Tabulate(list, ['name'], 0, 8)
-    call assert_equal('字字字..', matchstr(list[0].__name, '^字*\.\.'))
-    call assert_true(strdisplaywidth(list[0].__name) <= 9,
-          \ 'width of '.list[0].__name)
-    call assert_equal(strdisplaywidth(list[0].__name),
-          \ strdisplaywidth(list[1].__name))
+    let columns = project#list#Tabulate(list, ['name'], 0, 8)
+    call assert_equal('字字字..', matchstr(columns[0].name, '^字*\.\.'))
+    call assert_true(strdisplaywidth(columns[0].name) <= 9,
+          \ 'width of '.columns[0].name)
+    call assert_equal(strdisplaywidth(columns[0].name),
+          \ strdisplaywidth(columns[1].name))
   finally
-    call project#SetVariable('max_width', saved)
+    call s:SetMaxWidth(saved)
   endtry
 endfunction
 
@@ -164,10 +181,10 @@ function! Test_Tabulate_replaces_home_with_tilde()
   let saved = s:SetMaxWidth(200)
   try
     let list = [{'path': expand('~').'/repo'}]
-    call project#Tabulate(list, ['path'])
-    call assert_equal('~/repo ', list[0].__path)
+    let columns = project#list#Tabulate(list, ['path'])
+    call assert_equal('~/repo ', columns[0].path)
   finally
-    call project#SetVariable('max_width', saved)
+    call s:SetMaxWidth(saved)
   endtry
 endfunction
 
@@ -181,7 +198,7 @@ function! Test_MergeUserConfigIntoDefault_overrides_only_known_keys()
         \}
   let user = {'debug': 1, 'exclude': ['dist'], 'unknown_key': 'ignored'}
 
-  let result = s:Call('MergeUserConfigIntoDefault', user, default)
+  let result = s:ConfigCall('MergeUserConfigIntoDefault', user, default)
 
   call assert_equal(1, result.debug)
   call assert_equal(['dist'], result.exclude)
@@ -200,7 +217,7 @@ function! Test_MergeUserConfigIntoDefault_merges_nested_mappings()
         \'list_mappings_projects': {'next_view': 'n'},
         \}
 
-  let result = s:Call('MergeUserConfigIntoDefault', user, default)
+  let result = s:ConfigCall('MergeUserConfigIntoDefault', user, default)
 
   " User keys win, default keys survive, unknown nested keys are dropped
   call assert_equal({'open': 'o', 'close_list': "\<esc>", 'clear_char': "\<bs>"},
@@ -212,13 +229,13 @@ function! Test_MergeUserConfigIntoDefault_merges_nested_mappings()
 endfunction
 
 function! Test_MergeUserConfigIntoDefault_against_real_defaults()
-  let default = deepcopy(Helper_ScriptVar(s:file, 'default'))
+  let default = deepcopy(Helper_ScriptVar(s:config_file, 'default'))
   let user = {
         \'list_mappings_find_in_files': {'replace_confirm': "\<c-x>"},
         \'git_local_changes_mappings': {'commit': 'C'},
         \}
 
-  let result = s:Call('MergeUserConfigIntoDefault', user, default)
+  let result = s:ConfigCall('MergeUserConfigIntoDefault', user, default)
 
   call assert_equal("\<c-x>", result.list_mappings_find_in_files.replace_confirm)
   call assert_equal("\<c-s>", result.list_mappings_find_in_files.open_split)

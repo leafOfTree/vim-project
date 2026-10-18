@@ -1,17 +1,17 @@
-let s:name = ''
 let s:splitter = ' '
 let s:splitter_regexp = '^\S\+\zs'
 let s:item_splitter = '----------------------------------------------'
 let s:item_new_tag = '+ New Tag'
+let s:list = []
 
 function! project#git_tag#Show()
-  let prompt = 'Search tags:' 
-
-  call project#PrepareListBuffer(prompt, 'GIT_TAG')
-  let Init = function('s:Init')
-  let Update = function('s:Update')
-  let Open = function('s:Open')
-  call project#RenderList(Init, Update, Open)
+  call project#list#Open({
+        \'type': 'GIT_TAG',
+        \'prompt': 'Search tags:',
+        \'Init': function('s:Init'),
+        \'Update': function('s:Update'),
+        \'Open': function('s:Open'),
+        \})
 endfunction
 
 function! s:Init(input)
@@ -23,23 +23,15 @@ function! s:Init(input)
   call s:Update(a:input)
 endfunction
 
-function! s:FindCurrentTag()
-  let cmd = 'git tag --points-at HEAD'
-  let current = project#RunShellCmd(cmd)
-  if v:shell_error
-    return ''
-  endif
-  return current
-endfunction
-
 function! s:Update(input)
   let list = s:FilterTags(s:list, a:input)
-  call project#SetVariable('list', list)
+  let state = project#list#State()
+  let state.list = list
   let display = s:GetTagsDisplay(list, a:input)
-  call project#ShowInListBuffer(display, a:input)
-  call project#HighlightCurrentLine(len(display))
-  call project#HighlightInputChars(a:input)
-  call project#HighlightNoResults()
+  call project#list#Show(display, a:input)
+  call project#list#HighlightCurrentLine(len(display))
+  call project#list#HighlightInputChars(a:input)
+  call project#list#HighlightNoResults()
   call s:HighlightSpecialItem()
 endfunction
 
@@ -79,7 +71,7 @@ function! s:HighlightSpecialItem()
 endfunction
 
 function! s:CreateItem(text)
-  return { 'name': a:text, '__name': a:text, 'message': '' }
+  return { 'name': a:text, 'message': '', 'row': a:text.' ' }
 endfunction
 
 function! s:FilterTags(list, input)
@@ -87,19 +79,11 @@ function! s:FilterTags(list, input)
   if empty(a:input)
     return list
   endif
-  let pattern = s:GetRegexpFilter(a:input)
+  let pattern = project#util#GetRegexpFilter(a:input)
   let list = filter(list, { idx, val ->
-        \s:Match(val.name, pattern) || s:Match(val.message, pattern)
+        \project#util#Match(val.name, pattern) || project#util#Match(val.message, pattern)
         \})
   return list
-endfunction
-
-function! s:GetRegexpFilter(input)
-  return join(split(a:input, ' '), '.*')
-endfunction
-
-function! s:Match(string, pattern)
-  return match(a:string, a:pattern) != -1
 endfunction
 
 function! s:GetTabulatedList(tags)
@@ -110,16 +94,13 @@ function! s:GetTabulatedList(tags)
     call insert(list, { 'name': name, 'message': message })
   endfor
 
-  call project#Tabulate(list, ['name'])
+  let columns = project#list#Tabulate(list, ['name'])
+  for idx in range(len(list))
+    let list[idx].row = columns[idx].name.' '.list[idx].message
+  endfor
   return list
 endfunction
 
 function! s:GetTagsDisplay(list, input)
-  let display = map(copy(a:list), function('s:GetTagsDisplayRow'))
-  return display
+  return map(copy(a:list), {_, val -> val.row})
 endfunction
-
-function! s:GetTagsDisplayRow(idx, value)
-  return a:value.__name.' '.a:value.message
-endfunction
-

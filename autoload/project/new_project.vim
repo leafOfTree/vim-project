@@ -1,5 +1,8 @@
 let s:origin_name = ''
 let s:name = ''
+let s:new_tasks = []
+" Display row of each task, by name
+let s:rows = {}
 
 function! project#new_project#NewProject(name)
   call s:ParseName(a:name)
@@ -10,15 +13,17 @@ function! project#new_project#NewProject(name)
 
   if !s:IsValidName()
     call project#Warn(s:name.' already exists')
-    return 
+    return
   endif
 
-  let prompt = '['.s:GetCwd().'] create ['.s:GetName().'] by:' 
-  call project#PrepareListBuffer(prompt, 'NEW_PROJECT')
-  let Init = function('s:Init')
-  let Update = function('s:Update')
-  let Open = function('s:Open')
-  call project#RenderList(Init, Update, Open)
+  let prompt = '['.s:GetCwd().'] create ['.s:GetName().'] by:'
+  call project#list#Open({
+        \'type': 'NEW_PROJECT',
+        \'prompt': prompt,
+        \'Init': function('s:Init'),
+        \'Update': function('s:Update'),
+        \'Open': function('s:Open'),
+        \})
 endfunction
 
 function! s:RunGitCloneUrl()
@@ -36,7 +41,7 @@ function! s:ParseName(name)
 endfunction
 
 function! s:GetCwd()
-  let new_project_base = project#GetVariable('new_project_base')
+  let new_project_base = project#config#Get('new_project_base')
   if empty(new_project_base) || !project#IsRelativePath(s:name)
     return fnamemodify(s:name, ':p:h')
   endif
@@ -57,26 +62,37 @@ function! s:IsUrlName()
 endfunction
 
 function! s:Init(input)
-  let s:new_tasks = project#GetVariable('new_tasks')
-  let max_col_width = project#GetVariable('max_width') / 2 - 10
-  call project#Tabulate(s:new_tasks, ['name', 'cmd', 'args'])
+  let s:new_tasks = project#config#Get('new_tasks')
+  let columns = project#list#Tabulate(s:new_tasks, ['name', 'cmd', 'args'])
+
+  let s:rows = {}
+  for idx in range(len(s:new_tasks))
+    let task = s:new_tasks[idx]
+    let row = columns[idx].name.'  '.columns[idx].cmd
+    if project#util#HasArgs(task)
+      let row = row.'  '.columns[idx].args
+    endif
+    let s:rows[task.name] = row
+  endfor
+
   call s:Update(a:input)
 endfunction
 
 function! s:Update(input)
   let list = s:FilterTasks(copy(s:new_tasks), a:input)
-  let display = s:GetNewProjectTaskDisplay(list)
-  call project#SetVariable('list', list)
+  let display = map(copy(list), {_, task -> s:rows[task.name]})
 
-  call project#ShowInListBuffer(display, a:input)
-  call project#HighlightCurrentLine(len(display))
-  call project#HighlightInputChars(a:input)
-  call project#HighlightNoResults()
+  let state = project#list#State()
+  let state.list = list
+  call project#list#Show(display, a:input)
+  call project#list#HighlightCurrentLine(len(display))
+  call project#list#HighlightInputChars(a:input)
+  call project#list#HighlightNoResults()
 endfunction
 
 function! s:Open(task, open_cmd, input)
   let cmd = a:task.cmd
-  if s:HasArgs(a:task)
+  if project#util#HasArgs(a:task)
     let args = input('['.s:GetCwd().'] '.a:task.cmd.' | '.a:task.args.': ')
     if !empty(args)
       let cmd = cmd.' '.args
@@ -98,7 +114,7 @@ function! s:RunCmd(cmd, task)
           \})
     startinsert
   else
-    call term_start(a:cmd, { 
+    call term_start(a:cmd, {
           \'exit_cb': OnExit,
           \'cwd': cwd,
           \})
@@ -114,7 +130,7 @@ function! s:OnJobEnd(task, cmd, job, status, ...)
     return
   endif
 
-  let PostCmd = project#GetVariable('new_tasks_post_cmd')
+  let PostCmd = project#config#Get('new_tasks_post_cmd')
   let PostCmd_type = type(PostCmd)
   if PostCmd_type == type(function('tr'))
     let post_cmd = PostCmd(s:GetName(), a:task, a:cmd)
@@ -132,49 +148,6 @@ function! s:OnJobEnd(task, cmd, job, status, ...)
   endif
 endfunction
 
-function! s:HasArgs(task)
-  return has_key(a:task, 'args')
-endfunction
-
-function! s:GetNewProjectTaskDisplay(list)
-  let display = []
-  for item in a:list
-    let row = item.__name.'  '.item.__cmd
-    if s:HasArgs(item)
-      let row = row.'  '.item.__args
-    endif
-    call add(display, row)
-  endfor
-
-  return display
-endfunction
-
 function! s:FilterTasks(tasks, input)
-  let regexp_input = join(split(a:input, '\zs'), '.*')
-  for item in a:tasks
-    let item._match_type = ''
-    let item._match_index = -1
-
-    let match_index = match(item.name, regexp_input)
-    if match_index != -1
-      " Prefer exact match. If not, add 10 to match_index
-      if len(a:input) > 1 && count(tolower(item.name), a:input) == 0
-        let match_index = match_index + 10
-      endif
-      let item._match_type = 'name'
-      let item._match_index = match_index
-    endif
-
-    if match_index == -1
-      let match_index = match(item.cmd, regexp_input)
-      if match_index != -1
-        let item._match_type = 'cmd'
-        let item._match_index = match_index
-      endif
-    endif
-  endfor
-
-  let result = filter(a:tasks, { _, val -> val._match_type != '' })
-  return result
+  return project#util#FuzzyScore(a:tasks, a:input, ['name', 'cmd'], {'sort': 0})
 endfunction
-

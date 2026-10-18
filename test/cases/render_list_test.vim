@@ -1,4 +1,4 @@
-" Tests for project#RenderList error recovery.
+" Tests for project#list#Open error recovery.
 let s:list_buffer = 'vim_project_list'
 
 function! s:ThrowingInit(input)
@@ -8,40 +8,45 @@ endfunction
 function! s:Noop(...)
 endfunction
 
+function! s:Spec(prompt)
+  return {
+        \'type': 'TEST',
+        \'prompt': a:prompt,
+        \'Init': function('s:ThrowingInit'),
+        \'Update': function('s:Noop'),
+        \'Open': function('s:Noop'),
+        \}
+endfunction
+
 function! Test_RenderList_restores_options_and_closes_list_when_init_throws()
-  let laststatus_save = project#GetVariable('laststatus_save')
-  let ruler_save = project#GetVariable('ruler_save')
-  let &laststatus = laststatus_save
-  let &ruler = ruler_save
+  set laststatus=2
+  set ruler
   let windows_before = winnr('$')
 
-  call project#PrepareListBuffer('Test:', 'TEST')
-  " Sanity check: the list window is open and changed the options
-  call assert_notequal(-1, bufwinnr(s:list_buffer))
-  call assert_equal(0, &laststatus)
-  call assert_equal(0, &ruler)
+  " Init throws inside project#list#Open, which opens and closes the list
+  call project#list#Open(s:Spec('Test:'))
 
-  call project#RenderList(function('s:ThrowingInit'), function('s:Noop'), function('s:Noop'))
-
-  call assert_equal(laststatus_save, &laststatus, 'laststatus restored')
-  call assert_equal(ruler_save, &ruler, 'ruler restored')
+  call assert_equal(2, &laststatus, 'laststatus restored')
+  call assert_equal(1, &ruler, 'ruler restored')
   call assert_equal(-1, bufwinnr(s:list_buffer), 'list window closed')
   call assert_equal(windows_before, winnr('$'), 'window count restored')
   call assert_match('init failed', execute('messages'), 'error reported')
 
   " List state was reset so the next list starts clean
-  call assert_false(project#Exist('list_type'))
-  call assert_false(project#Exist('prefix'))
+  let state = project#list#State()
+  call assert_false(has_key(state, 'list'))
+  call assert_false(has_key(state, 'input'))
+  " A failed list must not leave history behind
+  call assert_equal({}, project#list#GetHistory('TEST'))
 endfunction
 
 function! Test_RenderList_init_error_does_not_leak_into_next_list()
-  call project#PrepareListBuffer('Test:', 'TEST')
-  call project#RenderList(function('s:ThrowingInit'), function('s:Noop'), function('s:Noop'))
-
-  " Opening the list again must work normally
-  call project#PrepareListBuffer('Test again:', 'TEST')
-  call assert_notequal(-1, bufwinnr(s:list_buffer))
-  call assert_equal('TEST', project#GetVariable('list_type'))
-  call project#RenderList(function('s:ThrowingInit'), function('s:Noop'), function('s:Noop'))
+  set laststatus=2
+  call project#list#Open(s:Spec('Test:'))
   call assert_equal(-1, bufwinnr(s:list_buffer))
+
+  " Opening the list again must work normally and recover again
+  call project#list#Open(s:Spec('Test again:'))
+  call assert_equal(-1, bufwinnr(s:list_buffer))
+  call assert_equal(2, &laststatus)
 endfunction

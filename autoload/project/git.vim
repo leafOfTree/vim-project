@@ -1,3 +1,6 @@
+" Script id prefix (<SNR>N_) so s: functions can be named in input() completion
+let s:sid = expand('<SID>')
+
 let s:list = []
 let s:display = []
 let s:input = ''
@@ -57,8 +60,7 @@ let s:changelist_default = [
 let s:item_splitter = '----------------------------------------------------------------------------'
 
 function! project#git#FileHistory(...)
-  if !project#ProjectExist()
-    call project#Warn('Open a project first')
+  if !project#util#RequireProject()
     return
   endif
 
@@ -79,13 +81,20 @@ function! project#git#FileHistory(...)
     let prompt = 'History of '.filename.' L'.join(s:file_history_range, ',').':' 
   endif
 
-  call project#SetVariable('initial_height', winheight(0) - 10)
-  call project#PrepareListBuffer(prompt, 'GIT_FILE_HISTORY')
-  let Init = function('s:InitFileHistory')
-  let Update = function('s:UpdateFileHistory')
-  let Open = function('s:OpenFileHistory')
-  let Close = function('s:CloseFileHistory')
-  call project#RenderList(Init, Update, Open, Close)
+  call project#list#Open({
+        \'type': 'GIT_FILE_HISTORY',
+        \'prompt': prompt,
+        \'mappings': project#config#Get('list_mappings_git'),
+        \'Init': function('s:InitFileHistory'),
+        \'Update': function('s:UpdateFileHistory'),
+        \'Open': function('s:OpenFileHistory'),
+        \'Close': function('s:CloseFileHistory'),
+        \'handlers': {
+        \  'checkout_revision': function('s:CheckoutRevision'),
+        \},
+        \'save_history': 1,
+        \'initial_height': winheight(0) - 10,
+        \})
 endfunction
 
 function! s:InitFileHistory(input)
@@ -136,7 +145,7 @@ function! s:UpdateFileHistory(input)
 endfunction
 
 function! s:ShowDiffOnFileHistory()
-  let revision = project#GetTarget()
+  let revision = project#list#GetTarget()
   if empty(revision)
     return
   endif
@@ -175,7 +184,7 @@ function! s:SetupDiffBuffer(file)
   setlocal buftype=nofile bufhidden=wipe nobuflisted filetype=git
   setlocal modifiable
   syntax sync minlines=1000
-  let mappings = project#GetVariable('git_diff_mappings')
+  let mappings = project#config#Get('git_diff_mappings')
   call s:AddMapping(mappings.jump_to_source, '<SID>JumpToSource("'.a:file.'")')
 endfunction
 
@@ -215,20 +224,33 @@ function! s:CloseFileHistory()
 endfunction
 
 function! project#git#Log()
-  if !project#ProjectExist()
-    call project#Warn('Open a project first')
+  if !project#util#RequireProject()
     return
   endif
 
   call s:CloseChangesBuffer()
 
-  call project#SetVariable('initial_height', winheight(0) - 10)
-  call project#PrepareListBuffer('Search log:', 'GIT_LOG')
-  let Init = function('s:InitGitLog')
-  let Update = function('s:UpdateGitLog')
-  let Open = function('s:OpenGitLog')
-  let Close = function('s:CloseGitLog')
-  call project#RenderList(Init, Update, Open, Close)
+  call project#list#Open({
+        \'type': 'GIT_LOG',
+        \'prompt': 'Search log:',
+        \'mappings': project#config#Get('list_mappings_git'),
+        \'Init': function('s:InitGitLog'),
+        \'Update': function('s:UpdateGitLog'),
+        \'Open': function('s:OpenGitLog'),
+        \'Close': function('s:CloseGitLog'),
+        \'handlers': {
+        \  'checkout_revision': function('s:CheckoutRevision'),
+        \},
+        \'Highlight': function('s:HighlightLog'),
+        \'save_history': 1,
+        \'initial_height': winheight(0) - 10,
+        \})
+endfunction
+
+function! s:HighlightLog(state)
+  let a:state.first_column_pattern = '^'.a:state.column_pattern
+  highlight link FirstColumn Normal
+  highlight link SecondColumn Comment
 endfunction
 
 
@@ -242,13 +264,13 @@ function! s:InitGitLog(input)
 endfunction
 
 function! s:UpdateLog(input)
+  let state = project#list#State()
   let input_changed = a:input != s:input
-  let prev_list = project#GetVariable('list')
-  let init = empty(a:input) || empty(prev_list)
+  let init = empty(a:input) || empty(state.list)
   let should_reload = input_changed || init
   if should_reload
     let list = s:FilterLogs(s:list, a:input)
-    call project#SetVariable('list', list)
+    let state.list = list
     let display = s:GetLogsDisplay(list, a:input)
 
     let s:input = a:input
@@ -257,11 +279,11 @@ function! s:UpdateLog(input)
     let display = s:display
   endif
 
-  call project#ShowInListBuffer(display, a:input)
-  call project#HighlightCurrentLine(len(display))
+  call project#list#Show(display, a:input)
+  call project#list#HighlightCurrentLine(len(display))
   if should_reload
-    call project#HighlightInputChars(a:input)
-    call project#HighlightNoResults()
+    call project#list#HighlightInputChars(a:input)
+    call project#list#HighlightNoResults()
   endif
 endfunction
 
@@ -271,7 +293,7 @@ function! s:UpdateGitLog(input)
 endfunction
 
 function! s:ShowCurrentChangedFiles()
-  let revision = project#GetTarget()
+  let revision = project#list#GetTarget()
   if empty(revision)
     return
   endif
@@ -374,7 +396,7 @@ function! s:SetupChangesBuffer(revision)
     autocmd BufUnload <buffer> call s:CloseChangesBuffer()
   augroup END
   let s:current_line = 0
-  let mappings = project#GetVariable('git_changes_mappings')
+  let mappings = project#config#Get('git_changes_mappings')
   call s:AddMapping(mappings.open_file, '<SID>OpenChangedFile()')
 endfunction
 
@@ -490,7 +512,7 @@ function! s:AddChangeDetails(file)
   endif
 
   let buf_nr = s:GetBufnr(s:diff_buffer)
-  call s:RunJob(s:GetDiffCmd(a:file), 'VimProjectAddChangeDetails', buf_nr)
+  call s:RunJob(s:GetDiffCmd(a:file), function('s:OnChangeDetailsReady'), buf_nr)
 endfunction
 
 function! s:AddLinesToDiffBuffer(lines)
@@ -523,7 +545,7 @@ function! s:IsStagedFile(file)
 endfunction
 
 function! s:IsShelfFile(file)
-  return s:Match(a:file, '\.\(diff\|patch\)$')
+  return project#util#Match(a:file, '\.\(diff\|patch\)$')
 endfunction
 
 function! s:TryGetDiffFile(file)
@@ -538,7 +560,7 @@ function! s:TryGetDiffFile(file)
   return ''
 endfunction
 
-function! s:RunJob(cmd, exit_cb, buf_nr)
+function! s:RunJob(cmd, Callback, buf_nr)
   let can_run = exists('*job_start') || exists('*jobstart')
   if !can_run
     return
@@ -546,8 +568,8 @@ function! s:RunJob(cmd, exit_cb, buf_nr)
 
   " vim
   if exists('*job_start')
-    call job_start(a:cmd, { 
-          \'exit_cb': a:exit_cb,
+    call job_start(a:cmd, {
+          \'exit_cb': a:Callback,
           \'out_io': 'buffer',
           \'out_buf': a:buf_nr,
           \'cwd': $vim_project,
@@ -555,7 +577,7 @@ function! s:RunJob(cmd, exit_cb, buf_nr)
   " nvim
   elseif exists("*jobstart")
     call jobstart(a:cmd, {
-        \'on_stdout': a:exit_cb,
+        \'on_stdout': a:Callback,
         \'stdout_buffered': 1,
         \'cwd': $vim_project,
         \})
@@ -571,7 +593,8 @@ function! s:ClearDiffHeaders()
   silent! 1,g/^+++ /d _ | break
 endfunction
 
-function! VimProjectAddChangeDetails(job, data, ...)
+" Job callback: vim passes (job, status), nvim passes (job, data, event)
+function! s:OnChangeDetailsReady(job, data, ...)
   let error = s:SwitchBuffer(s:diff_buffer)
   if error
     return
@@ -650,7 +673,11 @@ function! s:GetTabulatedList(logs)
           \{ 'message': message, 'author': author, 'date': date, 'hash': hash, 'email': email })
   endfor
 
-  call project#TabulateFixed(list, ['message', 'author', 'date'], [&columns/2 - 25, 10, 15])
+  let columns = project#list#TabulateFixed(list, ['message', 'author', 'date'], [&columns/2 - 25, 10, 15])
+  for idx in range(len(list))
+    let column = columns[idx]
+    let list[idx].row = column.message.' '.column.author.' '.column.date
+  endfor
   return list
 endfunction
 
@@ -659,46 +686,22 @@ function! s:FilterLogs(list, input)
   if empty(a:input)
     return list
   endif
-  let pattern = s:GetRegexpFilter(a:input)
-  let list = filter(list, { idx, val -> 
-        \s:Match(val.message, pattern)
-        \|| s:Match(val.author, pattern)
-        \|| s:Match(val.hash, pattern)
-        \|| (a:input[0] =~ '\d' && s:Match(val.date, pattern))
+  let pattern = project#util#GetRegexpFilter(a:input)
+  let list = filter(list, { idx, val ->
+        \project#util#Match(val.message, pattern)
+        \|| project#util#Match(val.author, pattern)
+        \|| project#util#Match(val.hash, pattern)
+        \|| (a:input[0] =~ '\d' && project#util#Match(val.date, pattern))
         \})
   return list
 endfunction
 
-function! s:Match(string, pattern)
-  return match(a:string, a:pattern) != -1
-endfunction
-
-function! s:Include(string, substrings)
-  for substr in a:substrings
-    if stridx(a:string, substr) != -1
-      return 1
-    endif
-  endfor
-
-  return 0
-endfunction
-
-function! s:GetRegexpFilter(input)
-  return join(split(a:input, ' '), '.*')
-endfunction
-
 function! s:GetLogsDisplay(list, input)
-  let display = map(copy(a:list), function('s:GetLogsDisplayRow'))
-  return display
-endfunction
-
-function! s:GetLogsDisplayRow(idx, value)
-  return a:value.__message.' '.a:value.__author.' '.a:value.__date
+  return map(copy(a:list), {_, val -> val.row})
 endfunction
 
 function! project#git#Status()
-  if !project#ProjectExist()
-    call project#Warn('Open a project first')
+  if !project#util#RequireProject()
     return
   endif
 
@@ -711,53 +714,35 @@ function! project#git#Status()
   call s:ShowStatus(1)
 endfunction
 
-function! project#git#push()
-  if !project#ProjectExist()
-    call project#Warn('Open a project first')
+function! project#git#Push()
+  if !project#util#RequireProject()
     return
   endif
 
   call s:TryPush()
 endfunction
 
-function! project#git#pull()
-  if !project#ProjectExist()
-    call project#Warn('Open a project first')
+function! project#git#Pull()
+  if !project#util#RequireProject()
     return
   endif
 
   call s:TryPull()
 endfunction
 
-function! project#git#CheckoutRevision()
-  let target = project#GetTarget()
+" Check out the selected revision of the log or file history, then close
+function! s:CheckoutRevision(state)
+  let target = project#list#GetTarget()
   let cmd = 'git checkout '.shellescape(target.hash)
   call project#RunShellCmd(cmd)
   if v:shell_error
-    return
+    return 'close'
   endif
 
-  call project#SetVariable('offset', 0)
+  let a:state.offset = 0
   let msg = 'Checked out revision: '.target.hash.' - '.target.message
-  call project#SetInfoOnCloseList(msg)
-endfunction
-
-function! project#git#MergeBranch()
-  let show_current_cmd = 'git branch --show-current'
-  let current = project#RunShellCmd(show_current_cmd)[0]
-
-  let target = project#GetTarget()
-  let name = target.name
-  let cmd = 'git merge '.shellescape(name)
-
-  call project#RunShellCmd(cmd)
-  if v:shell_error
-    return
-  endif
-  call project#SetVariable('offset', 0)
-
-  let msg = 'Merged '.name.' into '.current
-  call project#SetInfoOnCloseList(msg)
+  call project#list#SetInfoOnClose(msg)
+  return 'close'
 endfunction
 
 function! s:GetAbsolutePath(file)
@@ -858,10 +843,7 @@ function! s:RenameFolder()
 endfunction
 
 function! s:GetShelfFolder()
-  let config_home = project#GetVariable('config_home')
-  let project = project#GetVariable('project')
-  let config = project#GetProjectConfigPath(config_home, project)
-  return config.'/shelf'
+  return $vim_project_config.'/shelf'
 endfunction
 
 function! s:GetDiffFilePath(dir, filename)
@@ -881,7 +863,7 @@ function! s:ShelfFile() range
   endif
 
   let prompt = 'Shelf ['.join(files, ', ').'] to: '
-  let name = input(prompt, '', 'customlist,VimProjectShelfFolderNames')
+  let name = input(prompt, '', 'customlist,'.s:sid.'ShelfFolderNames')
   if empty(name)
     return
   endif
@@ -1013,7 +995,8 @@ function! s:DeleteFolder()
   execute lnum
 endfunction
 
-function! VimProjectUserFolderNames(A, L, P)
+" Completion for input(), referenced as <SNR>N_UserFolderNames
+function! s:UserFolderNames(A, L, P)
   let folder = s:GetBelongFolder(line('.'))
 
   let changelist = filter(copy(s:changelist), {idex, v -> !s:IsShelfFolder(v)})
@@ -1028,7 +1011,8 @@ function! VimProjectUserFolderNames(A, L, P)
   return folder_names
 endfunction
 
-function! VimProjectShelfFolderNames(A, L, P)
+" Completion for input(), referenced as <SNR>N_ShelfFolderNames
+function! s:ShelfFolderNames(A, L, P)
   let folder = s:GetBelongFolder(line('.'))
 
   let changelist = filter(copy(s:changelist), {idex, v -> s:IsShelfFolder(v)})
@@ -1069,7 +1053,7 @@ function! s:MoveToFolder() range
   let folder = s:GetCurrentFolder(lnum)
 
   if !empty(folder)
-    let name = input('Move to: ', '', 'customlist,VimProjectUserFolderNames')
+    let name = input('Move to: ', '', 'customlist,'.s:sid.'UserFolderNames')
     if s:IsInvalidMoveToName(name)
       return
     endif
@@ -1078,7 +1062,7 @@ function! s:MoveToFolder() range
   else
     let file = s:GetCurrentFile()
     if !empty(file)
-      let name = input('Move to: ', '', 'customlist,VimProjectUserFolderNames')
+      let name = input('Move to: ', '', 'customlist,'.s:sid.'UserFolderNames')
       if s:IsInvalidMoveToName(name)
         return
       endif
@@ -1576,7 +1560,7 @@ function! s:ShowStatus(...)
 endfunction
 
 function! s:SetupChangelistBuffer()
-  let mappings = project#GetVariable('git_local_changes_mappings')
+  let mappings = project#config#Get('git_local_changes_mappings')
   call s:AddMapping(mappings.open_changelist_or_file, '<SID>OpenFolderOrFile()')
   call s:AddMapping(mappings.delete_changelist, '<SID>DeleteFolder()')
   call s:AddMapping(mappings.rename_changelist, '<SID>RenameFolder()')
@@ -1696,7 +1680,7 @@ function! s:GetCommitMessage()
   let folder_name = !empty(folder) ? s:RemoveFolderNamePrefix(folder.name) : ''
 
   let message = ''
-  let CustomMessage = project#GetVariable('commit_message')
+  let CustomMessage = project#config#Get('commit_message')
 
   if !empty(CustomMessage)
     if type(CustomMessage) == v:t_func
@@ -1773,7 +1757,7 @@ function! s:TryCommit()
   quit
   call s:OpenResultWindow(s:commit_result_buffer, cmd, result)
 
-  let mappings = project#GetVariable('git_local_changes_mappings')
+  let mappings = project#config#Get('git_local_changes_mappings')
   call s:AddMapping(mappings.pull, '<SID>TryPull()')
   call s:AddMapping(mappings.push, '<SID>TryPush()')
   call s:AddMapping(mappings.pull_and_push, '<SID>TryPullThenPush()')
@@ -1822,17 +1806,6 @@ function! s:TryPull()
     call project#Info('Updated successfully')
   endif
   call project#search_files#Reset()
-endfunction
-
-function! s:ShowResultMessage(result)
-  redraw
-  if len(a:result) < 3
-    call project#Info(join(a:result, ' | '))
-  else
-    for line in a:result
-      call project#Info(line)
-    endfor
-  endif
 endfunction
 
 function! s:OpenResultWindow(title, cmd, result)

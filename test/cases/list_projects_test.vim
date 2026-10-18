@@ -27,8 +27,8 @@ function! Test_FilterProjectsList_name_matches_beat_note_and_path()
 
   " When name or note matches exist, pure path matches are dropped
   call assert_equal(['by-note', 'abc'], s:Names(result))
-  call assert_equal('note', result[0]._match_type)
-  call assert_equal('name', result[1]._match_type)
+  " Scoring must not leak bookkeeping keys into the project dicts
+  call assert_false(has_key(result[0], '_match_type'))
 endfunction
 
 function! Test_FilterProjectsList_falls_back_to_path_matches()
@@ -41,8 +41,6 @@ function! Test_FilterProjectsList_falls_back_to_path_matches()
 
   " path < full_path, so the full_path match ends up last
   call assert_equal(['q', 'kz'], s:Names(result))
-  call assert_equal('path', result[0]._match_type)
-  call assert_equal('full_path', result[1]._match_type)
 endfunction
 
 function! Test_FilterProjectsList_prefers_exact_then_earlier_match()
@@ -56,7 +54,6 @@ function! Test_FilterProjectsList_prefers_exact_then_earlier_match()
   " a-b only matches the fuzzy a.*b pattern (+10), xab matches at index 1,
   " abc matches at index 0 and wins
   call assert_equal(['a-b', 'xab', 'abc'], s:Names(result))
-  call assert_equal([10, 1, 0], map(copy(result), {_, item -> item._match_index}))
 endfunction
 
 function! Test_FilterProjectsList_same_index_prefers_shorter_name()
@@ -82,15 +79,12 @@ endfunction
 function! Test_FilterProjectsList_empty_filter_matches_everything_by_name()
   let list = [s:Project('b', '/x/'), s:Project('a', '/y/')]
   let result = s:Filter(list, '')
-  call assert_equal(2, len(result))
-  call assert_equal(['name', 'name'], map(copy(result), {_, item -> item._match_type}))
+  call assert_equal(['a', 'b'], sort(s:Names(result)))
 endfunction
 
 function! Test_FilterProjectsList_matches_path_with_home_as_tilde()
   let list = [s:Project('proj', expand('~').'/work/')]
   let result = s:Filter(list, '/w')
   call assert_equal(['proj'], s:Names(result))
-  call assert_equal('path', result[0]._match_type)
-  " Matched against '~/work/', not the expanded home directory
-  call assert_equal(1, result[0]._match_index)
 endfunction
+

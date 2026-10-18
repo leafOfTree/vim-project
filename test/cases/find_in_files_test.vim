@@ -7,15 +7,16 @@ endfunction
 
 " Run a:Fn with the given include/exclude lists, restoring the originals.
 function! s:WithIncludeExclude(include, exclude, Fn)
-  let saved_include = project#GetVariable('find_in_files_include')
-  let saved_exclude = project#GetVariable('find_in_files_exclude')
-  call project#SetVariable('find_in_files_include', a:include)
-  call project#SetVariable('find_in_files_exclude', a:exclude)
+  let config = project#config#All()
+  let saved_include = config.find_in_files_include
+  let saved_exclude = config.find_in_files_exclude
+  let config.find_in_files_include = a:include
+  let config.find_in_files_exclude = a:exclude
   try
     return a:Fn()
   finally
-    call project#SetVariable('find_in_files_include', saved_include)
-    call project#SetVariable('find_in_files_exclude', saved_exclude)
+    let config.find_in_files_include = saved_include
+    let config.find_in_files_exclude = saved_exclude
   endtry
 endfunction
 
