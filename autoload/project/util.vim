@@ -57,7 +57,10 @@ endfunction
 " The sort puts the best item last, as the list is shown bottom-up.
 function! project#util#FuzzyScore(items, input, fields, ...)
   let opts = get(a:000, 0, {})
-  let regexp = join(split(a:input, '\zs'), '.*')
+  " Each typed char is matched literally: under \V only a backslash is
+  " special, so '~' (E33 otherwise), '[', '.' and '*' mean themselves
+  let chars = map(split(a:input, '\zs'), {_, char -> escape(char, '\')})
+  let regexp = '\V'.join(chars, '\.\*')
   let scored = []
 
   for item in a:items

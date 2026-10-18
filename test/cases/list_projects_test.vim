@@ -86,5 +86,21 @@ function! Test_FilterProjectsList_matches_path_with_home_as_tilde()
   let list = [s:Project('proj', expand('~').'/work/')]
   let result = s:Filter(list, '/w')
   call assert_equal(['proj'], s:Names(result))
+  " Matched against '~/work/', not the expanded home directory
+  call assert_equal(['proj'], s:Names(s:Filter(list, '~/w')))
 endfunction
 
+" Regression: typing '~' raised E33 (no previous substitute) and other regexp
+" characters changed the meaning of the fuzzy filter.
+function! Test_FilterProjectsList_treats_typed_chars_literally()
+  let list = [
+        \s:Project('a.b', '/x/'),
+        \s:Project('axb', '/x/'),
+        \s:Project('c[1]', '/x/'),
+        \s:Project('star*', '/x/'),
+        \]
+  call assert_equal(['a.b'], s:Names(s:Filter(list, 'a.b')))
+  call assert_equal(['c[1]'], s:Names(s:Filter(list, '[1')))
+  call assert_equal(['star*'], s:Names(s:Filter(list, 'r*')))
+  call assert_equal([], s:Filter(list, '~'))
+endfunction
