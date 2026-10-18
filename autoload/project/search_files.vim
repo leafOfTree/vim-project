@@ -9,12 +9,14 @@ function! project#search_files#Run()
     return
   endif
 
-  call project#PrepareListBuffer('Search files by name:', 'SEARCH_FILES')
-
-  let Init = function('s:Init')
-  let Update = function('s:UpdateTimer')
-  let Open = function('s:Open')
-  call project#RenderList(Init, Update, Open)
+  call project#list#Open({
+        \'type': 'SEARCH_FILES',
+        \'prompt': 'Search files by name:',
+        \'mappings': project#config#Get('list_mappings_search_files'),
+        \'Init': function('s:Init'),
+        \'Update': function('s:UpdateTimer'),
+        \'Open': function('s:Open'),
+        \})
 endfunction
 
 function! project#search_files#Reset()
@@ -42,6 +44,11 @@ function! s:ShouldRunWithTimer(input)
 endfunction
 
 function! s:Update(input, id = 0)
+  " The timer may fire after the list has closed
+  if !project#list#IsCurrentListBuffer()
+    return
+  endif
+
   let use_cache = a:input == s:prev_input && !empty(s:prev_list)
   if use_cache
     let list = s:prev_list
@@ -53,15 +60,16 @@ function! s:Update(input, id = 0)
     let s:prev_input = a:input
   endif
 
-  call project#SetVariable('input', a:input)
-  call project#SetVariable('list', list)
-  call project#ShowInListBuffer(display, a:input)
-  call project#HighlightCurrentLine(len(display))
-  call project#HighlightInputChars(a:input)
-  call project#HighlightNoResults()
+  let state = project#list#State()
+  let state.input = a:input
+  let state.list = list
+  call project#list#Show(display, a:input)
+  call project#list#HighlightCurrentLine(len(display))
+  call project#list#HighlightInputChars(a:input)
+  call project#list#HighlightNoResults()
   call project#HighlightIcon()
-  call project#HighlightExtraInfo()
-  call project#RedrawInputLine()
+  call project#list#HighlightExtraInfo()
+  call project#list#RedrawInputLine()
 endfunction
 
 function! s:Open(target, open_cmd, input)
@@ -94,8 +102,9 @@ function! s:DecorateSearchFilesDisplay(list, display)
   endif
 endfunction
 
-function! s:GetSearchFilesDisplay(list)
-  let display = map(copy(a:list), function('s:GetSearchFilesDisplayRow'))
+" columns: the tabulated file and path of each item, see project#list#Tabulate
+function! s:GetSearchFilesDisplay(list, columns)
+  let display = map(copy(a:list), function('s:GetSearchFilesDisplayRow', [a:columns]))
   call s:DecorateSearchFilesDisplay(a:list, display)
   return display
 endfunction
@@ -104,15 +113,16 @@ function! s:GetFileFullpath(value)
   return $vim_project.'/'.a:value.path.'/'.a:value.file
 endfunction
 
-function! s:GetSearchFilesDisplayRow(idx, value)
+function! s:GetSearchFilesDisplayRow(columns, idx, value)
+  let column = a:columns[a:idx]
   let fullpath = s:GetFileFullpath(a:value)
   if isdirectory(fullpath)
-    let file = substitute(a:value.__file, '\S\zs\s\|\S\zs$', '/', '')
+    let file = substitute(column.file, '\S\zs\s\|\S\zs$', '/', '')
   else
-    let file = a:value.__file
+    let file = column.file
   endif
   let icon = project#GetIcon(fullpath)
-  return icon.file.'  '.a:value.__path
+  return icon.file.'  '.column.path
 endfunction
 
 function! s:GetSearchFilesByOldFiles(input)
@@ -463,8 +473,8 @@ function! s:GetSearchFilesResult(input)
   let files = s:GetSearchFiles(a:input)
   let min_col_width = s:GetMaxWidth() / 4
   let max_col_width = s:GetMaxWidth() / 8 * 5
-  call project#Tabulate(files, ['file', 'path'], min_col_width, max_col_width)
-  let display = s:GetSearchFilesDisplay(files)
+  let columns = project#list#Tabulate(files, ['file', 'path'], min_col_width, max_col_width)
+  let display = s:GetSearchFilesDisplay(files, columns)
   return [files, display]
 endfunction
 
@@ -484,17 +494,17 @@ function! s:UniqueListByFile(list, idx, val)
 endfunction
 
 function! s:GetExclude()
-  return copy(project#GetVariable('search_exclude'))
+  return copy(project#config#Get('search_exclude'))
 endfunction
 
 function! s:GetInclude()
-  return project#GetVariable('search_include')
+  return project#config#Get('search_include')
 endfunction
 
 function! s:GetMaxHeight()
-  return project#GetVariable('max_height')
+  return project#list#State().max_height
 endfunction
 
 function! s:GetMaxWidth()
-  return project#GetVariable('max_width')
+  return project#list#State().max_width
 endfunction

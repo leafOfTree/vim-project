@@ -1,34 +1,52 @@
+let s:view_index = 0
+" Display row of each project, by fullpath
+let s:rows = {}
+
 function! project#list_projects#Run()
-  call project#PrepareListBuffer('Open a project:', 'PROJECTS')
-  let Init = function('s:Init')
-  let Update = function('s:Update')
-  let Open = function('s:Open')
-  call project#RenderList(Init, Update, Open)
+  call project#list#Open({
+        \'type': 'PROJECTS',
+        \'prompt': 'Open a project:',
+        \'mappings': project#config#Get('list_mappings_projects'),
+        \'Init': function('s:Init'),
+        \'Update': function('s:Update'),
+        \'Open': function('s:Open'),
+        \'handlers': {
+        \  'next_view': function('s:NextView'),
+        \  'prev_view': function('s:PrevView'),
+        \},
+        \})
 endfunction
 
 function! project#list_projects#OutputProjects(...)
   let filter = a:0>0 ? a:1 : ''
-  let projects = project#GetVariable('projects')
-  let projects = s:FilterProjects(projects, filter)
+  let projects = s:FilterProjects(copy(project#GetProjects()), filter)
   echo projects
 endfunction
 
 function! s:Init(input)
-  let projects = project#GetVariable('projects')
-  let max_col_width = project#GetVariable('max_width') / 3 - 3
-  call project#Tabulate(projects, ['name', 'path', 'note'], 0, max_col_width)
+  let projects = project#GetProjects()
+  let max_col_width = project#list#State().max_width / 3 - 3
+  let columns = project#list#Tabulate(projects, ['name', 'path', 'note'], 0, max_col_width)
+
+  let s:rows = {}
+  for idx in range(len(projects))
+    let column = columns[idx]
+    let s:rows[projects[idx].fullpath] = column.name.'  '.column.note.'  '.column.path
+  endfor
+
   call s:Update(a:input)
 endfunction
 
 function! s:Update(input)
-  let projects = project#GetVariable('projects')
-  let list = s:FilterProjects(copy(projects), a:input)
-  let display = s:GetProjectsDisplay(list)
-  call project#SetVariable('list', list)
-  call project#ShowInListBuffer(display, a:input)
-  call project#HighlightCurrentLine(len(display))
-  call project#HighlightInputChars(a:input)
-  call project#HighlightNoResults()
+  let list = s:FilterProjects(copy(project#GetProjects()), a:input)
+  let display = map(copy(list), {_, project -> s:rows[project.fullpath]})
+
+  let state = project#list#State()
+  let state.list = list
+  call project#list#Show(display, a:input)
+  call project#list#HighlightCurrentLine(len(display))
+  call project#list#HighlightInputChars(a:input)
+  call project#list#HighlightNoResults()
 endfunction
 
 function! s:Open(project, open_cmd, input)
@@ -39,20 +57,19 @@ function! s:Open(project, open_cmd, input)
   endif
 endfunction
 
+function! s:NextView(state)
+  let max = len(project#config#Get('project_views'))
+  let s:view_index = s:view_index < max - 1 ? s:view_index + 1 : 0
+endfunction
+
+function! s:PrevView(state)
+  let max = len(project#config#Get('project_views'))
+  let s:view_index = s:view_index > 0 ? s:view_index - 1 : max - 1
+endfunction
+
 function! s:IsValidProject(project)
   let fullpath = a:project.fullpath
   return isdirectory(fullpath) || filereadable(fullpath)
-endfunction
-
-function! s:GetProjectsDisplay(list)
-  return map(copy(a:list), function('s:GetProjectsDisplayRow'))
-endfunction
-
-function! s:GetProjectsDisplayRow(key, value)
-  let value = a:value
-  return value.__name.'  '
-        \.value.__note.'  '
-        \.project#ReplaceHomeWithTide(value.__path)
 endfunction
 
 function! s:FilterProjects(projects, filter)
@@ -70,7 +87,7 @@ function! s:FilterProjects(projects, filter)
 endfunction
 
 function! s:RemoveCurrentProject(projects)
-  let project = project#GetVariable('project')
+  let project = project#GetCurrentProject()
   if empty(project)
     return
   endif
@@ -78,7 +95,7 @@ function! s:RemoveCurrentProject(projects)
 endfunction
 
 function! s:SortInitialProjectsList(a1, a2)
-  let project_history = project#GetVariable('project_history')
+  let project_history = project#GetProjectHistory()
   let index1 = index(project_history, a:a1.fullpath)
   let index2 = index(project_history, a:a2.fullpath)
   if index1 == -1 && index2 == -1
@@ -93,11 +110,10 @@ function! s:SortInitialProjectsList(a1, a2)
 endfunction
 
 function! s:FilterProjectsByView(projects)
-  let project_views = project#GetVariable('project_views')
-  let view_index = project#GetVariable('view_index')
+  let project_views = project#config#Get('project_views')
   let max = len(project_views)
-  if view_index >= 0 && view_index < max
-    let view = project_views[view_index]
+  if s:view_index >= 0 && s:view_index < max
+    let view = project_views[s:view_index]
     if len(view) == 2
       let [show, hide] = view
     elseif len(view) == 1

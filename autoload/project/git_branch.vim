@@ -1,19 +1,31 @@
 let s:splitter = ' ||| '
 let s:item_splitter = '----------------------------------------------'
 let s:item_new_branch = 'New Branch'
+let s:list = []
 
 function! project#git_branch#Show()
-  let prompt = 'Switch to a branch:' 
+  call project#list#Open({
+        \'type': 'GIT_BRANCH',
+        \'prompt': 'Switch to a branch:',
+        \'mappings': project#config#Get('list_mappings_git_branch'),
+        \'Init': function('s:Init'),
+        \'Update': function('s:Update'),
+        \'Open': function('s:Open'),
+        \'handlers': {
+        \  'merge_branch': function('s:MergeBranch'),
+        \},
+        \'Highlight': function('s:Highlight'),
+        \})
+endfunction
 
-  call project#PrepareListBuffer(prompt, 'GIT_BRANCH')
-  let Init = function('s:Init')
-  let Update = function('s:Update')
-  let Open = function('s:Open')
-  call project#RenderList(Init, Update, Open)
+function! s:Highlight(state)
+  let a:state.first_column_pattern = '^\( \|\*\) '.a:state.column_pattern
+  highlight link FirstColumn Normal
+  highlight link SecondColumn Comment
 endfunction
 
 function! s:Init(input)
-  let format = join(['%(HEAD)', '%(refname:short)', '%(upstream:short)', 
+  let format = join(['%(HEAD)', '%(refname:short)', '%(upstream:short)',
         \'%(contents:subject)', '%(authorname)',  '%(committerdate:relative)'], s:splitter)
   let cmd = 'git branch -a --format='.shellescape(format)
   let branches = project#RunShellCmd(cmd)
@@ -30,12 +42,13 @@ endfunction
 
 function! s:Update(input)
   let list = s:FilterBranches(s:list, a:input)
-  call project#SetVariable('list', list)
+  let state = project#list#State()
+  let state.list = list
   let display = s:GetBranchesDisplay(list, a:input)
-  call project#ShowInListBuffer(display, a:input)
-  call project#HighlightCurrentLine(len(display))
-  call project#HighlightInputChars(a:input)
-  call project#HighlightNoResults()
+  call project#list#Show(display, a:input)
+  call project#list#HighlightCurrentLine(len(display))
+  call project#list#HighlightInputChars(a:input)
+  call project#list#HighlightNoResults()
   call s:HighlightSpecialItem()
 endfunction
 
@@ -72,6 +85,25 @@ function! s:Open(branch, open_cmd, input)
   endif
   edit
   call project#Info('Switched to: '.a:branch.name)
+endfunction
+
+" Merge the selected branch into the current one, then close the list
+function! s:MergeBranch(state)
+  let show_current_cmd = 'git branch --show-current'
+  let current = project#RunShellCmd(show_current_cmd)[0]
+
+  let target = project#list#GetTarget()
+  let name = target.name
+  let cmd = 'git merge '.shellescape(name)
+
+  call project#RunShellCmd(cmd)
+  if v:shell_error
+    return 'close'
+  endif
+  let a:state.offset = 0
+
+  call project#list#SetInfoOnClose('Merged '.name.' into '.current)
+  return 'close'
 endfunction
 
 function! s:GetSafeBranchName(raw_name)
@@ -146,17 +178,15 @@ function! s:GetTabulatedList(branches)
           \})
   endfor
 
-  call project#Tabulate(list, ['show_name'])
+  let columns = project#list#Tabulate(list, ['show_name'])
+  for idx in range(len(list))
+    let item = list[idx]
+    let author_info = empty(item.date) ? '' : ' ('.item.authorname.', '.item.date.')'
+    let item.row = item.head.' '.columns[idx].show_name.' '.item.subject.author_info
+  endfor
   return list
 endfunction
 
 function! s:GetBranchesDisplay(list, input)
-  let display = map(copy(a:list), function('s:GetBranchesDisplayRow'))
-  return display
+  return map(copy(a:list), {_, val -> val.row})
 endfunction
-
-function! s:GetBranchesDisplayRow(idx, value)
-  let author_info = empty(a:value.date) ? '' : ' ('.a:value.authorname.', '.a:value.date.')'
-  return a:value.head.' '.a:value.__show_name.' '.a:value.subject.author_info
-endfunction
-

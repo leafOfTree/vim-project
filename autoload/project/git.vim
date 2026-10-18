@@ -81,13 +81,20 @@ function! project#git#FileHistory(...)
     let prompt = 'History of '.filename.' L'.join(s:file_history_range, ',').':' 
   endif
 
-  call project#SetVariable('initial_height', winheight(0) - 10)
-  call project#PrepareListBuffer(prompt, 'GIT_FILE_HISTORY')
-  let Init = function('s:InitFileHistory')
-  let Update = function('s:UpdateFileHistory')
-  let Open = function('s:OpenFileHistory')
-  let Close = function('s:CloseFileHistory')
-  call project#RenderList(Init, Update, Open, Close)
+  call project#list#Open({
+        \'type': 'GIT_FILE_HISTORY',
+        \'prompt': prompt,
+        \'mappings': project#config#Get('list_mappings_git'),
+        \'Init': function('s:InitFileHistory'),
+        \'Update': function('s:UpdateFileHistory'),
+        \'Open': function('s:OpenFileHistory'),
+        \'Close': function('s:CloseFileHistory'),
+        \'handlers': {
+        \  'checkout_revision': function('s:CheckoutRevision'),
+        \},
+        \'save_history': 1,
+        \'initial_height': winheight(0) - 10,
+        \})
 endfunction
 
 function! s:InitFileHistory(input)
@@ -138,7 +145,7 @@ function! s:UpdateFileHistory(input)
 endfunction
 
 function! s:ShowDiffOnFileHistory()
-  let revision = project#GetTarget()
+  let revision = project#list#GetTarget()
   if empty(revision)
     return
   endif
@@ -177,7 +184,7 @@ function! s:SetupDiffBuffer(file)
   setlocal buftype=nofile bufhidden=wipe nobuflisted filetype=git
   setlocal modifiable
   syntax sync minlines=1000
-  let mappings = project#GetVariable('git_diff_mappings')
+  let mappings = project#config#Get('git_diff_mappings')
   call s:AddMapping(mappings.jump_to_source, '<SID>JumpToSource("'.a:file.'")')
 endfunction
 
@@ -223,13 +230,27 @@ function! project#git#Log()
 
   call s:CloseChangesBuffer()
 
-  call project#SetVariable('initial_height', winheight(0) - 10)
-  call project#PrepareListBuffer('Search log:', 'GIT_LOG')
-  let Init = function('s:InitGitLog')
-  let Update = function('s:UpdateGitLog')
-  let Open = function('s:OpenGitLog')
-  let Close = function('s:CloseGitLog')
-  call project#RenderList(Init, Update, Open, Close)
+  call project#list#Open({
+        \'type': 'GIT_LOG',
+        \'prompt': 'Search log:',
+        \'mappings': project#config#Get('list_mappings_git'),
+        \'Init': function('s:InitGitLog'),
+        \'Update': function('s:UpdateGitLog'),
+        \'Open': function('s:OpenGitLog'),
+        \'Close': function('s:CloseGitLog'),
+        \'handlers': {
+        \  'checkout_revision': function('s:CheckoutRevision'),
+        \},
+        \'Highlight': function('s:HighlightLog'),
+        \'save_history': 1,
+        \'initial_height': winheight(0) - 10,
+        \})
+endfunction
+
+function! s:HighlightLog(state)
+  let a:state.first_column_pattern = '^'.a:state.column_pattern
+  highlight link FirstColumn Normal
+  highlight link SecondColumn Comment
 endfunction
 
 
@@ -243,13 +264,13 @@ function! s:InitGitLog(input)
 endfunction
 
 function! s:UpdateLog(input)
+  let state = project#list#State()
   let input_changed = a:input != s:input
-  let prev_list = project#GetVariable('list')
-  let init = empty(a:input) || empty(prev_list)
+  let init = empty(a:input) || empty(state.list)
   let should_reload = input_changed || init
   if should_reload
     let list = s:FilterLogs(s:list, a:input)
-    call project#SetVariable('list', list)
+    let state.list = list
     let display = s:GetLogsDisplay(list, a:input)
 
     let s:input = a:input
@@ -258,11 +279,11 @@ function! s:UpdateLog(input)
     let display = s:display
   endif
 
-  call project#ShowInListBuffer(display, a:input)
-  call project#HighlightCurrentLine(len(display))
+  call project#list#Show(display, a:input)
+  call project#list#HighlightCurrentLine(len(display))
   if should_reload
-    call project#HighlightInputChars(a:input)
-    call project#HighlightNoResults()
+    call project#list#HighlightInputChars(a:input)
+    call project#list#HighlightNoResults()
   endif
 endfunction
 
@@ -272,7 +293,7 @@ function! s:UpdateGitLog(input)
 endfunction
 
 function! s:ShowCurrentChangedFiles()
-  let revision = project#GetTarget()
+  let revision = project#list#GetTarget()
   if empty(revision)
     return
   endif
@@ -375,7 +396,7 @@ function! s:SetupChangesBuffer(revision)
     autocmd BufUnload <buffer> call s:CloseChangesBuffer()
   augroup END
   let s:current_line = 0
-  let mappings = project#GetVariable('git_changes_mappings')
+  let mappings = project#config#Get('git_changes_mappings')
   call s:AddMapping(mappings.open_file, '<SID>OpenChangedFile()')
 endfunction
 
@@ -651,7 +672,11 @@ function! s:GetTabulatedList(logs)
           \{ 'message': message, 'author': author, 'date': date, 'hash': hash, 'email': email })
   endfor
 
-  call project#TabulateFixed(list, ['message', 'author', 'date'], [&columns/2 - 25, 10, 15])
+  let columns = project#list#TabulateFixed(list, ['message', 'author', 'date'], [&columns/2 - 25, 10, 15])
+  for idx in range(len(list))
+    let column = columns[idx]
+    let list[idx].row = column.message.' '.column.author.' '.column.date
+  endfor
   return list
 endfunction
 
@@ -671,12 +696,7 @@ function! s:FilterLogs(list, input)
 endfunction
 
 function! s:GetLogsDisplay(list, input)
-  let display = map(copy(a:list), function('s:GetLogsDisplayRow'))
-  return display
-endfunction
-
-function! s:GetLogsDisplayRow(idx, value)
-  return a:value.__message.' '.a:value.__author.' '.a:value.__date
+  return map(copy(a:list), {_, val -> val.row})
 endfunction
 
 function! project#git#Status()
@@ -709,35 +729,19 @@ function! project#git#Pull()
   call s:TryPull()
 endfunction
 
-function! project#git#CheckoutRevision()
-  let target = project#GetTarget()
+" Check out the selected revision of the log or file history, then close
+function! s:CheckoutRevision(state)
+  let target = project#list#GetTarget()
   let cmd = 'git checkout '.shellescape(target.hash)
   call project#RunShellCmd(cmd)
   if v:shell_error
-    return
+    return 'close'
   endif
 
-  call project#SetVariable('offset', 0)
+  let a:state.offset = 0
   let msg = 'Checked out revision: '.target.hash.' - '.target.message
-  call project#SetInfoOnCloseList(msg)
-endfunction
-
-function! project#git#MergeBranch()
-  let show_current_cmd = 'git branch --show-current'
-  let current = project#RunShellCmd(show_current_cmd)[0]
-
-  let target = project#GetTarget()
-  let name = target.name
-  let cmd = 'git merge '.shellescape(name)
-
-  call project#RunShellCmd(cmd)
-  if v:shell_error
-    return
-  endif
-  call project#SetVariable('offset', 0)
-
-  let msg = 'Merged '.name.' into '.current
-  call project#SetInfoOnCloseList(msg)
+  call project#list#SetInfoOnClose(msg)
+  return 'close'
 endfunction
 
 function! s:GetAbsolutePath(file)
@@ -838,10 +842,7 @@ function! s:RenameFolder()
 endfunction
 
 function! s:GetShelfFolder()
-  let config_home = project#GetVariable('config_home')
-  let project = project#GetVariable('project')
-  let config = project#GetProjectConfigPath(config_home, project)
-  return config.'/shelf'
+  return $vim_project_config.'/shelf'
 endfunction
 
 function! s:GetDiffFilePath(dir, filename)
@@ -1554,7 +1555,7 @@ function! s:ShowStatus(run_git = 0)
 endfunction
 
 function! s:SetupChangelistBuffer()
-  let mappings = project#GetVariable('git_local_changes_mappings')
+  let mappings = project#config#Get('git_local_changes_mappings')
   call s:AddMapping(mappings.open_changelist_or_file, '<SID>OpenFolderOrFile()')
   call s:AddMapping(mappings.delete_changelist, '<SID>DeleteFolder()')
   call s:AddMapping(mappings.rename_changelist, '<SID>RenameFolder()')
@@ -1674,7 +1675,7 @@ function! s:GetCommitMessage()
   let folder_name = !empty(folder) ? s:RemoveFolderNamePrefix(folder.name) : ''
 
   let message = ''
-  let CustomMessage = project#GetVariable('commit_message')
+  let CustomMessage = project#config#Get('commit_message')
 
   if !empty(CustomMessage)
     if type(CustomMessage) == v:t_func
@@ -1751,7 +1752,7 @@ function! s:TryCommit()
   quit
   call s:OpenResultWindow(s:commit_result_buffer, cmd, result)
 
-  let mappings = project#GetVariable('git_local_changes_mappings')
+  let mappings = project#config#Get('git_local_changes_mappings')
   call s:AddMapping(mappings.pull, '<SID>TryPull()')
   call s:AddMapping(mappings.push, '<SID>TryPush()')
   call s:AddMapping(mappings.pull_and_push, '<SID>TryPullThenPush()')

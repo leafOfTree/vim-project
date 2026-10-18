@@ -1,29 +1,63 @@
 let s:output_rows = 20
 let s:terminal_bufnr = -1
+let s:run_tasks_timer = 0
+" Runtime state of started tasks, by task name. Keys: bufnr (job id on nvim),
+" started, started_rel, duration, exit_code, finished. The config task dicts
+" are never changed
+let s:task_state = {}
+" Display column of each task, by name
+let s:rows = {}
 
 function! project#run_tasks#Run()
-  call project#PrepareListBuffer('Run a task:', 'RUN_TASKS')
-  let Init = function('s:Init')
-  let Update = function('s:Update')
-  let Open = function('s:Open')
-  call project#RenderList(Init, Update, Open)
+  call project#list#Open({
+        \'type': 'RUN_TASKS',
+        \'prompt': 'Run a task:',
+        \'mappings': project#config#Get('list_mappings_run_tasks'),
+        \'Init': function('s:Init'),
+        \'Update': function('s:Update'),
+        \'Open': function('s:Open'),
+        \'Close': function('s:StopTimer'),
+        \'handlers': {
+        \  'run_task': function('s:RunTaskHandler'),
+        \  'stop_task': function('s:StopTaskHandler'),
+        \},
+        \'ItemStep': function('s:ItemStep'),
+        \'Highlight': function('s:Highlight'),
+        \'save_history': 1,
+        \})
+endfunction
+
+" Tasks of the config without the ones that have neither name nor cmd
+function! s:GetTasks()
+  let tasks = copy(project#config#Get('tasks'))
+  return filter(tasks, {idx, task -> !s:HasEmptyName(task) || !s:HasEmptyCmd(task)})
 endfunction
 
 function! s:Init(input)
-  let tasks = project#GetVariable('tasks')
-  let max_col_width = project#GetVariable('max_width') - 10
-  call project#Tabulate(tasks, ['name'], 0, max_col_width)
-  call s:FilterEmptyTask(tasks)
+  let tasks = s:GetTasks()
+  let max_col_width = project#list#State().max_width - 10
+  let columns = project#list#Tabulate(tasks, ['name'], 0, max_col_width)
+
+  let s:rows = {}
+  for idx in range(len(tasks))
+    let s:rows[tasks[idx].name] = columns[idx].name
+  endfor
+
   call s:Update(a:input)
 endfunction
 
 function! s:Update(input)
-  call project#run_tasks#StopRunTasksTimer()
+  call s:StopTimer()
   call s:RunTasksBufferUpdate(a:input)
-  call s:StartRunTasksTimers(a:input)
+  call s:StartTimer(a:input)
 endfunction
 
-function! project#run_tasks#Highlight()
+function! s:Highlight(state)
+  let a:state.first_column_pattern = '^'.a:state.column_pattern
+  highlight link FirstColumn Keyword
+  highlight link SecondColumn Comment
+  highlight link Status Constant
+
   " Linking InfoRow to Normal does not work when overriding other syntax
   if has('nvim') || !exists('*hlget')
     highlight link InfoRow Normal
@@ -35,20 +69,25 @@ function! project#run_tasks#Highlight()
   call s:HighlightRunTasksCmdOutput()
 endfunction
 
-function! s:FilterEmptyTask(tasks)
-  call filter(a:tasks, 
-        \{idx, task -> !s:HasEmptyName(task) || !s:HasEmptyCmd(task)})
+" Move by task: skip the status and output rows of a task
+function! s:ItemStep(direction)
+  let current_line = project#list#GetCurrentLineNumber()
+  call cursor(current_line, 1)
+  if a:direction < 0
+    let prev_task_line = search('^\w', 'bnW')
+    return current_line - prev_task_line
+  endif
+
+  let next_task_line = search('^\w', 'nW')
+  return next_task_line > current_line ? next_task_line - current_line : 0
 endfunction
 
-function! s:StartRunTasksTimers(input)
+function! s:StartTimer(input)
   let s:run_tasks_timer = timer_start(500, function('s:RunTasksBufferUpdateTimer', [a:input]),
         \{'repeat': -1})
 endfunction
 
-function! project#run_tasks#StopRunTasksTimer()
-  if !exists('s:run_tasks_timer')
-    return
-  endif
+function! s:StopTimer()
   call timer_stop(s:run_tasks_timer)
 endfunction
 
@@ -56,31 +95,47 @@ function! s:RunTasksBufferUpdateTimer(input, id)
   call s:RunTasksBufferUpdate(a:input)
 endfunction
 
+function! s:GetTaskState(task)
+  if !has_key(s:task_state, a:task.name)
+    let s:task_state[a:task.name] = {}
+  endif
+  return s:task_state[a:task.name]
+endfunction
+
+function! s:HasTaskBufnr(task)
+  return has_key(s:GetTaskState(a:task), 'bufnr')
+endfunction
+
+function! s:GetTaskBufnr(task)
+  return s:GetTaskState(a:task).bufnr
+endfunction
+
 function! s:GetTaskStatusLine(task, status)
+  let task_state = s:GetTaskState(a:task)
   if a:status == 'finished'
-    let error = s:HasTaskExitCode(a:task) && a:task.exit_code
+    let error = has_key(task_state, 'exit_code') && task_state.exit_code
     if error
-      let icon = '❌ '.a:task.exit_code
+      let icon = '❌ '.task_state.exit_code
     else
       let icon = '✅ '
     endif
   else
     let icon = '🏃' " 🔄
-    let duration_full = split(reltimestr(reltime(a:task.started_rel)))[0]
-    let a:task.duration = substitute(duration_full, '\..*', '', 'g')
+    let duration_full = split(reltimestr(reltime(task_state.started_rel)))[0]
+    let task_state.duration = substitute(duration_full, '\..*', '', 'g')
   endif
-  
+
 
   let width = &columns
   let left = '  ['.a:status.'] '.icon
-  if has_key(a:task, 'duration')
-    let right = a:task.duration.'s'
+  if has_key(task_state, 'duration')
+    let right = task_state.duration.'s'
   else
     let right = ''
   endif
   if a:status == 'finished'
-    if has_key(a:task, 'finished')
-      let right = 'At '.a:task.finished.', '.right
+    if has_key(task_state, 'finished')
+      let right = 'At '.task_state.finished.', '.right
     endif
   endif
   let padding_number = width - strwidth(left) - strwidth(right) - 2
@@ -96,17 +151,15 @@ function! s:GetRunTasksDisplay(tasks)
   let list = []
 
   for task in a:tasks
-    if has_key(task, '__name')
-      let task_row = task.__name
-      let task_row .= '  '.task.cmd
-      if has_key(task, 'cd')
-        let task_row .= '  (cd '.task.cd.')'
-      endif
-      call add(display, task_row)
-      call add(list, task)
+    let task_row = s:rows[task.name]
+    let task_row .= '  '.task.cmd
+    if has_key(task, 'cd')
+      let task_row .= '  (cd '.task.cd.')'
     endif
+    call add(display, task_row)
+    call add(list, task)
 
-    if has_key(task, 'bufnr') && task.bufnr > 0
+    if s:HasTaskBufnr(task) && s:GetTaskBufnr(task) > 0
       let status = s:GetTaskStatus(task)
       if status == ''
         continue
@@ -139,10 +192,6 @@ function! s:AddTaskOutput(output, task, display, list)
   call add(a:list, item)
 endfunction
 
-function! s:HasTaskExitCode(task)
-  return has_key(a:task, 'exit_code')
-endfunction
-
 function! s:AddTaskOutputFromNvim(task, display, list)
   let bufnr = s:GetNvimTaskBufnr(a:task)
   let lines = getbufline(bufnr, 1, '$')
@@ -171,12 +220,13 @@ function! s:AddTaskOutputFromNvim(task, display, list)
 endfunction
 
 function! s:AddTaskOutputFromVim(task, display, list)
-  let rows = term_getcursor(a:task.bufnr)[0]
+  let bufnr = s:GetTaskBufnr(a:task)
+  let rows = term_getcursor(bufnr)[0]
   for index in range(1, s:output_rows + 1, 1)
     if index > rows
       let output = '  '
     else
-      let line = term_getline(a:task.bufnr, index)
+      let line = term_getline(bufnr, index)
       let output = '  '.line
     endif
     call s:AddTaskOutput(output, a:task, a:display, a:list)
@@ -184,7 +234,8 @@ function! s:AddTaskOutputFromVim(task, display, list)
 endfunction
 
 function! s:AddTaskOutputWithFilter(task, display, list)
-  let [rows, cols] = term_getsize(a:task.bufnr)
+  let bufnr = s:GetTaskBufnr(a:task)
+  let [rows, cols] = term_getsize(bufnr)
   let output_count = 0
   let output_list_backward = []
   for index in range(rows, 1, -1)
@@ -192,7 +243,7 @@ function! s:AddTaskOutputWithFilter(task, display, list)
       break
     endif
 
-    let line = term_getline(a:task.bufnr, index)
+    let line = term_getline(bufnr, index)
     if s:HasContent(line) && s:MatchUserDefinedPattern(line, a:task.show, a:task.hide)
       let output_count += 1
       call add(output_list_backward, '  '.line)
@@ -214,7 +265,7 @@ function! s:AddTaskOutputWithFilter(task, display, list)
 endfunction
 
 function! s:HasContent(line)
-  return match(a:line, '^\s*$') == -1 
+  return match(a:line, '^\s*$') == -1
 endfunction
 
 function! s:MatchUserDefinedPattern(line, show, hide)
@@ -242,23 +293,29 @@ function! s:MatchAny(str, pats)
 endfunction
 
 function! s:RunTasksBufferUpdate(input)
-  let tasks = s:FilterRunTasks(copy(project#GetVariable('tasks')), a:input)
-  let [display, list] = s:GetRunTasksDisplay(tasks)
-  call project#SetVariable('list', list)
-  call project#ShowInListBuffer(display, a:input)
-
-  " Move to near task row
-  if project#GetVariable('offset') == 0 && getline('.') !~ '^\w'
-    call project#UpdateOffsetByIndex(search('^\w', 'bnW') - 1)
+  " The timer may fire after the list has closed
+  if !project#list#IsCurrentListBuffer()
+    return
   endif
 
-  call project#HighlightCurrentLine(len(display))
-  call project#HighlightInputChars(a:input)
-  call project#HighlightNoResults()
+  let tasks = s:FilterRunTasks(s:GetTasks(), a:input)
+  let [display, list] = s:GetRunTasksDisplay(tasks)
+  let state = project#list#State()
+  let state.list = list
+  call project#list#Show(display, a:input)
+
+  " Move to near task row
+  if state.offset == 0 && getline('.') !~ '^\w'
+    call project#list#UpdateOffsetByIndex(search('^\w', 'bnW') - 1)
+  endif
+
+  call project#list#HighlightCurrentLine(len(display))
+  call project#list#HighlightInputChars(a:input)
+  call project#list#HighlightNoResults()
   call s:HighlightRunTasksCmdOutput()
 
-  call project#SetVariable('user_input', a:input)
-  call project#RedrawInputLine()
+  let state.user_input = a:input
+  call project#list#RedrawInputLine()
 endfunction
 
 function! s:HighlightRunTasksCmdOutput()
@@ -269,20 +326,46 @@ function! s:HighlightRunTasksCmdOutput()
   call matchadd('Comment', '   \d\+s$')
 endfunction
 
+" <cr> on a task: run it and keep the list open. A task without cmd opens a
+" terminal after the list has closed
+function! s:RunTaskHandler(state)
+  let task = project#list#GetTarget()
+  if empty(task)
+    call project#Warn('No item selected')
+    return 'close'
+  endif
+
+  if s:HasEmptyCmd(task)
+    return 'open'
+  endif
+
+  let keep_window = s:Open(task, 'run_task', a:state.user_input)
+  return keep_window ? '' : 'close'
+endfunction
+
+function! s:StopTaskHandler(state)
+  let task = project#list#GetTarget()
+  if empty(task)
+    return
+  endif
+
+  let index = project#list#GetCurrentIndex()
+  call s:StopTask(task)
+  call s:RunTasksBufferUpdate(a:state.user_input)
+  call project#list#UpdateOffsetByIndex(index)
+endfunction
+
 " @return:
 "   1: keep current window,
 "   0: exit current window
 function! s:Open(task, open_cmd, input)
+  call s:StopTimer()
   if a:open_cmd == 'open_task_terminal'
     return s:OpenTaskTerminal(a:task)
   endif
 
   " Open vim terminal if the task has empty cmd
   if s:HasEmptyCmd(a:task)
-    if a:open_cmd == '@pass'
-      return 0
-    endif
-
     call s:OpenTerminal()
     return 0
   endif
@@ -346,10 +429,10 @@ function! s:HasEmptyName(task)
 endfunction
 
 function! s:GetNvimTaskBufnr(task)
-  if !has_key(a:task, 'bufnr')
+  if !s:HasTaskBufnr(a:task)
     return 0
   endif
-  let job_id = a:task.bufnr
+  let job_id = s:GetTaskBufnr(a:task)
   for buffer in getbufinfo({'buflisted': 1})
     let variables = buffer.variables
     if has_key(variables, 'terminal_job_id') && variables.terminal_job_id == job_id
@@ -368,29 +451,24 @@ function! s:OpenTaskTerminal(task)
     return
   endif
 
-  execute 'sbuffer '.a:task.bufnr
+  if s:HasTaskBufnr(a:task)
+    execute 'sbuffer '.s:GetTaskBufnr(a:task)
+  endif
 endfunction
 
+" Forget the started tasks, when quitting a project
 function! project#run_tasks#Reset()
-  call s:WipeoutTaskBuffer()
-endfunction
-
-function! s:WipeoutTaskBuffer()
-  let tasks = project#GetVariable('tasks')
-  for task in tasks
-    if has_key(task, 'bufnr')
-      unlet task.bufnr
-    endif
-  endfor
+  let s:task_state = {}
 endfunction
 
 function! s:GetTaskStatus(task)
-  if !has_key(a:task, 'bufnr')
+  if !s:HasTaskBufnr(a:task)
     return ''
   endif
 
+  let bufnr = s:GetTaskBufnr(a:task)
   if has('nvim')
-    let status_code = jobwait([a:task.bufnr], 0)[0]
+    let status_code = jobwait([bufnr], 0)[0]
     " Fix cursor flashing after nvim v0.10
     redraw
     if status_code == -1
@@ -399,7 +477,7 @@ function! s:GetTaskStatus(task)
       return 'finished'
     endif
   else
-    return substitute(term_getstatus(a:task.bufnr), ',normal', '', '')
+    return substitute(term_getstatus(bufnr), ',normal', '', '')
   endif
 endfunction
 
@@ -407,9 +485,9 @@ function! s:GetTermRows(task)
   return s:HasFilter(a:task) ? s:output_rows * 10 : s:output_rows
 endfunction
 
-function! s:OnTaskExit(task, job_id, exit_code, ...)
-  let a:task.exit_code = a:exit_code
-  let a:task.finished = strftime("%H:%M")
+function! s:OnTaskExit(task_state, job_id, exit_code, ...)
+  let a:task_state.exit_code = a:exit_code
+  let a:task_state.finished = strftime("%H:%M")
 endfunction
 
 " @return:
@@ -420,7 +498,7 @@ function! s:RunTask(task, full_cmd)
   if has_key(a:task, 'cd')
     let cwd .= '/'.a:task.cd
   endif
-  let options = { 
+  let options = {
         \'cwd': cwd,
         \'term_name': a:task.name,
         \'term_rows': s:GetTermRows(a:task),
@@ -429,32 +507,33 @@ function! s:RunTask(task, full_cmd)
         \}
   let not_started = s:GetTaskStatus(a:task) == ''
   call s:StopTask(a:task)
-  let index = project#GetCurrentIndex()
+  let index = project#list#GetCurrentIndex()
+  let task_state = s:GetTaskState(a:task)
 
   if has('nvim')
     horizontal new
     set winheight=20
-    let options.on_exit = function('s:OnTaskExit', [a:task])
+    let options.on_exit = function('s:OnTaskExit', [task_state])
     " for nvim, bufnr is job id
-    let a:task.bufnr = termopen(a:full_cmd, options)
+    let task_state.bufnr = termopen(a:full_cmd, options)
     hide
   else
-    try 
-      let options.exit_cb = function('s:OnTaskExit', [a:task])
+    try
+      let options.exit_cb = function('s:OnTaskExit', [task_state])
       let shell_prefix = &shell.' '.&shellcmdflag
       let cmd = shell_prefix.' "'.a:full_cmd.'"'
-      let a:task.bufnr = term_start(cmd, options)
+      let task_state.bufnr = term_start(cmd, options)
     catch
       call project#Warn(v:exception)
       return 0
     endtry
   endif
 
-  let a:task.started = strftime("%H:%M")
-  let a:task.started_rel = reltime()
+  let task_state.started = strftime("%H:%M")
+  let task_state.started_rel = reltime()
 
   if not_started
-    call project#UpdateOffsetByIndex(index - (s:output_rows + 2))
+    call project#list#UpdateOffsetByIndex(index - (s:output_rows + 2))
   endif
   return 1
 endfunction
@@ -465,57 +544,22 @@ endfunction
 
 function! s:StopTask(task)
   let is_prev_running = s:GetTaskStatus(a:task) == 'running'
+  let task_state = s:GetTaskState(a:task)
   if !is_prev_running
-    if has_key(a:task, 'bufnr')
-      unlet a:task.bufnr
+    if has_key(task_state, 'bufnr')
+      unlet task_state.bufnr
     endif
     return
   endif
 
   if has('nvim')
-    call jobstop(a:task.bufnr)
+    call jobstop(task_state.bufnr)
   else
-    execute 'bdelete! '.a:task.bufnr
+    execute 'bdelete! '.task_state.bufnr
   endif
-  unlet a:task.bufnr
-endfunction
-
-function! project#run_tasks#StopTaskHandler(input)
-  let index = project#GetCurrentIndex()
-  let task = project#GetTarget()
-  call s:StopTask(task)
-  call s:RunTasksBufferUpdate(a:input)
-  call project#UpdateOffsetByIndex(index)
-endfunction
-
-function! project#run_tasks#DumpTasks()
-  let tasks = project#GetVariable('tasks')
-  return deepcopy(tasks)
-endfunction
-
-function! project#run_tasks#RebindTasks(old_tasks)
-  let tasks = project#GetVariable('tasks')
-  for old_task in a:old_tasks
-    if has_key(old_task, 'bufnr')
-      for task in tasks
-        if task.name == old_task.name
-          let task.bufnr = old_task.bufnr
-          let task.started = old_task.started
-          let task.started_rel = old_task.started_rel
-          let task.duration = old_task.duration
-          if has_key(old_task, 'exit_code')
-            let task.exit_code = old_task.exit_code
-          endif
-          if has_key(old_task, 'finished')
-            let task.finished = old_task.finished
-          endif
-        endif
-      endfor
-    endif
-  endfor
+  unlet task_state.bufnr
 endfunction
 
 function! s:FilterRunTasks(tasks, filter)
   return project#util#FuzzyScore(a:tasks, a:filter, ['name', 'cmd'])
 endfunction
-
