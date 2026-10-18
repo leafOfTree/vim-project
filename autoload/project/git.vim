@@ -451,7 +451,8 @@ function! s:GetDiffCmd(file)
 endfunction
 
 " List entry names of a directory, like `ls` or, with all, `ls -A`
-function! s:ReadDirectory(path, all = 0)
+function! s:ReadDirectory(path, ...)
+  let all = get(a:000, 0, 0)
   if !isdirectory(a:path)
     return []
   endif
@@ -464,7 +465,7 @@ function! s:ReadDirectory(path, all = 0)
     call filter(names, { idx, val -> val != '.' && val != '..' })
   endif
 
-  if !a:all
+  if !all
     call filter(names, { idx, val -> val[0] != '.' })
   endif
   return sort(names)
@@ -1373,7 +1374,8 @@ function! s:SortAffectedFilesFunc(i1, i2)
   return name_1 == name_2 ? 0 : name_1 > name_2 ? 1 : -1
 endfunction
 
-function! s:GetChangedFileDisplay(file, prefix = '  ')
+function! s:GetChangedFileDisplay(file, ...)
+  let prefix = get(a:000, 0, '  ')
   let sign = s:GetFileChangeSign(a:file)
   " sign_mark is used by s:HighlightFiles
   let sign_mark = ''
@@ -1404,29 +1406,31 @@ function! s:GetChangedFileDisplay(file, prefix = '  ')
   " Use unicode space for highlight 
   let dir = substitute(dir, ' ', ' ', '')
   if empty(name)
-    return a:prefix.sign_mark.icon.splitter.dir.' '
+    return prefix.sign_mark.icon.splitter.dir.' '
   else
-    return a:prefix.sign_mark.icon.splitter.name.splitter.' '.dir
+    return prefix.sign_mark.icon.splitter.name.splitter.' '.dir
   endif
 endfunction
 
-function! s:GetShelfFileDisplay(file, prefix = '  ')
+function! s:GetShelfFileDisplay(file, ...)
+  let prefix = get(a:000, 0, '  ')
   " sign_mark is used by s:HighlightFiles
   let sign_mark = ''
   let splitter = '|'
   let icon = project#GetIcon(a:file)
   let segments = split(a:file, s:shelf_path_file_spliter)
   if len(segments) == 1
-    return a:prefix.sign_mark.icon.splitter.a:file.splitter.' '
+    return prefix.sign_mark.icon.splitter.a:file.splitter.' '
   else
     let dir = substitute(segments[0], s:shelf_path_spliter, '/', '')
     let filename = segments[1]
-    return a:prefix.sign_mark.icon.splitter.filename.splitter.' '.dir
+    return prefix.sign_mark.icon.splitter.filename.splitter.' '.dir
   endif
 endfunction
 
-function! s:UpdateChangelist(run_git = 0)
-  if a:run_git
+function! s:UpdateChangelist(...)
+  let run_git = get(a:000, 0, 0)
+  if run_git
     call s:ParseGitStatus()
   endif
 
@@ -1543,7 +1547,8 @@ function! s:OnChangelistBuffer()
   return num != -1
 endfunction
 
-function! s:ShowStatus(run_git = 0)
+function! s:ShowStatus(...)
+  let run_git = get(a:000, 0, 0)
   call s:CloseBuffer(s:commit_result_buffer)
 
   " Ignore events to avoid a cursor bug when opening from Fern.vim
@@ -1557,7 +1562,7 @@ function! s:ShowStatus(run_git = 0)
 
   call s:OpenBuffer(s:changelist_buffer, 'belowright')
   call s:SetupChangelistBuffer()
-  let success = s:UpdateChangelist(a:run_git)
+  let success = s:UpdateChangelist(run_git)
   if success
     call s:WriteChangelist()
     call s:HighlightChangelist()
@@ -1775,9 +1780,10 @@ function! s:TryCommit()
   call s:AddMapping(mappings.force_push, '<SID>TryPush(1)')
 endfunction
 
-function! s:TryPush(force=0)
-  call project#Info(a:force ? 'Force pushing...' : 'Pushing...')
-  let cmd = a:force ? 'git push --force-with-lease' : 'git push'
+function! s:TryPush(...)
+  let force = get(a:000, 0, 0)
+  call project#Info(force ? 'Force pushing...' : 'Pushing...')
+  let cmd = force ? 'git push --force-with-lease' : 'git push'
   let result = project#RunShellCmd(cmd)
   if v:shell_error
     return 

@@ -1,31 +1,77 @@
 name: vim-project test
-on: [push]
-jobs: 
-  Basic-Test:
+on: [push, pull_request]
+
+jobs:
+  # Headless regression tests (test/run.sh) with both editors
+  Test:
     runs-on: ubuntu-latest
-    steps: 
-      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+    strategy:
+      fail-fast: false
+      matrix:
+        editor: [vim, nvim]
+    steps:
       - name: Check out repository code
-        uses: actions/checkout@v3
-      - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
-      - run: echo "🖥️ The workflow is now ready to test your code on the runner."
-      - name: List files in the repository
+        uses: actions/checkout@v4
+
+      - name: Install vim
+        if: matrix.editor == 'vim'
         run: |
-          ls ${{ github.workspace }}
+          sudo apt-get update
+          sudo apt-get -y install vim
+          vim --version | head -1
 
       - name: Install neovim
+        if: matrix.editor == 'nvim'
         run: |
           sudo add-apt-repository ppa:neovim-ppa/stable -y
           sudo apt-get update
           sudo apt-get -y install neovim
+          nvim --version | head -1
+
+      - name: Run tests
+        run: bash test/run.sh ${{ matrix.editor }}
+
+  # vint lint of plugin/ and autoload/. Warnings are reported but do not
+  # fail the build yet; errors do.
+  Lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install vint
+        # vint still imports pkg_resources, which setuptools >= 81 removed
+        run: pip install "setuptools<81" vim-vint
+
+      - name: vint (warnings, informational)
+        continue-on-error: true
+        run: vint --warning plugin autoload
+
+      - name: vint (errors, must pass)
+        run: vint --error plugin autoload
+
+  # Original end-to-end check driven by leafOfTree/vim-test
+  Basic-Test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Install vim and neovim
+        run: |
+          sudo add-apt-repository ppa:neovim-ppa/stable -y
+          sudo apt-get update
+          sudo apt-get -y install vim neovim
+
       - name: Clone vim-test
         run: |
-          git clone https://github.com/leafOfTree/vim-test ../vim-test --depth=1 
+          git clone https://github.com/leafOfTree/vim-test ../vim-test --depth=1
 
       - name: Run test
         run: |
           bash ../vim-test/start.sh project vim-project basic
-
-      - run: echo "🍏 This job's status is ${{ job.status }}."

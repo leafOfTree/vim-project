@@ -42,7 +42,7 @@ function! s:ShouldRunWithTimer(input)
   return (s:prev_input != a:input) && !empty(a:input)
 endfunction
 
-function! s:Update(input, id = 0)
+function! s:Update(input, ...)
   let use_cache = a:input == s:prev_input && !empty(s:prev_list)
   if use_cache
     let list = s:prev_list
@@ -313,7 +313,8 @@ function! s:GetSearchFilesByFilterForDirectory(input)
   return list
 endfunction
 
-function! s:GetSearchFilesByFilterForAll(input, match_fullpath = 0)
+function! s:GetSearchFilesByFilterForAll(input, ...)
+  let match_fullpath = get(a:000, 0, 0)
   let filter_origin = a:input
   let max_height = s:GetMaxHeight()
   let list = []
@@ -354,7 +355,7 @@ function! s:GetSearchFilesByFilterForAll(input, match_fullpath = 0)
     let list += list_extra
   endif
 
-  if !a:match_fullpath
+  if !match_fullpath
     return list
   endif
 

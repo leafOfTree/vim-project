@@ -68,6 +68,7 @@ Project-wide
 * [Statusline](#statusline)
   * [Title](#title)
 * [Debug](#debug)
+* [Development](#development)
 * [Credits](#credits)
 
 ## Basic Usage
@@ -720,6 +721,38 @@ If something goes wrong, you can try
 - `:ProjectAllInfo`
 - `:echo g:vim_project`
 - `:let g:vim_project_config.debug = 1`
+
+## Development
+
+Regression tests live in `test/`. They run headlessly in Vim and Neovim, with
+an isolated config home, and cover the pure helpers (path handling, input
+editing, column layout, config merging, grep command generation, project
+filtering, git status parsing) plus the list window's error recovery.
+
+Run them with every editor found on your machine, or pick one:
+
+```sh
+bash test/run.sh
+bash test/run.sh nvim
+bash test/run.sh vim
+```
+
+Each test is a global `Test_*` function in `test/cases/*.vim` that uses the
+built-in `assert_*` functions. Script-local functions are reached through
+`Helper_Call('autoload/project.vim', 'FuncName', [args])`, and script-local
+variables through `Helper_ScriptVar(...)` (see `test/helpers.vim`).
+
+Lint with [vint](https://github.com/Vimjas/vint). CI fails on errors only;
+warnings are informational for now:
+
+```sh
+pip install "setuptools<81" vim-vint
+vint --error plugin autoload
+vint --warning plugin autoload
+```
+
+CI (`.github/workflows/main.yml`) runs the tests with both editors, the vint
+check, and the end-to-end case from [vim-test](https://github.com/leafOfTree/vim-test).
 
 ## Credits
 
