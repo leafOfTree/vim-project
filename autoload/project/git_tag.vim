@@ -49,7 +49,7 @@ function! s:Open(tag, open_cmd, input)
     return
   endif
 
-  let cmd = 'git checkout '.a:tag.name
+  let cmd = 'git checkout '.shellescape(a:tag.name)
 
   call project#RunShellCmd(cmd)
   if v:shell_error

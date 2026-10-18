@@ -153,7 +153,7 @@ function! s:AddDiffDetails(hash, file)
   if is_diff_line
     let changes = s:commit_diffs[a:hash]
   else
-    let cmd = 'git show --first-parent --pretty=format:"" '.a:hash.' -- "'.a:file.'"'
+    let cmd = 'git show --first-parent --pretty=format:"" '.shellescape(a:hash).' -- '.shellescape(a:file)
     let changes = project#RunShellCmd(cmd)
   endif
 
@@ -292,7 +292,10 @@ function! s:OpenGitLog(revision, cmd, input)
     call s:ShowDiffOnGitLog(a:revision.hash)
   endif
 
-  execute 'autocmd CursorMoved <buffer> call s:ShowDiffOnGitLog("'.a:revision.hash.'")'
+  augroup vim-project-git-log
+    autocmd! * <buffer>
+    execute 'autocmd CursorMoved <buffer> call s:ShowDiffOnGitLog("'.a:revision.hash.'")'
+  augroup END
 endfunction
 
 function! s:CloseGitLog()
@@ -366,7 +369,10 @@ function! s:SetupChangesBuffer(revision)
 
   setlocal buftype=nofile bufhidden=wipe nobuflisted
   setlocal nowrap
-  autocmd BufUnload <buffer> call s:CloseChangesBuffer()
+  augroup vim-project-git-changes
+    autocmd! * <buffer>
+    autocmd BufUnload <buffer> call s:CloseChangesBuffer()
+  augroup END
   let s:current_line = 0
   let mappings = project#GetVariable('git_changes_mappings')
   call s:AddMapping(mappings.open_file, '<SID>OpenChangedFile()')
@@ -433,12 +439,13 @@ function! s:ShowDiffOnChangelist()
 endfunction
 
 function! s:GetDiffCmd(file)
+  let file = shellescape(a:file)
   if s:IsStagedFile(a:file)
-    let cmd = 'git diff --staged -- "'.a:file.'"'
+    let cmd = 'git diff --staged -- '.file
   elseif s:IsUntrackedFile(a:file)
-    let cmd = 'git diff --no-index -- /dev/null "'.a:file.'"'
+    let cmd = 'git diff --no-index -- /dev/null '.file
   else
-    let cmd = 'git diff -- "'.a:file.'"'
+    let cmd = 'git diff -- '.file
   endif
   return cmd
 endfunction
@@ -599,7 +606,7 @@ function! s:ShowDiffOnGitLog(hash)
 endfunction
 
 function! s:GetChangedFiles(revision)
-  let cmd = 'git diff-tree --no-commit-id --name-status -r -m --root '.a:revision.hash
+  let cmd = 'git diff-tree --no-commit-id --name-status -r -m --root '.shellescape(a:revision.hash)
   let changed_files = map(project#RunShellCmd(cmd), 'substitute(v:val, "\t", " ", "")')
   if v:shell_error
     return []
@@ -723,7 +730,7 @@ endfunction
 
 function! project#git#CheckoutRevision()
   let target = project#GetTarget()
-  let cmd = 'git checkout '.target.hash
+  let cmd = 'git checkout '.shellescape(target.hash)
   call project#RunShellCmd(cmd)
   if v:shell_error
     return
@@ -740,7 +747,7 @@ function! project#git#MergeBranch()
 
   let target = project#GetTarget()
   let name = target.name
-  let cmd = 'git merge '.name
+  let cmd = 'git merge '.shellescape(name)
 
   call project#RunShellCmd(cmd)
   if v:shell_error
@@ -782,7 +789,7 @@ function! s:LoadChangelist()
   if !empty(changelist)
     let s:changelist = changelist
   else
-    let s:changelist = s:changelist_default
+    let s:changelist = deepcopy(s:changelist_default)
   endif
 endfunction
 
@@ -887,13 +894,13 @@ function! s:ShelfFile() range
     let segments = split(file, '/\|\\')
     let diff_cmd = s:GetDiffCmd(file)
     if len(segments) == 1
-      let cmd = diff_cmd.' > '.folder.'/'.file.'.diff'
+      let diff_file = file
     else
       let dir = segments[:-2]
       let filename = segments[-1]
       let diff_file = s:GetDiffFilePath(dir, filename)
-      let cmd = diff_cmd.' > '.folder.'/'.diff_file.'.diff'
     endif
+    let cmd = diff_cmd.' > '.shellescape(folder.'/'.diff_file.'.diff')
     call project#RunShellCmd(cmd)
     if v:shell_error
       break
@@ -923,13 +930,13 @@ function! s:UnshelfFile() range
   let folder = s:GetCurrentFolder(lnum)
   if empty(folder)
     let lines = range(a:firstline, a:lastline)
-    let files = map(lines, {idx, v -> s:GetDiffFileByLine(v)})
+    let files = map(lines, {idx, v -> shellescape(s:GetDiffFileByLine(v))})
     let diff_files = join(files, ' ')
   else
     let folder_name = folder.name
     let files = folder.files
     let shelf_folder = s:GetShelfFolder()
-    let diff_files = join(map(copy(files), {idx, v -> shelf_folder.'/'.folder_name.'/'.v}), ' ')
+    let diff_files = join(map(copy(files), {idx, v -> shellescape(shelf_folder.'/'.folder_name.'/'.v)}), ' ')
   endif
   let cmd = 'git apply '.diff_files
   call project#RunShellCmd(cmd)
@@ -960,9 +967,9 @@ function! s:RollbackFile() range
         endif
       else
         if s:IsFileUntracked(file)
-          let cmd = 'git clean -fd "'.file.'"'
+          let cmd = 'git clean -fd '.shellescape(file)
         else
-          let cmd = 'git restore -- "'.file.'"'
+          let cmd = 'git restore -- '.shellescape(file)
         endif
         call project#RunShellCmd(cmd)
         if v:shell_error
@@ -980,7 +987,7 @@ function! s:RollbackFile() range
 endfunction
 
 function! s:IsFileUntracked(file)
-  let cmd = 'git ls-files --error-unmatch "'.a:file.'"'
+  let cmd = 'git ls-files --error-unmatch '.shellescape(a:file)
   call project#RunShellCmd(cmd, 0)
   return v:shell_error
 endfunction
@@ -1471,7 +1478,7 @@ function! s:FindUnmergedFolder()
     endif
   endfor
 
-  let default_folder = s:changelist_default[-3]
+  let default_folder = s:GetDefaultFolder(s:unmerged_folder_name)
   call add(s:changelist, default_folder)
   return default_folder
 endfunction
@@ -1483,7 +1490,7 @@ function! s:FindUntrackedFolder()
     endif
   endfor
 
-  let default_folder = s:changelist_default[-2]
+  let default_folder = s:GetDefaultFolder(s:untracked_folder_name)
   call add(s:changelist, default_folder)
   return default_folder
 endfunction
@@ -1495,9 +1502,19 @@ function! s:FindStagedFolder()
     endif
   endfor
 
-  let default_folder = s:changelist_default[-1]
+  let default_folder = s:GetDefaultFolder(s:staged_folder_name)
   call add(s:changelist, default_folder)
   return default_folder
+endfunction
+
+" Return a fresh copy so s:changelist_default itself is never mutated
+function! s:GetDefaultFolder(name)
+  for folder in s:changelist_default
+    if folder.name == a:name
+      return deepcopy(folder)
+    endif
+  endfor
+  return { 'name': a:name, 'files': [], 'expand': 0 }
 endfunction
 
 function! s:IsDefaultFolder(folder)
@@ -1591,9 +1608,12 @@ function! s:SetupChangelistBuffer()
   setlocal nonumber
   setlocal nowrap
 
-  autocmd CursorMoved <buffer> call s:ShowDiffOnChangelist()
-  autocmd BufUnload <buffer> call s:CloseChangesBuffer()
-  autocmd BufUnload <buffer> call s:WriteChangelistFile()
+  augroup vim-project-git-changelist
+    autocmd! * <buffer>
+    autocmd CursorMoved <buffer> call s:ShowDiffOnChangelist()
+    autocmd BufUnload <buffer> call s:CloseChangesBuffer()
+    autocmd BufUnload <buffer> call s:WriteChangelistFile()
+  augroup END
   let s:current_line = 1
 endfunction
 
@@ -1705,7 +1725,10 @@ function! s:ShowCommitMessage(message, files)
 
   setlocal buftype=nofile bufhidden=wipe nobuflisted filetype=gitcommit
   syntax match Normal /#\s\{4}\zs.*/ containedin=gitcommitSelected
-  autocmd WinClosed <buffer> ++once call s:TryCommit()
+  augroup vim-project-git-commit
+    autocmd! * <buffer>
+    autocmd WinClosed <buffer> ++once call s:TryCommit()
+  augroup END
 endfunction
 
 function! s:TryCommit()
@@ -1720,8 +1743,16 @@ function! s:TryCommit()
     return
   endif
 
-  let files = join(map(s:commit_files, {idx, val -> '"'.val.'"'}), ' ')
-  let message = join(map(message_lines, {idx, val -> '-m "'.escape(val, '"`').'"'}), ' ')
+  let files = join(map(copy(s:commit_files), {idx, val -> shellescape(val)}), ' ')
+
+  " Pass the message through a file so the shell never interprets it
+  let message = ''
+  let message_file = ''
+  if !is_empty_message
+    let message_file = tempname()
+    call writefile(message_lines, message_file)
+    let message = '-F '.shellescape(message_file)
+  endif
 
   let option = ''
   if is_amend
@@ -1730,6 +1761,9 @@ function! s:TryCommit()
 
   let cmd = 'git add '.files.' && git commit '.message.option
   let result = project#RunShellCmd(cmd)
+  if !empty(message_file)
+    call delete(message_file)
+  endif
 
   quit
   call s:OpenResultWindow(s:commit_result_buffer, cmd, result)
@@ -1753,7 +1787,7 @@ function! s:TryPush(force=0)
   if len(result) == 1
     call project#Info(result[0])
   else
-    call project#Info('Pushed sucessfully')
+    call project#Info('Pushed successfully')
   endif
   call s:CloseBuffer(s:commit_result_buffer)
 endfunction
@@ -1779,7 +1813,7 @@ function! s:TryPull()
   if len(result) == 1
     call project#Info(result[0])
   else
-    call project#Info('Updated sucessfully')
+    call project#Info('Updated successfully')
   endif
   call project#search_files#Reset()
 endfunction
