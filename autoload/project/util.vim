@@ -14,9 +14,25 @@ function! project#util#Match(string, pattern)
   return match(a:string, a:pattern) != -1
 endfunction
 
-" 'foo bar' -> 'foo.*bar', so words match in order anywhere in the text
+" Patterns below match the input literally: under \V only a backslash is
+" special, so '~' (E33 otherwise), '[', '.' and '*' mean themselves
+
+" 'foo' -> 'foo' as a literal pattern
+function! project#util#LiteralRegexp(input)
+  return '\V'.escape(a:input, '\')
+endfunction
+
+" 'abc' -> 'a.*b.*c', each char matched literally
+function! project#util#FuzzyRegexp(input)
+  let chars = map(split(a:input, '\zs'), {_, char -> escape(char, '\')})
+  return '\V'.join(chars, '\.\*')
+endfunction
+
+" 'foo bar' -> 'foo.*bar', so words match in order anywhere in the text.
+" The lists using it (git log, branch, tag) do not promise regexp input
 function! project#util#GetRegexpFilter(input)
-  return join(split(a:input, ' '), '.*')
+  let words = map(split(a:input, ' '), {_, word -> escape(word, '\')})
+  return '\V'.join(words, '\.\*')
 endfunction
 
 function! project#util#HasArgs(task)
@@ -57,10 +73,7 @@ endfunction
 " The sort puts the best item last, as the list is shown bottom-up.
 function! project#util#FuzzyScore(items, input, fields, ...)
   let opts = get(a:000, 0, {})
-  " Each typed char is matched literally: under \V only a backslash is
-  " special, so '~' (E33 otherwise), '[', '.' and '*' mean themselves
-  let chars = map(split(a:input, '\zs'), {_, char -> escape(char, '\')})
-  let regexp = '\V'.join(chars, '\.\*')
+  let regexp = project#util#FuzzyRegexp(a:input)
   let scored = []
 
   for item in a:items
