@@ -475,15 +475,17 @@ function! s:GetGrepCmd(pattern, flags)
   let exclude_arg = join(
         \map(exclude,{_, val -> '--exclude-dir '.val}), ' ')
 
-  let search_arg = '--line-number --recursive'
+  let search_arg = '--line-number --recursive --binary-files=without-match'
   if !project#Include(a:flags, 'C')
     let search_arg .= ' --ignore-case'
   endif
-  if !project#Include(a:flags, 'E')
+  if project#Include(a:flags, 'E')
+    let search_arg .= ' --extended-regexp'
+  else
     let search_arg .= ' --fixed-strings'
   endif
 
-  let cmd = 'fgrep '.search_arg.' '.include_arg.' '.exclude_arg.' -- '.a:pattern
+  let cmd = 'grep '.search_arg.' '.include_arg.' '.exclude_arg.' -- '.a:pattern
   return cmd
 endfunction
 
@@ -515,7 +517,7 @@ function! s:GetRgCmd(pattern, flags)
 endfunction
 
 function! s:RunExternalGrep(search, flags, full_input)
-  let pattern = '"'.escape(a:search, '"$').'"'
+  let pattern = shellescape(a:search)
   let cmd = s:grep_cmd_func(pattern, a:flags)
 
   let output = project#RunShellCmd(cmd)

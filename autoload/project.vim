@@ -7,6 +7,7 @@ function! s:Prepare()
   let s:ruler_save = &ruler
   let s:initial_height = 0
   let s:head_file_job = 0
+  let s:file_mapping_keys = []
   let s:project = {}
   let s:branch = ''
   let s:branch_default = ''
@@ -1272,8 +1273,8 @@ function! project#Tabulate(list, keys, min_col_width = 0, max_col_width = &colum
         let value = project#ReplaceHomeWithTide(item[key])
         let item['__'.key] = value
 
-        if !has_key(max, key) || len(value) > max[key]
-          let max[key] = len(value)
+        if !has_key(max, key) || strdisplaywidth(value) > max[key]
+          let max[key] = strdisplaywidth(value)
         endif
       endif
     endfor
@@ -1290,12 +1291,12 @@ function! project#Tabulate(list, keys, min_col_width = 0, max_col_width = &colum
       for key in a:keys
         if has_key(item, key)
           let value = item['__'.key]
-          if len(value) > a:max_col_width
+          if strdisplaywidth(value) > a:max_col_width
             let value = s:Truncate(value, a:max_col_width, '..')
             let item['__'.key] = value
           endif
-          if !has_key(max, key) || len(value) > max[key]
-            let max[key] = len(value)
+          if !has_key(max, key) || strdisplaywidth(value) > max[key]
+            let max[key] = strdisplaywidth(value)
           endif
         endif
       endfor
@@ -1313,8 +1314,17 @@ function! project#Tabulate(list, keys, min_col_width = 0, max_col_width = &colum
   endfor
 endfunction
 
+" Cut by display width (not bytes) so multibyte text is never split
 function! s:Truncate(value, max_width, placeholder)
-  return a:value[0 : a:max_width - len(a:placeholder)].a:placeholder
+  let width = a:max_width - strdisplaywidth(a:placeholder) + 1
+  let result = ''
+  for char in split(a:value, '\zs')
+    if strdisplaywidth(result.char) > width
+      break
+    endif
+    let result .= char
+  endfor
+  return result.a:placeholder
 endfunction
 
 function! s:GetListCommand(char)
@@ -1362,7 +1372,7 @@ endfunction
 
 function! project#RunShellCmd(cmd, warning=1)
   let cd_option = s:is_win_version ? '/d' : ''
-  let cmd = 'cd '.cd_option.' '.$vim_project.' && '.a:cmd
+  let cmd = 'cd '.cd_option.' '.shellescape($vim_project).' && '.a:cmd
   try
     let output = systemlist(cmd)
   catch
@@ -1428,11 +1438,24 @@ function! s:ShowInitialInputLine(input, ...)
 endfunction
 
 function! project#RenderList(Init, Update, Open, Close = v:null)
-  let input = s:InitListVariables(a:Init)
-  call s:ShowInitialInputLine(input)
-  let [cmd, input] = s:HandleInput(input, a:Update, a:Open)
-  call s:CloseListBuffer(cmd)
-  call s:RecoverNeovideAnimation()
+  let cmd = 'close_list'
+  let input = ''
+  let error = ''
+  try
+    let input = s:InitListVariables(a:Init)
+    call s:ShowInitialInputLine(input)
+    let [cmd, input] = s:HandleInput(input, a:Update, a:Open)
+  catch
+    let cmd = 'error'
+    let error = v:exception.' ('.v:throwpoint.')'
+  finally
+    " Always close the list and restore laststatus/ruler
+    call s:CloseListBuffer(cmd)
+    call s:RecoverNeovideAnimation()
+  endtry
+  if !empty(error)
+    call project#Warn(error)
+  endif
 
   if s:IsOpenCmd(cmd)
     call s:OpenTarget(cmd, input, a:Open)
@@ -1489,9 +1512,7 @@ function! s:GetUserInputChar()
 endfunction
 
 function! s:ClearCharOfInput(input)
-  let length = len(a:input)
-  let input = length == 1 ? '' : a:input[0:length-2]
-  return input
+  return strcharpart(a:input, 0, strchars(a:input) - 1)
 endfunction
 
 function! s:ClearWordOfInput(input)
@@ -1953,6 +1974,8 @@ function! s:QuitProject()
     call s:SaveSession()
     call s:SourceQuitFile()
     call s:UnwatchOnInitFileChange()
+    call s:UnmapFile()
+    call s:StopWatchJob()
 
     let s:list_history = {}
     let s:project = {}
@@ -2186,13 +2209,7 @@ function! s:FindBranch()
   let head_file = s:project.fullpath.'/.git/HEAD'
   if filereadable(head_file)
     let head = join(readfile(head_file), "\n")
-
-    if !v:shell_error
-      let s:branch = matchstr(head, 'refs\/heads\/\zs.*')
-    else
-      call project#Warn('Error on find branch: '.v:shell_error)
-      let s:branch = s:branch_default
-    endif
+    let s:branch = matchstr(head, 'refs\/heads\/\zs.*')
     call s:Debug('Find branch: '.s:branch)
   else
     call s:Info('Not a git repository')
@@ -2303,19 +2320,24 @@ function! s:GetWatchCmd()
 endfunction
 
 function! s:WatchHeadFileVim(cmd)
-  if type(s:head_file_job) == v:t_job
-    call job_stop(s:head_file_job)
-  endif
+  call s:StopWatchJob()
   let s:head_file_job = job_start(a:cmd,
         \ { 'callback': 'VimProjectReloadSession' })
 endfunction
 
 function! s:WatchHeadFileNeoVim(cmd)
-  if s:head_file_job
-    call jobstop(s:head_file_job)
-  endif
+  call s:StopWatchJob()
   let s:head_file_job = jobstart(a:cmd,
         \ { 'on_stdout': 'VimProjectReloadSession' })
+endfunction
+
+function! s:StopWatchJob()
+  if exists('*job_stop') && type(s:head_file_job) == v:t_job
+    call job_stop(s:head_file_job)
+  elseif exists('*jobstop') && type(s:head_file_job) == v:t_number && s:head_file_job > 0
+    silent! call jobstop(s:head_file_job)
+  endif
+  let s:head_file_job = 0
 endfunction
 
 function! s:SaveSession()
@@ -2326,10 +2348,10 @@ function! s:SaveSession()
   if project#ProjectExist()
     call s:BeforeSaveSession()
 
-  let folder = s:GetSessionFolder()
-  if !isdirectory(folder) && exists('*mkdir')
-    call mkdir(folder, 'p')
-  endif
+    let folder = s:GetSessionFolder()
+    if !isdirectory(folder) && exists('*mkdir')
+      call mkdir(folder, 'p')
+    endif
 
     let file = s:GetSessionFile()
     call s:Debug('Save session to: '.file)
@@ -2438,6 +2460,7 @@ function! VimProjectReloadSession(channel, msg, ...)
 endfunction
 
 function! s:MapFile()
+  call s:UnmapFile()
   let config = s:file_mappings
 
   for [key, V] in items(config)
@@ -2458,17 +2481,30 @@ endfunction
 
 function! s:MapDirectFile(key, file)
   for [open_key, open_type] in items(s:open_types)
-    execute "nnoremap '".open_key.a:key.' :update<cr>'
-          \.':call <SID>OpenFile("'.open_type.'", "'.a:file.'")<cr>'
+    call s:AddFileMapping(open_key.a:key,
+          \':call <SID>OpenFile("'.open_type.'", "'.a:file.'")<cr>')
   endfor
 endfunction
 
 function! s:MapLinkedFile(key, files)
   for [open_key, open_type] in items(s:open_types)
-    execute "nnoremap '".open_key.a:key
-          \.' :update<cr>:call <SID>GotoLinkedFile('
-          \.s:ListToString(a:files).', '.'"'.open_type.'")<cr>'
+    call s:AddFileMapping(open_key.a:key,
+          \':call <SID>GotoLinkedFile('.s:ListToString(a:files).', "'.open_type.'")<cr>')
   endfor
+endfunction
+
+function! s:AddFileMapping(key, rhs)
+  let lhs = "'".a:key
+  execute 'nnoremap '.lhs.' :update<cr>'.a:rhs
+  call add(s:file_mapping_keys, lhs)
+endfunction
+
+" Remove mappings added by s:MapFile so they do not leak into other projects
+function! s:UnmapFile()
+  for lhs in s:file_mapping_keys
+    silent! execute 'nunmap '.lhs
+  endfor
+  let s:file_mapping_keys = []
 endfunction
 
 function! s:ListToString(list)
@@ -2482,11 +2518,9 @@ function! s:CallCustomFunc(key)
 endfunction
 
 function! s:MapCustomFile(key)
-  let sid = expand('<SID>')
   for [open_key, open_type] in items(s:open_types)
-    execute "nnoremap '".open_key.a:key
-          \.' :update<cr>'
-          \.' :call <SID>OpenFile("'.open_type.'", <SID>CallCustomFunc("'.a:key.'"))<cr>'
+    call s:AddFileMapping(open_key.a:key,
+          \':call <SID>OpenFile("'.open_type.'", <SID>CallCustomFunc("'.a:key.'"))<cr>')
   endfor
 endfunction
 
@@ -2682,7 +2716,8 @@ function! project#ShortenDate(origin)
 endfunction
 
 function! project#RemoveEmptyLines()
-  silent! %s/$//g
+  silent! %s/
+$//g
 endfunction
 
 try

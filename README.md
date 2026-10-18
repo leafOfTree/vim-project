@@ -154,7 +154,7 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 | ProjectNew `<path>`        | Create a new folder as project at `path` by running predefined tasks |
 | ProjectList                | Show all projects                        |
 | ProjectSearchFiles         | Search files by name                     |
-| ProjectSearchFilesRest     | Reset search files, useful when new files added outside |
+| ProjectSearchFilesReset    | Reset search files, useful when new files added outside |
 | ProjectFindInFiles         | Find given string/regexp (at least 2 chars) in files |
 | ProjectRun                 | Run a task defined by `tasks` config     |
 | ProjectGitLog              | Show git log                             |
@@ -472,7 +472,7 @@ let g:vim_project_config.list_mappings_find_in_files = {
       \'open_tabedit':         "\<c-t>",
       \'replace_prompt':       "\<c-r>",
       \'replace_dismiss_item': "\<c-d>",
-      \'replace_confirm':      "\<cr>",
+      \'replace_confirm':      "\<c-y>",
       \}
 let g:vim_project_config.list_mappings_run_tasks = {
       \'run_task':              "\<cr>",
@@ -528,7 +528,7 @@ The config files are located at `~/.vim/vim-project-config/`, where `~/.vim/vim-
 ```
 ~/.vim/vim-project-config/
      | project.add.vim            " Added projects
-     | project.igonre.vim         " Ignored projects
+     | project.ignore.vim         " Ignored projects
      | <project-name>/
          | init.vim
          | quit.vim

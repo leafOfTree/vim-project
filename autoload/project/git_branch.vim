@@ -52,12 +52,12 @@ function! s:Open(branch, open_cmd, input)
   let is_head = s:IsHead(name)
   let name_exist = s:CheckNameExist(name)
 
-  if is_head 
-    let cmd = 'git checkout '.a:branch.name
+  if is_head
+    let cmd = 'git checkout '.shellescape(a:branch.name)
   elseif name_exist
-    let cmd = 'git switch '.name
+    let cmd = 'git switch '.shellescape(name)
   else
-    let cmd = 'git switch -c '.name.' '.a:branch.name
+    let cmd = 'git switch -c '.shellescape(name).' '.shellescape(a:branch.name)
   endif
 
   call project#RunShellCmd(cmd)
@@ -65,7 +65,7 @@ function! s:Open(branch, open_cmd, input)
     return
   endif
   if !is_head
-    let set_upstream_cmd = 'git branch --set-upstream-to '.a:branch.name
+    let set_upstream_cmd = 'git branch --set-upstream-to '.shellescape(a:branch.name)
     call project#RunShellCmd(set_upstream_cmd)
     if v:shell_error
       return
@@ -97,7 +97,7 @@ function! s:CreateNewBranch()
 
   let name = s:GetSafeBranchName(raw_name)
 
-  let cmd = 'git switch -c '.name
+  let cmd = 'git switch -c '.shellescape(name)
   call project#RunShellCmd(cmd)
   if v:shell_error
     return
@@ -111,7 +111,7 @@ function! s:IsHead(name)
 endfunction
 
 function! s:CheckNameExist(name)
-  let check_exist_cmd = 'git show-ref --verify --quiet refs/heads/'.a:name
+  let check_exist_cmd = 'git show-ref --verify --quiet '.shellescape('refs/heads/'.a:name)
   call project#RunShellCmd(check_exist_cmd)
   return !v:shell_error
 endfunction
