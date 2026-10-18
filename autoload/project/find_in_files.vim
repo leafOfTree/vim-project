@@ -564,7 +564,7 @@ endfunction
 
 function! s:RunVimGrep(search, flags, full_input)
   let original_wildignore = &wildignore
-  for exclude in s:find_in_files_exclude
+  for exclude in s:GetExclude()
     execute 'set wildignore+=*/'.exclude.'*'
   endfor
 

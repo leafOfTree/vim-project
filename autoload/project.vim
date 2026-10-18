@@ -1262,7 +1262,9 @@ function! project#TabulateFixed(list, keys, widths)
   endfor
 endfunction
 
-function! project#Tabulate(list, keys, min_col_width = 0, max_col_width = &columns)
+function! project#Tabulate(list, keys, ...)
+  let min_col_width = get(a:000, 0, 0)
+  let max_col_width = get(a:000, 1, &columns)
   " Init max width of each column
   let max = {}
 
@@ -1291,8 +1293,8 @@ function! project#Tabulate(list, keys, min_col_width = 0, max_col_width = &colum
       for key in a:keys
         if has_key(item, key)
           let value = item['__'.key]
-          if strdisplaywidth(value) > a:max_col_width
-            let value = s:Truncate(value, a:max_col_width, '..')
+          if strdisplaywidth(value) > max_col_width
+            let value = s:Truncate(value, max_col_width, '..')
             let item['__'.key] = value
           endif
           if !has_key(max, key) || strdisplaywidth(value) > max[key]
@@ -1307,7 +1309,7 @@ function! project#Tabulate(list, keys, min_col_width = 0, max_col_width = &colum
   for item in a:list
     for key in a:keys
       if has_key(item, key)
-        let max_width = max([max[key], a:min_col_width])
+        let max_width = max([max[key], min_col_width])
         let item['__'.key] = s:AddRightPadding(item['__'.key], max_width)
       endif
     endfor
@@ -1370,7 +1372,8 @@ function! s:HasFile(list, file)
   return 0
 endfunction
 
-function! project#RunShellCmd(cmd, warning=1)
+function! project#RunShellCmd(cmd, ...)
+  let warning = get(a:000, 0, 1)
   let cd_option = s:is_win_version ? '/d' : ''
   let cmd = 'cd '.cd_option.' '.shellescape($vim_project).' && '.a:cmd
   try
@@ -1382,7 +1385,7 @@ function! project#RunShellCmd(cmd, warning=1)
   endtry
 
   if v:shell_error
-    if !empty(output) && a:warning
+    if !empty(output) && warning
       call project#Warn('----------------------------------------')
       call project#Warn(a:cmd)
       for error in output
@@ -1437,7 +1440,8 @@ function! s:ShowInitialInputLine(input, ...)
   call s:ShowInputLine(a:input)
 endfunction
 
-function! project#RenderList(Init, Update, Open, Close = v:null)
+function! project#RenderList(Init, Update, Open, ...)
+  let Close = get(a:000, 0, v:null)
   let cmd = 'close_list'
   let input = ''
   let error = ''
@@ -1462,8 +1466,8 @@ function! project#RenderList(Init, Update, Open, Close = v:null)
   endif
   call s:SaveListState(input)
   call s:ResetListVariables()
-  if !s:IsOpenCmd(cmd) && a:Close != v:null
-    call a:Close()
+  if !s:IsOpenCmd(cmd) && Close != v:null
+    call Close()
   endif
   call project#InfoOnCloseList()
 endfunction
