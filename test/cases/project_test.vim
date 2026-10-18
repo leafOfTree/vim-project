@@ -287,3 +287,34 @@ function! Test_RunShellCmd_returns_empty_list_on_error()
     let $vim_project = saved
   endtry
 endfunction
+
+" ---------------------------------------------------------------- buffer cleanup
+
+" Regression: a lost literal CR once split '%s/^M$//g' into two lines, and
+" the stray '$//g' searched for the last search pattern, raising E486
+" whenever git diffs were shown after searching for something absent.
+function! Test_RemoveEmptyLines_strips_CR_and_ignores_last_search()
+  let saved_search = @/
+  let @/ = 'vim_project_pattern_that_is_never_present'
+  new
+  try
+    call setline(1, ["a\r", 'b', "c\r"])
+    call project#RemoveEmptyLines()
+    call assert_equal(['a', 'b', 'c'], getline(1, '$'))
+
+    " No CR at all must not raise either
+    call project#RemoveEmptyLines()
+    call assert_equal(['a', 'b', 'c'], getline(1, '$'))
+  finally
+    bwipeout!
+    let @/ = saved_search
+  endtry
+endfunction
+
+function! Test_autoload_sources_have_no_stray_carriage_returns()
+  for file in glob(g:vim_project_test_root.'/autoload/**/*.vim', 0, 1)
+        \ + glob(g:vim_project_test_root.'/plugin/*.vim', 0, 1)
+    let crs = filter(readfile(file, 'b'), {_, line -> line =~ "\r"})
+    call assert_equal([], crs, 'CR byte in '.file)
+  endfor
+endfunction

@@ -16,6 +16,7 @@ set shortmess+=F
 
 let s:test_dir = expand('<sfile>:p:h')
 let s:root = fnamemodify(s:test_dir, ':h')
+let g:vim_project_test_root = s:root
 
 " Everything the plugin writes goes under this temporary directory.
 let g:vim_project_test_tmp = fnamemodify(tempname(), ':p:h').'/vim-project-test-'.getpid()
