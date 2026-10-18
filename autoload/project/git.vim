@@ -1,3 +1,6 @@
+" Script id prefix (<SNR>N_) so s: functions can be named in input() completion
+let s:sid = expand('<SID>')
+
 let s:list = []
 let s:display = []
 let s:input = ''
@@ -57,8 +60,7 @@ let s:changelist_default = [
 let s:item_splitter = '----------------------------------------------------------------------------'
 
 function! project#git#FileHistory(...)
-  if !project#ProjectExist()
-    call project#Warn('Open a project first')
+  if !project#util#RequireProject()
     return
   endif
 
@@ -215,8 +217,7 @@ function! s:CloseFileHistory()
 endfunction
 
 function! project#git#Log()
-  if !project#ProjectExist()
-    call project#Warn('Open a project first')
+  if !project#util#RequireProject()
     return
   endif
 
@@ -489,7 +490,7 @@ function! s:AddChangeDetails(file)
   endif
 
   let buf_nr = s:GetBufnr(s:diff_buffer)
-  call s:RunJob(s:GetDiffCmd(a:file), 'VimProjectAddChangeDetails', buf_nr)
+  call s:RunJob(s:GetDiffCmd(a:file), function('s:OnChangeDetailsReady'), buf_nr)
 endfunction
 
 function! s:AddLinesToDiffBuffer(lines)
@@ -522,7 +523,7 @@ function! s:IsStagedFile(file)
 endfunction
 
 function! s:IsShelfFile(file)
-  return s:Match(a:file, '\.\(diff\|patch\)$')
+  return project#util#Match(a:file, '\.\(diff\|patch\)$')
 endfunction
 
 function! s:TryGetDiffFile(file)
@@ -537,7 +538,7 @@ function! s:TryGetDiffFile(file)
   return ''
 endfunction
 
-function! s:RunJob(cmd, exit_cb, buf_nr)
+function! s:RunJob(cmd, Callback, buf_nr)
   let can_run = exists('*job_start') || exists('*jobstart')
   if !can_run
     return
@@ -545,8 +546,8 @@ function! s:RunJob(cmd, exit_cb, buf_nr)
 
   " vim
   if exists('*job_start')
-    call job_start(a:cmd, { 
-          \'exit_cb': a:exit_cb,
+    call job_start(a:cmd, {
+          \'exit_cb': a:Callback,
           \'out_io': 'buffer',
           \'out_buf': a:buf_nr,
           \'cwd': $vim_project,
@@ -554,7 +555,7 @@ function! s:RunJob(cmd, exit_cb, buf_nr)
   " nvim
   elseif exists("*jobstart")
     call jobstart(a:cmd, {
-        \'on_stdout': a:exit_cb,
+        \'on_stdout': a:Callback,
         \'stdout_buffered': 1,
         \'cwd': $vim_project,
         \})
@@ -570,7 +571,8 @@ function! s:ClearDiffHeaders()
   silent! 1,g/^+++ /d _ | break
 endfunction
 
-function! VimProjectAddChangeDetails(job, data, ...)
+" Job callback: vim passes (job, status), nvim passes (job, data, event)
+function! s:OnChangeDetailsReady(job, data, ...)
   let error = s:SwitchBuffer(s:diff_buffer)
   if error
     return
@@ -658,32 +660,14 @@ function! s:FilterLogs(list, input)
   if empty(a:input)
     return list
   endif
-  let pattern = s:GetRegexpFilter(a:input)
-  let list = filter(list, { idx, val -> 
-        \s:Match(val.message, pattern)
-        \|| s:Match(val.author, pattern)
-        \|| s:Match(val.hash, pattern)
-        \|| (a:input[0] =~ '\d' && s:Match(val.date, pattern))
+  let pattern = project#util#GetRegexpFilter(a:input)
+  let list = filter(list, { idx, val ->
+        \project#util#Match(val.message, pattern)
+        \|| project#util#Match(val.author, pattern)
+        \|| project#util#Match(val.hash, pattern)
+        \|| (a:input[0] =~ '\d' && project#util#Match(val.date, pattern))
         \})
   return list
-endfunction
-
-function! s:Match(string, pattern)
-  return match(a:string, a:pattern) != -1
-endfunction
-
-function! s:Include(string, substrings)
-  for substr in a:substrings
-    if stridx(a:string, substr) != -1
-      return 1
-    endif
-  endfor
-
-  return 0
-endfunction
-
-function! s:GetRegexpFilter(input)
-  return join(split(a:input, ' '), '.*')
 endfunction
 
 function! s:GetLogsDisplay(list, input)
@@ -696,8 +680,7 @@ function! s:GetLogsDisplayRow(idx, value)
 endfunction
 
 function! project#git#Status()
-  if !project#ProjectExist()
-    call project#Warn('Open a project first')
+  if !project#util#RequireProject()
     return
   endif
 
@@ -710,18 +693,16 @@ function! project#git#Status()
   call s:ShowStatus(1)
 endfunction
 
-function! project#git#push()
-  if !project#ProjectExist()
-    call project#Warn('Open a project first')
+function! project#git#Push()
+  if !project#util#RequireProject()
     return
   endif
 
   call s:TryPush()
 endfunction
 
-function! project#git#pull()
-  if !project#ProjectExist()
-    call project#Warn('Open a project first')
+function! project#git#Pull()
+  if !project#util#RequireProject()
     return
   endif
 
@@ -880,7 +861,7 @@ function! s:ShelfFile() range
   endif
 
   let prompt = 'Shelf ['.join(files, ', ').'] to: '
-  let name = input(prompt, '', 'customlist,VimProjectShelfFolderNames')
+  let name = input(prompt, '', 'customlist,'.s:sid.'ShelfFolderNames')
   if empty(name)
     return
   endif
@@ -1012,7 +993,8 @@ function! s:DeleteFolder()
   execute lnum
 endfunction
 
-function! VimProjectUserFolderNames(A, L, P)
+" Completion for input(), referenced as <SNR>N_UserFolderNames
+function! s:UserFolderNames(A, L, P)
   let folder = s:GetBelongFolder(line('.'))
 
   let changelist = filter(copy(s:changelist), {idex, v -> !s:IsShelfFolder(v)})
@@ -1027,7 +1009,8 @@ function! VimProjectUserFolderNames(A, L, P)
   return folder_names
 endfunction
 
-function! VimProjectShelfFolderNames(A, L, P)
+" Completion for input(), referenced as <SNR>N_ShelfFolderNames
+function! s:ShelfFolderNames(A, L, P)
   let folder = s:GetBelongFolder(line('.'))
 
   let changelist = filter(copy(s:changelist), {idex, v -> s:IsShelfFolder(v)})
@@ -1068,7 +1051,7 @@ function! s:MoveToFolder() range
   let folder = s:GetCurrentFolder(lnum)
 
   if !empty(folder)
-    let name = input('Move to: ', '', 'customlist,VimProjectUserFolderNames')
+    let name = input('Move to: ', '', 'customlist,'.s:sid.'UserFolderNames')
     if s:IsInvalidMoveToName(name)
       return
     endif
@@ -1077,7 +1060,7 @@ function! s:MoveToFolder() range
   else
     let file = s:GetCurrentFile()
     if !empty(file)
-      let name = input('Move to: ', '', 'customlist,VimProjectUserFolderNames')
+      let name = input('Move to: ', '', 'customlist,'.s:sid.'UserFolderNames')
       if s:IsInvalidMoveToName(name)
         return
       endif
@@ -1816,17 +1799,6 @@ function! s:TryPull()
     call project#Info('Updated successfully')
   endif
   call project#search_files#Reset()
-endfunction
-
-function! s:ShowResultMessage(result)
-  redraw
-  if len(a:result) < 3
-    call project#Info(join(a:result, ' | '))
-  else
-    for line in a:result
-      call project#Info(line)
-    endfor
-  endif
 endfunction
 
 function! s:OpenResultWindow(title, cmd, result)

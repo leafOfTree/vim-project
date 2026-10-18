@@ -1,4 +1,4 @@
-function! project#list_projects#run()
+function! project#list_projects#Run()
   call project#PrepareListBuffer('Open a project:', 'PROJECTS')
   let Init = function('s:Init')
   let Update = function('s:Update')
@@ -121,88 +121,17 @@ function! s:FilterProjectsListName(list, filter, reverse)
   return list
 endfunction
 
+" Try matching name and note. If none, then match path, etc.
 function! s:FilterProjectsList(list, filter)
-  let regexp_filter = join(split(a:filter, '\zs'), '.*')
-
-  for item in a:list
-    let item._match_type = ''
-    let item._match_index = -1
-
-    " Filter by name
-    let match_index = match(item.name, regexp_filter)
-    if match_index != -1
-      " Prefer exact match. If not, add 10 to match_index
-      if len(a:filter) > 1 && count(tolower(item.name), a:filter) == 0
-        let match_index = match_index + 10
-      endif
-
-      let item._match_type = 'name'
-      let item._match_index = match_index
-    endif
-
-    " Filter by note
-    if match_index == -1
-      if has_key(item.option, 'note')
-        let match_index = match(item.option.note, regexp_filter)
-        if match_index != -1
-          let item._match_type = 'note'
-          let item._match_index = match_index
-        endif
-      endif
-    endif
-
-    " Filter by path
-    if match_index == -1
-      let path = project#ReplaceHomeWithTide(item.path)
-      let match_index = match(path, regexp_filter)
-      if match_index != -1
-        let item._match_type = 'path'
-        let item._match_index = match_index
-      endif
-    endif
-
-    " Filter by path+name
-    if match_index == -1
-      let full_path = project#ReplaceHomeWithTide(item.path.item.name)
-      let match_index = match(full_path, regexp_filter)
-      if match_index != -1
-        let item._match_type = 'full_path'
-        let item._match_index = match_index
-      endif
-    endif
-  endfor
-
-  " Try matching name and note. If none, then match path, etc.
-  let result = filter(copy(a:list), { _, val -> val._match_type == 'name' || val._match_type == 'note' })
-  if len(result) == 0
-    let result = filter(a:list, { _, val -> val._match_type != '' })
-  endif
-  call sort(result, 's:SortProjectsList')
-  return result
-endfunction
-
-function! s:SortProjectsList(a1, a2)
-  let type1 = a:a1._match_type
-  let type2 = a:a2._match_type
-  let index1 = a:a1._match_index
-  let index2 = a:a2._match_index
-
-  " name > full_path > note > path
-  if type1 == 'name' && type2 != 'name'
-    return 1
-  endif
-  if type1 == 'full_path' && type2 != 'name' && type2 != 'full_path'
-    return 1
-  endif
-  if type1 == 'note' && type2 == 'path'
-    return 1
-  endif
-  if type1 == type2
-    if index1 == index2
-      return len(a:a2.name) - len(a:a1.name)
-    else
-      return index2 - index1
-    endif
-  endif
-  return -1
+  let fields = [
+        \'name',
+        \{ 'type': 'note', 'Get': {item -> get(item.option, 'note', v:null)} },
+        \{ 'type': 'path', 'Get': {item -> project#ReplaceHomeWithTide(item.path)} },
+        \{ 'type': 'full_path', 'Get': {item -> project#ReplaceHomeWithTide(item.path.item.name)} },
+        \]
+  return project#util#FuzzyScore(a:list, a:filter, fields, {
+        \'priority': ['name', 'full_path', 'note', 'path'],
+        \'prefer': ['name', 'note'],
+        \'tiebreak': 'name',
+        \})
 endfunction

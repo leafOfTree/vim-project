@@ -280,11 +280,6 @@ function! s:RemoveListTrailingSlash(list)
   return a:list
 endfunction
 
-function! s:RemoveListHeadingDotSlash(list)
-  call map(a:list, {_, val -> s:RemovePathHeadingDotSlash(val)})
-  return a:list
-endfunction
-
 function! s:AdjustIncludeExcludePath(paths, default)
   let paths = a:paths
   if empty(paths)
@@ -636,12 +631,6 @@ function! project#Warn(msg)
   echohl None
 endfunction
 
-function! s:DebugWarn(msg)
-  if s:debug
-    call project#Warn(a:msg)
-  endif
-endfunction
-
 function! project#GetProjectConfigPath(config_home, project)
   let id = a:project.path
   let id = project#ReplaceHomeWithTide(id)
@@ -704,7 +693,7 @@ function! s:GetPathTail(path)
 endfunction
 
 " Call this entry function first
-function! project#begin()
+function! project#Begin()
   let g:vim_project_loaded = 1
   call s:Main()
   call s:SourcePluginConfigFiles()
@@ -712,7 +701,7 @@ function! project#begin()
   call s:WatchOnBufEnter()
 endfunction
 
-function! project#checkVersion()
+function! project#CheckVersion()
   return s:CheckVersion()
 endfunction
 
@@ -1398,7 +1387,7 @@ function! project#RunShellCmd(cmd, warning=1)
   return output
 endfunction
 
-function! project#hasMoreOnList(list)
+function! project#HasMoreOnList(list)
   return len(a:list) && has_key(a:list[0], 'more') && a:list[0].more
 endfunction
 
@@ -1951,12 +1940,12 @@ function! project#OpenProjectRoot()
 endfunction
 
 function! project#OpenProjectConfig()
-  if project#ProjectExist()
-    let config = project#GetProjectConfigPath(s:config_home, s:project)
-    execute 'tabedit '.config.'/'.s:init_file
-  else
-    call project#Warn('Open a project first')
+  if !project#util#RequireProject()
+    return
   endif
+
+  let config = project#GetProjectConfigPath(s:config_home, s:project)
+  execute 'tabedit '.config.'/'.s:init_file
 endfunction
 
 function! project#OpenAllConfig()
@@ -1983,7 +1972,7 @@ function! s:QuitProject()
     call s:WipeoutListBuffer()
     call s:WipeoutTerminalBuffer()
     call project#search_files#Reset()
-    call project#run_tasks#reset()
+    call project#run_tasks#Reset()
 
     call s:SyncGlobalVariables()
   endif
@@ -2005,30 +1994,30 @@ function! s:SyncGlobalVariables()
 endfunction
 
 function! project#ShowProjectInfo()
-  if !empty(s:project)
-    call s:Info('Name: '.s:project.name)
-    call s:Info('Path: '.project#ReplaceHomeWithTide(s:project.path))
-    call s:Info('config_home: '.s:config.config_home)
-    call s:Info('project_base: '.join(s:config.project_base, ', '))
-    call s:Info('Include: '.string(s:include))
-    call s:Info('Exclude: '.string(s:exclude))
-    call s:Info('Search Include: '.string(s:search_include))
-    call s:Info('Search Exclude: '.string(s:search_exclude))
-    call s:Info('Find in files Include: '.string(s:find_in_files_include))
-    call s:Info('Find in files Exclude: '.string(s:find_in_files_exclude))
-  else
-    call project#Warn('Open a project first')
+  if !project#util#RequireProject()
+    return
   endif
+
+  call s:Info('Name: '.s:project.name)
+  call s:Info('Path: '.project#ReplaceHomeWithTide(s:project.path))
+  call s:Info('config_home: '.s:config.config_home)
+  call s:Info('project_base: '.join(s:config.project_base, ', '))
+  call s:Info('Include: '.string(s:include))
+  call s:Info('Exclude: '.string(s:exclude))
+  call s:Info('Search Include: '.string(s:search_include))
+  call s:Info('Search Exclude: '.string(s:search_exclude))
+  call s:Info('Find in files Include: '.string(s:find_in_files_include))
+  call s:Info('Find in files Exclude: '.string(s:find_in_files_exclude))
 endfunction
 
 function! project#ShowProjectAllInfo()
-  if !empty(s:project)
-    call project#ShowProjectInfo()
-    call s:Info('------------ Details ------------')
-    call s:ShowProjectConfig()
-  else
-    call project#Warn('Open a project first')
+  if !project#util#RequireProject()
+    return
   endif
+
+  call project#ShowProjectInfo()
+  call s:Info('------------ Details ------------')
+  call s:ShowProjectConfig()
 endfunction
 
 function! s:ShowProjectConfig()
@@ -2322,13 +2311,13 @@ endfunction
 function! s:WatchHeadFileVim(cmd)
   call s:StopWatchJob()
   let s:head_file_job = job_start(a:cmd,
-        \ { 'callback': 'VimProjectReloadSession' })
+        \ { 'callback': function('s:ReloadSessionOnBranchChange') })
 endfunction
 
 function! s:WatchHeadFileNeoVim(cmd)
   call s:StopWatchJob()
   let s:head_file_job = jobstart(a:cmd,
-        \ { 'on_stdout': 'VimProjectReloadSession' })
+        \ { 'on_stdout': function('s:ReloadSessionOnBranchChange') })
 endfunction
 
 function! s:StopWatchJob()
@@ -2430,7 +2419,8 @@ function! s:AfterReloadSession()
   call s:handleFloatermAfter()
 endfunction
 
-function! VimProjectReloadSession(channel, msg, ...)
+" Job callback: vim passes (channel, msg), nvim passes (job, data, event)
+function! s:ReloadSessionOnBranchChange(channel, msg, ...)
   if type(a:msg) == v:t_list
     let msg = join(a:msg)
   else

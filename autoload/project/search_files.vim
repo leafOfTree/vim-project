@@ -5,8 +5,7 @@ let s:prev_input = ''
 let s:update_timer = 0
 
 function! project#search_files#Run()
-  if !project#ProjectExist()
-    call project#Warn('Open a project first')
+  if !project#util#RequireProject()
     return
   endif
 
@@ -85,7 +84,7 @@ function! s:GetRecentIndex(list)
 endfunction
 
 function! s:DecorateSearchFilesDisplay(list, display)
-  if project#hasMoreOnList(a:list)
+  if project#HasMoreOnList(a:list)
     let a:display[0] = substitute(a:display[0], '\s*$', '  ...more', 'g')
   endif
 
@@ -239,24 +238,14 @@ function! s:GetSearchFilesResultList(input)
 endfunction
 
 function! s:TrySearchFilesProgram()
-  let programs = ['fd', 'find']
+  " Try fd, find, glob (vim function) in order
   let find_cmd_map = {
         \'fd': function('s:GetFilesByFd'),
         \'find': function('s:GetFilesByFind'),
         \'glob': function('s:GetFilesByGlob'),
         \}
-  let find_program = ''
-  for program in programs
-    if executable(program)
-      let find_program = program
-      break
-    endif
-  endfor
 
-  if find_program == ''
-    let find_program = 'glob'
-  endif
-
+  let find_program = project#util#PickExecutable(['fd', 'find'], 'glob')
   let s:find_cmd_func = find_cmd_map[find_program]
   return find_program
 endfunction

@@ -1,4 +1,4 @@
-let upgraded_with_prev_config = project#checkVersion()
+let upgraded_with_prev_config = project#CheckVersion()
 if upgraded_with_prev_config
   finish
 endif
@@ -10,7 +10,7 @@ function! s:TrimQuote(args)
   return args
 endfunction
 
-command ProjectList call project#list_projects#run()
+command ProjectList call project#list_projects#Run()
 command ProjectQuit call project#QuitProject()
 command ProjectConfigReload call project#ReloadProject()
 command ProjectInfo call project#ShowProjectInfo()
@@ -59,4 +59,4 @@ command ProjectGitTag call project#git_tag#Show()
 command -complete=customlist,project#ListDirs -nargs=1 
       \ ProjectNew call project#new_project#NewProject(<q-args>)
 
-call project#begin()
+call project#Begin()

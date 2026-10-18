@@ -288,7 +288,7 @@ function! s:Open(task, open_cmd, input)
   endif
 
   let cmd = a:task.cmd
-  if s:HasArgs(a:task)
+  if project#util#HasArgs(a:task)
     let args = input(
           \'[Run task: '.a:task.name.'] '.a:task.cmd.' | '.a:task.args.': ')
     if !empty(args)
@@ -345,10 +345,6 @@ function! s:HasEmptyName(task)
   return !has_key(a:task, 'name') || a:task.name == ''
 endfunction
 
-function! s:HasArgs(task)
-  return has_key(a:task, 'args')
-endfunction
-
 function! s:GetNvimTaskBufnr(task)
   if !has_key(a:task, 'bufnr')
     return 0
@@ -375,7 +371,7 @@ function! s:OpenTaskTerminal(task)
   execute 'sbuffer '.a:task.bufnr
 endfunction
 
-function! project#run_tasks#reset()
+function! project#run_tasks#Reset()
   call s:WipeoutTaskBuffer()
 endfunction
 
@@ -520,50 +516,6 @@ function! project#run_tasks#RebindTasks(old_tasks)
 endfunction
 
 function! s:FilterRunTasks(tasks, filter)
-  let regexp_filter = join(split(a:filter, '\zs'), '.*')
-
-  for task in a:tasks
-    let task._match_type = ''
-    let task._match_index = -1
-
-    let match_index = match(task.name, regexp_filter)
-    if match_index != -1
-      " Prefer exact match. If not, add 10 to match_index
-      if len(a:filter) > 1 && count(tolower(task.name), a:filter) == 0
-        let match_index = match_index + 10
-      endif
-      let task._match_type = 'name'
-      let task._match_index = match_index
-    endif
-
-    if match_index == -1
-      let match_index = match(task.cmd, regexp_filter)
-      if match_index != -1
-        let task._match_type = 'cmd'
-        let task._match_index = match_index
-      endif
-    endif
-  endfor
-
-  let result = filter(a:tasks, { _, val -> val._match_type != '' })
-  call sort(result, 's:SortRunTasks')
-  return result
-endfunction
-
-function! s:SortRunTasks(a1, a2)
-  let type1 = a:a1._match_type
-  let type2 = a:a2._match_type
-  let index1 = a:a1._match_index
-  let index2 = a:a2._match_index
-
-  if type1 == 'name' && type2 != 'name'
-    return 1
-  endif
-
-  if type1 == type2
-    return index2 - index1
-  endif
-
-  return -1
+  return project#util#FuzzyScore(a:tasks, a:filter, ['name', 'cmd'])
 endfunction
 

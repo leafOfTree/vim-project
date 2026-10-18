@@ -76,7 +76,7 @@ endfunction
 
 function! s:Open(task, open_cmd, input)
   let cmd = a:task.cmd
-  if s:HasArgs(a:task)
+  if project#util#HasArgs(a:task)
     let args = input('['.s:GetCwd().'] '.a:task.cmd.' | '.a:task.args.': ')
     if !empty(args)
       let cmd = cmd.' '.args
@@ -132,15 +132,11 @@ function! s:OnJobEnd(task, cmd, job, status, ...)
   endif
 endfunction
 
-function! s:HasArgs(task)
-  return has_key(a:task, 'args')
-endfunction
-
 function! s:GetNewProjectTaskDisplay(list)
   let display = []
   for item in a:list
     let row = item.__name.'  '.item.__cmd
-    if s:HasArgs(item)
+    if project#util#HasArgs(item)
       let row = row.'  '.item.__args
     endif
     call add(display, row)
@@ -150,31 +146,6 @@ function! s:GetNewProjectTaskDisplay(list)
 endfunction
 
 function! s:FilterTasks(tasks, input)
-  let regexp_input = join(split(a:input, '\zs'), '.*')
-  for item in a:tasks
-    let item._match_type = ''
-    let item._match_index = -1
-
-    let match_index = match(item.name, regexp_input)
-    if match_index != -1
-      " Prefer exact match. If not, add 10 to match_index
-      if len(a:input) > 1 && count(tolower(item.name), a:input) == 0
-        let match_index = match_index + 10
-      endif
-      let item._match_type = 'name'
-      let item._match_index = match_index
-    endif
-
-    if match_index == -1
-      let match_index = match(item.cmd, regexp_input)
-      if match_index != -1
-        let item._match_type = 'cmd'
-        let item._match_index = match_index
-      endif
-    endif
-  endfor
-
-  let result = filter(a:tasks, { _, val -> val._match_type != '' })
-  return result
+  return project#util#FuzzyScore(a:tasks, a:input, ['name', 'cmd'], {'sort': 0})
 endfunction
 

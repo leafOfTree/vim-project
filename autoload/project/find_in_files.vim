@@ -5,8 +5,7 @@ let s:search_replace_separator = ' => '
 let s:dismissed_find_replace = 0
 
 function! project#find_in_files#Run(...)
-  if !project#ProjectExist()
-    call project#Warn('Open a project first')
+  if !project#util#RequireProject()
     return
   endif
 
@@ -339,7 +338,7 @@ function! s:GetDisplay(list, search, replace)
   let display = map(copy(a:list),
         \function('s:GetDisplayRow', [pattern, a:replace, show_replace]))
 
-  if project#hasMoreOnList(a:list)
+  if project#HasMoreOnList(a:list)
     let display[0] .= '  ...more'
   endif
 
@@ -379,28 +378,15 @@ endfunction
 
 function! s:TryExternalGrepProgram()
   " Try rg, ag, grep, vimgrep in order
-  let programs = ['rg', 'ag', 'grep']
   let grep_cmd_map = {
         \'rg': function('s:GetRgCmd'),
         \'ag': function('s:GetAgCmd'),
         \'grep': function('s:GetGrepCmd'),
         \}
 
-  let grep_program = ''
-  for program in programs
-    if executable(program)
-      let grep_program = program
-      break
-    endif
-  endfor
-
-  if grep_program != ''
-    let s:grep_cmd_func = grep_cmd_map[grep_program]
-    return grep_program
-  else
-    let s:grep_cmd_func = 0
-    return 'vimgrep'
-  endif
+  let grep_program = project#util#PickExecutable(['rg', 'ag', 'grep'], 'vimgrep')
+  let s:grep_cmd_func = get(grep_cmd_map, grep_program, 0)
+  return grep_program
 endfunction
 
 
@@ -629,10 +615,6 @@ function! s:GetSearchFlags(search)
     let flags .= 'E'
   endif
   return flags
-endfunction
-
-function! s:RemoveLeadingDot(val)
-  return substitute(a:val, '^./\?', '', 'g')
 endfunction
 
 function! s:RemoveSearchFlags(search)

@@ -1,4 +1,3 @@
-let s:name = ''
 let s:splitter = ' ||| '
 let s:item_splitter = '----------------------------------------------'
 let s:item_new_branch = 'New Branch'
@@ -129,18 +128,10 @@ function! s:FilterBranches(list, input)
   if empty(a:input)
     return list
   endif
-  let pattern = s:GetRegexpFilter(a:input)
+  let pattern = project#util#GetRegexpFilter(a:input)
   let list = filter(list, { idx, val ->
-        \s:Match(val.name, pattern)})
+        \project#util#Match(val.name, pattern)})
   return list
-endfunction
-
-function! s:GetRegexpFilter(input)
-  return join(split(a:input, ' '), '.*')
-endfunction
-
-function! s:Match(string, pattern)
-  return match(a:string, a:pattern) != -1
 endfunction
 
 function! s:GetTabulatedList(branches)

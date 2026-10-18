@@ -1,4 +1,3 @@
-let s:name = ''
 let s:splitter = ' '
 let s:splitter_regexp = '^\S\+\zs'
 let s:item_splitter = '----------------------------------------------'
@@ -21,15 +20,6 @@ function! s:Init(input)
   call add(s:list, s:CreateItem(s:item_splitter))
   call add(s:list, s:CreateItem(s:item_new_tag))
   call s:Update(a:input)
-endfunction
-
-function! s:FindCurrentTag()
-  let cmd = 'git tag --points-at HEAD'
-  let current = project#RunShellCmd(cmd)
-  if v:shell_error
-    return ''
-  endif
-  return current
 endfunction
 
 function! s:Update(input)
@@ -87,19 +77,11 @@ function! s:FilterTags(list, input)
   if empty(a:input)
     return list
   endif
-  let pattern = s:GetRegexpFilter(a:input)
+  let pattern = project#util#GetRegexpFilter(a:input)
   let list = filter(list, { idx, val ->
-        \s:Match(val.name, pattern) || s:Match(val.message, pattern)
+        \project#util#Match(val.name, pattern) || project#util#Match(val.message, pattern)
         \})
   return list
-endfunction
-
-function! s:GetRegexpFilter(input)
-  return join(split(a:input, ' '), '.*')
-endfunction
-
-function! s:Match(string, pattern)
-  return match(a:string, a:pattern) != -1
 endfunction
 
 function! s:GetTabulatedList(tags)
