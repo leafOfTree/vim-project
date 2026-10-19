@@ -312,7 +312,7 @@ Please note this feature is not fully tested. It may cause unexpected changes to
 
 When `Find in files`, you can press 
 
-- <kbd>c-r</kbd> to start to replace
+- <kbd>c-r</kbd> to start to replace. It appends the separator ` => ` (option `find_replace_separator`) after the search text
 - <kbd>Enter</kbd> or <kbd>c-y</kbd> to confirm
 - <kbd>c-d</kbd> to dismiss any item on the list
 
@@ -448,6 +448,7 @@ let g:vim_project_config = {
       \'new_project_base':              '',
       \'new_tasks_post_cmd':            '',
       \'commit_message':                '',
+      \'find_replace_separator':        ' => ',
       \'debug':                         0,
       \}
 
@@ -526,7 +527,8 @@ let g:vim_project_config.list_mappings_git_branch = {
 | tasks                         | Tasks to run using vim 'terminal' feature                                     |
 | new_project_base              | The base directory used for `:ProjectNew path`.                               |
 | project_views                 | Define project views by `[[show-pattern, hide-pattern?], ...]`                |
-| commit_message                | Default commit message. String or list of string or function that returns it. |     
+| commit_message                | Default commit message. String or list of string or function that returns it. |
+| find_replace_separator        | Separates search and replace in `Find in files` input. Change it to search for code containing ` => ` |     
 | debug                         | Show debug messages                                                           |
 
 ### Config files

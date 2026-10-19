@@ -37,6 +37,7 @@ let s:default = {
       \'new_project_base':              '',
       \'new_tasks_post_cmd':            '',
       \'commit_message':                '',
+      \'find_replace_separator':        ' => ',
       \'debug':                         0,
       \}
 

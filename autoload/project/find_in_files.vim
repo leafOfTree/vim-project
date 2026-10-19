@@ -1,7 +1,6 @@
 let s:find_in_files_show_max = 200
 let s:find_in_files_stop_max = 100000
 let s:update_timer = 0
-let s:search_replace_separator = ' => '
 let s:dismissed_find_replace = 0
 
 function! project#find_in_files#Run(...)
@@ -159,9 +158,17 @@ endfunction
 " c-r: append the ' => ' separator so that what follows is the replacement
 function! s:OnReplacePrompt(state)
   let input = a:state.user_input
-  if !project#Include(input, s:search_replace_separator)
-    let a:state.user_input = input.s:search_replace_separator
+  let separator = s:GetSeparator()
+  if stridx(input, separator) == -1
+    let a:state.user_input = input.separator
   endif
+endfunction
+
+" Separates search and replace in the input. Configurable so that code
+" containing the default ' => ' can still be searched
+function! s:GetSeparator()
+  let separator = project#config#Get('find_replace_separator')
+  return empty(separator) ? ' => ' : separator
 endfunction
 
 " c-d: remove the selected line or file from the replace list
@@ -235,7 +242,8 @@ function! s:GetSearchAndReplace(input)
 endfunction
 
 function! s:ParseInput(input)
-  let inputs = split(a:input, s:search_replace_separator)
+  " Match the separator literally, it may contain regexp characters
+  let inputs = split(a:input, '\V'.escape(s:GetSeparator(), '\'))
 
   if len(inputs) == 2
     let search = inputs[0]
@@ -778,7 +786,7 @@ endfunction
 
 function! s:IsReplaceInitiallyAdded(input)
   let [_, replace] = s:ParseInput(a:input)
-  let has_separator = project#Include(a:input, s:search_replace_separator)
+  let has_separator = stridx(a:input, s:GetSeparator()) != -1
   return has_separator && empty(replace) && s:GetReplace() == -1
 endfunction
 

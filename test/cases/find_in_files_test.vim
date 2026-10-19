@@ -314,3 +314,43 @@ function! Test_ReplaceInFiles_is_safe()
     execute 'silent! bwipeout!' loaded_bufnr
   endtry
 endfunction
+
+" ---------------------------------------------------------------- separator
+
+function! s:WithSeparator(separator, Fn)
+  let config = project#config#All()
+  let saved = config.find_replace_separator
+  let config.find_replace_separator = a:separator
+  try
+    return a:Fn()
+  finally
+    let config.find_replace_separator = saved
+  endtry
+endfunction
+
+function! Test_ParseInput_custom_separator_allows_searching_default_one()
+  call s:WithSeparator(' ->> ', {->
+        \ assert_equal(['a => b', 'c'], s:Call('ParseInput', 'a => b ->> c'))})
+  call s:WithSeparator(' ->> ', {->
+        \ assert_equal(['x => y', ''], s:Call('ParseInput', 'x => y'))})
+endfunction
+
+function! Test_ParseInput_separator_is_matched_literally()
+  " '|' and '.' would be regexp syntax if used as a pattern
+  call s:WithSeparator(' |.| ', {->
+        \ assert_equal(['foo', 'bar'], s:Call('ParseInput', 'foo |.| bar'))})
+  call s:WithSeparator(' |.| ', {->
+        \ assert_equal(['foo |x| bar', ''], s:Call('ParseInput', 'foo |x| bar'))})
+endfunction
+
+function! Test_OnReplacePrompt_appends_configured_separator_once()
+  let state = {'user_input': 'foo'}
+  call s:WithSeparator(' ->> ', {-> s:Call('OnReplacePrompt', state)})
+  call assert_equal('foo ->> ', state.user_input)
+  call s:WithSeparator(' ->> ', {-> s:Call('OnReplacePrompt', state)})
+  call assert_equal('foo ->> ', state.user_input)
+endfunction
+
+function! Test_GetSeparator_falls_back_when_empty()
+  call s:WithSeparator('', {-> assert_equal(' => ', s:Call('GetSeparator'))})
+endfunction
