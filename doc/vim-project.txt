@@ -158,6 +158,14 @@ In both lists:
 Find in files:
     Input is a literal string, case insensitive, at least 2 characters.
     Start the input with \C to match case, or \E to use a regexp.
+    With rg, ag or grep the search runs in the background: typing never
+    waits for it, a new input stops the previous search, and the search
+    stops once it has more lines than can be shown.
+
+Search files:
+    Typed characters are matched fuzzily by name: "cmpCtl" finds
+    "componentController". Input with "/" matches the path in the project,
+    e.g. "pkg3/rout". Input ending with "/" lists directories only.
 
 Find and replace:                                *vim-project-find-replace*
     <C-r>   append the separator " => " ("find_replace_separator"), then

@@ -2,6 +2,10 @@ let s:find_in_files_show_max = 200
 let s:find_in_files_stop_max = 100000
 let s:update_timer = 0
 let s:dismissed_find_replace = 0
+" Background search with rg, ag or grep, see s:StartGrep()
+let s:grep_job = v:null
+let s:grep_id = 0
+let s:grep_ctx = {}
 
 function! project#find_in_files#Run(...)
   if !project#util#RequireProject()
@@ -28,6 +32,7 @@ function! project#find_in_files#Run(...)
         \},
         \'Highlight': function('s:Highlight'),
         \'save_history': {input -> !empty(input)},
+        \'Close': function('s:StopGrep'),
         \})
 endfunction
 
@@ -97,10 +102,17 @@ function! s:Update(full_input, is_init, id)
   let state = project#list#State()
 
   if should_run
-    let s:list = s:GetResult(search, a:full_input)
+    let replace_mode = s:IsReplaceInitiallyAdded(a:full_input)
+    if s:CanGrepInBackground(search)
+      " Keep the previous results until the new ones arrive
+      call s:StartGrep(search, replace_mode)
+    else
+      call s:StopGrep()
+      let s:list = s:GetResult(search, a:full_input)
+    endif
     let display = s:GetDisplay(s:list, search, replace)
     let state.input = search
-    if s:IsReplaceInitiallyAdded(a:full_input)
+    if replace_mode
       call s:SetReplace(replace)
     else
       call s:SetReplace(-1)
@@ -129,6 +141,7 @@ function! s:ShowResultTimer(display, search, replace, full_input)
 endfunction
 
 function! s:Open(target, open_cmd, input)
+  call s:StopGrep()
   let open_type = substitute(a:open_cmd, 'open_\?', '', '')
   if open_type == ''
     let open_type = 'edit'
@@ -231,6 +244,7 @@ function! s:HasReplace(input)
 endfunction
 
 function! s:ConfirmFindReplace(input)
+  call s:WaitGrep()
   let [search, replace] = s:GetSearchAndReplace(a:input)
   call s:RunReplaceAll(search, replace)
 endfunction
@@ -692,12 +706,16 @@ function! s:RunExternalGrep(search, flags, full_input)
 endfunction
 
 
-function! s:SetGrepOutputLength(input, full_input, output)
+function! s:SetGrepOutputLength(input, full_input, output, ...)
   let output = a:output
   let output_len = len(output)
   let more = 0
 
-  let replace_initially_added = s:IsReplaceInitiallyAdded(a:full_input)
+  if a:0
+    let replace_initially_added = a:1
+  else
+    let replace_initially_added = s:IsReplaceInitiallyAdded(a:full_input)
+  endif
 
   if !replace_initially_added
     if output_len > s:find_in_files_show_max
@@ -782,6 +800,157 @@ function! s:RemoveProjectPath(path)
     let result = substitute(result, '^/', '', '')
   endif
   return result
+endfunction
+
+" ---------------------------------------------------------------- background
+
+" rg on a large project takes a second or more. Run it as a job so typing
+" never waits: a new search stops the previous one, and a normal search
+" stops as soon as it has more lines than can be shown.
+function! s:CanGrepInBackground(search)
+  if !exists('s:grep_cmd_func')
+    call s:TryExternalGrepProgram()
+  endif
+  let raw_search = s:RemoveSearchFlags(a:search)
+  return s:grep_cmd_func isnot 0
+        \&& (exists('*job_start') || exists('*jobstart'))
+        \&& len(raw_search) > 1
+endfunction
+
+function! s:StartGrep(search, replace_mode)
+  call s:StopGrep()
+  let s:grep_id += 1
+  let id = s:grep_id
+  let flags = s:GetSearchFlags(a:search)
+  let cmd = s:grep_cmd_func(shellescape(s:RemoveSearchFlags(a:search)), flags)
+  " One line more than needed tells there are more
+  let limit = a:replace_mode ? s:find_in_files_stop_max + 1 : s:find_in_files_show_max + 2
+  let s:grep_ctx = {
+        \'id': id,
+        \'search': a:search,
+        \'replace_mode': a:replace_mode,
+        \'limit': limit,
+        \'lines': [],
+        \'errors': [],
+        \'partial': '',
+        \'stopped': 0,
+        \'done': 0,
+        \}
+  let shell_cmd = [&shell, &shellcmdflag, cmd]
+
+  if exists('*job_start')
+    let s:grep_job = job_start(shell_cmd, {
+          \'cwd': $vim_project,
+          \'in_io': 'null',
+          \'out_mode': 'nl',
+          \'err_mode': 'nl',
+          \'out_cb': {_, line -> s:OnGrepLines(id, [line])},
+          \'err_cb': {_, line -> s:OnGrepError(id, [line])},
+          \'close_cb': {_ -> s:OnGrepDone(id)},
+          \})
+  else
+    " rg searches stdin when it is a pipe: give it none
+    let s:grep_job = jobstart(shell_cmd, {
+          \'cwd': $vim_project,
+          \'stdin': 'null',
+          \'on_stdout': {_, data, __ -> s:OnNvimGrepOutput(id, data)},
+          \'on_stderr': {_, data, __ -> s:OnGrepError(id, data)},
+          \'on_exit': {_, status, __ -> s:OnGrepDone(id)},
+          \})
+  endif
+endfunction
+
+" Neovim passes chunks: the first item continues the previous last one
+function! s:OnNvimGrepOutput(id, data)
+  if a:id != s:grep_id || empty(a:data)
+    return
+  endif
+  let data = copy(a:data)
+  let data[0] = s:grep_ctx.partial.data[0]
+  let s:grep_ctx.partial = remove(data, -1)
+  call s:OnGrepLines(a:id, data)
+endfunction
+
+function! s:OnGrepLines(id, lines)
+  let ctx = s:grep_ctx
+  if a:id != s:grep_id || ctx.stopped
+    return
+  endif
+  call extend(ctx.lines, filter(a:lines, '!empty(v:val)'))
+  if len(ctx.lines) >= ctx.limit
+    let ctx.stopped = 1
+    call s:KillGrepJob()
+    " The job may not report its end once killed
+    call s:OnGrepDone(a:id)
+  endif
+endfunction
+
+function! s:OnGrepError(id, lines)
+  if a:id == s:grep_id
+    call extend(s:grep_ctx.errors, filter(copy(a:lines), '!empty(v:val)'))
+  endif
+endfunction
+
+function! s:OnGrepDone(id)
+  let ctx = s:grep_ctx
+  if a:id != s:grep_id || ctx.done
+    return
+  endif
+  let ctx.done = 1
+  let s:grep_job = v:null
+  if !empty(ctx.partial)
+    call add(ctx.lines, ctx.partial)
+  endif
+
+  let [output, more] = s:SetGrepOutputLength(ctx.search, '', ctx.lines, ctx.replace_mode)
+  let result = map(output, {_, val -> s:ParseGrepLine(val)})
+  if more && !empty(result)
+    let result[0].more = more
+  endif
+  let s:list = s:GetGroupedList(result)
+
+  if !project#list#IsOpen('FIND_IN_FILES')
+    return
+  endif
+  if empty(s:list) && !empty(ctx.errors)
+    call project#Warn(ctx.errors[0])
+  endif
+  let state = project#list#State()
+  let state.list = s:list
+  " The replace text may have been typed while searching
+  let [_, replace] = s:ParseInput(state.user_input)
+  let display = s:GetDisplay(s:list, ctx.search, replace)
+  call s:ShowResult(display, ctx.search, replace, state.user_input, 0)
+endfunction
+
+function! s:IsGrepRunning()
+  return !empty(s:grep_ctx) && !s:grep_ctx.done && s:grep_job isnot v:null
+endfunction
+
+function! s:KillGrepJob()
+  if s:grep_job is v:null
+    return
+  endif
+  if exists('*job_stop')
+    call job_stop(s:grep_job, 'kill')
+  else
+    silent! call jobstop(s:grep_job)
+  endif
+endfunction
+
+function! s:StopGrep(...)
+  let s:grep_id += 1
+  call s:KillGrepJob()
+  let s:grep_job = v:null
+endfunction
+
+" Wait for a running search, e.g. before replacing with its results
+function! s:WaitGrep()
+  let tries = 0
+  while s:IsGrepRunning() && tries < 6000
+    sleep 10m
+    let tries += 1
+  endwhile
 endfunction
 
 function! s:IsReplaceInitiallyAdded(input)

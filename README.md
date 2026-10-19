@@ -264,7 +264,7 @@ endfunction
 
 - `:ProjectSearchFiles` Under the hood, it tries [[fd][4], `find`, `glob (vim function)`] for the first available one as the search engine. The file list is cached: later searches show it at once, and with `fd` or `find` it is refreshed in the background, so files added or removed outside Vim show up a moment later.
 
-- `:ProjectFindInFiles` Under the hood, it tries [[rg][5], [ag][6], `grep`, `vimgrep (vim function)`] for the first available one as the search engine.
+- `:ProjectFindInFiles` Under the hood, it tries [[rg][5], [ag][6], `grep`, `vimgrep (vim function)`] for the first available one as the search engine. With an external program the search runs in the background, so typing never waits for it.
 
 It's recommended to install one of [[fd][4], `find`] and one of [[rg][5], [ag][6], `grep`]. They have better performance especially for Windows users and large projects. However, none of them will respect `.gitignore` serving as a search engine for consistency.
 

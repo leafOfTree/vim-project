@@ -354,3 +354,68 @@ endfunction
 function! Test_GetSeparator_falls_back_when_empty()
   call s:WithSeparator('', {-> assert_equal(' => ', s:Call('GetSeparator'))})
 endfunction
+
+" ---------------------------------------------------------------- background grep
+
+function! s:WaitGrep()
+  call s:Call('WaitGrep')
+  sleep 20m
+endfunction
+
+function! s:Lines()
+  let list = Helper_ScriptVar(s:file, 'list')
+  return filter(copy(list), {_, item -> has_key(item, 'line')})
+endfunction
+
+function! s:BackgroundGrep(dir)
+  if !s:Call('CanGrepInBackground', 'needle')
+    return
+  endif
+  let show_max = Helper_ScriptVar(s:file, 'find_in_files_show_max')
+
+  " Results are grouped by file
+  call s:Call('StartGrep', 'needle', 0)
+  call s:WaitGrep()
+  let list = Helper_ScriptVar(s:file, 'list')
+  call assert_equal(['a.txt', 'a.txt'], map(filter(copy(list), {_, i -> has_key(i, 'line')}), 'v:val.file'))
+  call assert_equal({'file': 'a.txt'}, list[0])
+
+  " A normal search stops once it has more than can be shown
+  call s:Call('StartGrep', 'many', 0)
+  call s:WaitGrep()
+  let lines = s:Lines()
+  call assert_true(len(lines) <= show_max + 1, 'kept '.len(lines))
+  call assert_equal(1, get(Helper_ScriptVar(s:file, 'list')[0], 'more', 0))
+
+  " Replace mode keeps every match
+  call s:Call('StartGrep', 'many', 1)
+  call s:WaitGrep()
+  call assert_equal(show_max * 2, len(s:Lines()))
+
+  " A newer search wins over one still running
+  call s:Call('StartGrep', 'many', 1)
+  call s:Call('StartGrep', 'needle', 0)
+  call s:WaitGrep()
+  sleep 100m
+  call assert_equal(2, len(s:Lines()))
+  call assert_match('needle', s:Lines()[0].line)
+endfunction
+
+function! Test_StartGrep_runs_in_background()
+  let dir = Helper_TmpDir('grep-background')
+  call writefile(['a needle', 'nothing', 'needle again'], dir.'/a.txt')
+  let show_max = Helper_ScriptVar(s:file, 'find_in_files_show_max')
+  call writefile(map(range(show_max * 2), '"many ".v:val'), dir.'/many.txt')
+  call s:WithIncludeExclude(['.'], [], function('s:WithProjectDir', [dir, function('s:BackgroundGrep', [dir])]))
+endfunction
+
+function! s:WithProjectDir(dir, Fn)
+  let saved = $vim_project
+  let $vim_project = a:dir
+  try
+    call a:Fn()
+  finally
+    call s:Call('StopGrep')
+    let $vim_project = saved
+  endtry
+endfunction
