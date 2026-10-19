@@ -20,13 +20,20 @@ jobs:
           sudo apt-get -y install vim
           vim --version | head -1
 
+      # The PPA build is too old for the tests (its getscriptinfo() takes no
+      # arguments): use a pinned release
       - name: Install neovim
         if: matrix.editor == 'nvim'
         run: |
-          sudo add-apt-repository ppa:neovim-ppa/stable -y
-          sudo apt-get update
-          sudo apt-get -y install neovim
-          nvim --version | head -1
+          curl -fsSL https://github.com/neovim/neovim/releases/download/v0.11.6/nvim-linux-x86_64.tar.gz \
+            | sudo tar -xz -C /opt
+          echo /opt/nvim-linux-x86_64/bin >> "$GITHUB_PATH"
+
+      - name: Show versions
+        run: |
+          ${{ matrix.editor }} --version | head -1
+          git --version
+          command -v rg ag grep || true
 
       - name: Run tests
         run: bash test/run.sh ${{ matrix.editor }}

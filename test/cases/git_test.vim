@@ -262,6 +262,8 @@ function! s:CommitRepo(name)
   let dir = Helper_TmpDir(a:name)
   let git = 'git -C '.shellescape(dir).' -c user.name=t -c user.email=t@t '
   call system(git.'init -q')
+  " The plugin runs git commit without -c: the repo needs its own identity
+  call system(git.'config user.name t && '.git.'config user.email t@t')
   for name in ['other.txt', 'mine.txt', 'gone.txt', 'partial.txt']
     call writefile([name], dir.'/'.name)
   endfor
