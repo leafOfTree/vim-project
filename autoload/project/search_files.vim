@@ -6,6 +6,8 @@ let s:update_timer = 0
 " Background refresh of s:initial_list, see s:StartRefresh()
 let s:refresh_job = v:null
 let s:refresh_id = 0
+" Whether s:initial_list came from fd, which marks directories
+let s:initial_list_marks_dirs = 0
 let s:refresh_lines = []
 
 function! project#search_files#Run()
@@ -132,7 +134,7 @@ endfunction
 function! s:GetSearchFilesDisplayRow(columns, idx, value)
   let column = a:columns[a:idx]
   let fullpath = s:GetFileFullpath(a:value)
-  if isdirectory(fullpath)
+  if get(a:value, 'dir', 0) || isdirectory(fullpath)
     let file = substitute(column.file, '\S\zs\s\|\S\zs$', '/', '')
   else
     let file = column.file
@@ -369,6 +371,7 @@ function! s:OnRefreshDone(id, project, status)
   endif
 
   let s:initial_list = new_list
+  let s:initial_list_marks_dirs = s:find_program ==# 'fd'
   call s:ClearResultCache()
   if project#list#IsOpen('SEARCH_FILES')
     call s:Update(project#list#State().user_input)
@@ -396,6 +399,7 @@ function! s:GetSearchFilesAll()
   let result = s:find_cmd_func()
   call s:MapSearchFiles(result)
   let s:initial_list = result
+  let s:initial_list_marks_dirs = s:find_program ==# 'fd'
   let list = copy(s:initial_list)
   return list
 endfunction
@@ -415,12 +419,13 @@ function! s:SortByFileThenDirectoryFunc(item1, item2)
   return a:item2.file > a:item1.file ? -1 : 1
 endfunction
 
+" Match the name first: it is cheap, while isdirectory() is a file system
+" call. fd marks directories, so most items need no call at all
 function! s:GetSearchFilesByDirectory(val, filter)
-  let path = a:val.path
-  let file = a:val.file
-  let fullpath = s:GetFileFullpath(a:val)
-
-  return isdirectory(fullpath) && file =~ a:filter
+  if a:val.file !~ a:filter
+    return 0
+  endif
+  return has_key(a:val, 'dir') ? a:val.dir : isdirectory(s:GetFileFullpath(a:val))
 endfunction
 
 function! s:GetSearchFilesByFilterForDirectory(initial_list, input)
@@ -503,13 +508,74 @@ function! s:GetSearchFilesByFilterForAll(initial_list, input, ...)
 endfunction
 
 function! s:GetSearchFilesByFilter(initial_list, input)
-  if a:input =~ '[^\\]/$'
+  if exists('*matchfuzzy')
+    return s:GetSearchFilesByMatchFuzzy(a:initial_list, a:input)
+  elseif a:input =~ '[^\\]/$'
     " Match directory only
     return s:GetSearchFilesByFilterForDirectory(a:initial_list, a:input)
   else
     " Match filename, directory excluded by default for performance
     return s:GetSearchFilesByFilterForAll(a:initial_list, a:input)
   endif
+endfunction
+
+" Rank all files with the built-in fuzzy matcher, best first. It is written
+" in C, about 5 to 10 times faster than the passes in VimL, and scores
+" consecutive characters, word starts and camelCase. Input containing '/'
+" matches the path relative to the project, e.g. 'pkg3/rout'.
+function! s:GetSearchFilesByMatchFuzzy(initial_list, input)
+  if empty(a:input)
+    return copy(a:initial_list)
+  endif
+
+  let [files, dirs] = s:SplitFilesAndDirectories(a:initial_list)
+
+  " 'name/': directories only, by name
+  if a:input =~ '[^\\]/$'
+    return matchfuzzy(dirs, a:input[:-2], {'key': 'file'})
+  endif
+
+  " Files first: they are what is searched for most of the time
+  if stridx(a:input, '/') == -1
+    return matchfuzzy(files, a:input, {'key': 'file'})
+          \+ matchfuzzy(dirs, a:input, {'key': 'file'})
+  endif
+
+  call s:AddRelativePath(a:initial_list)
+  return matchfuzzy(files, a:input, {'key': 'rel'})
+        \+ matchfuzzy(dirs, a:input, {'key': 'rel'})
+endfunction
+
+" [files, directories] of a:list, cached while the list is the same. fd
+" marks directories; otherwise isdirectory() is called once per item
+function! s:SplitFilesAndDirectories(list)
+  if exists('s:split_source') && s:split_source is a:list
+    return s:split_result
+  endif
+
+  " A list from fd marks every directory, so an unmarked item is a file.
+  " Otherwise ask the file system. String expressions are evaluated in C,
+  " much faster than a loop here
+  if a:list is get(s:, 'initial_list', v:null) && s:initial_list_marks_dirs
+    let dirs = filter(copy(a:list), 'get(v:val, "dir", 0)')
+    let files = filter(copy(a:list), '!get(v:val, "dir", 0)')
+  else
+    let Fullpath = function('s:GetFileFullpath')
+    let dirs = filter(copy(a:list), {_, val -> get(val, 'dir', isdirectory(Fullpath(val)))})
+    let files = filter(copy(a:list), {_, val -> !get(val, 'dir', isdirectory(Fullpath(val)))})
+  endif
+  let s:split_source = a:list
+  let s:split_result = [files, dirs]
+  return s:split_result
+endfunction
+
+" Add 'rel', the path relative to the project, once per file list
+function! s:AddRelativePath(list)
+  if empty(a:list) || has_key(a:list[0], 'rel')
+    return
+  endif
+  call map(a:list, {_, val -> extend(val,
+        \{'rel': empty(val.path) ? val.file : val.path.'/'.val.file})})
 endfunction
 
 function! s:GetMaxShowFiles()
@@ -546,11 +612,22 @@ function! s:GetSearchFiles(input)
   return files
 endfunction
 
+" Items are {'file': name, 'path': parent, 'rel': path in the project}. fd
+" prints directories with a trailing slash: strip it so a directory gets its
+" name as 'file', and mark it with 'dir'. Kept to one lambda without calls
+" to other functions, as this runs once per file of the project.
 function! s:MapSearchFiles(list)
-  call map(a:list, {idx, val ->
-        \{
-        \'file': fnamemodify(val, ':t'),
-        \'path': fnamemodify(val, ':h:s+\./\|\.\\\|^\.$++'),
+  call map(a:list, {idx, val -> val[-1:] ==# '/' || val[-1:] ==# '\'
+        \? {
+        \  'file': fnamemodify(val[:-2], ':t'),
+        \  'path': fnamemodify(val[:-2], ':h:s+\./\|\.\\\|^\.$++'),
+        \  'rel': val[:-2],
+        \  'dir': 1,
+        \}
+        \: {
+        \  'file': fnamemodify(val, ':t'),
+        \  'path': fnamemodify(val, ':h:s+\./\|\.\\\|^\.$++'),
+        \  'rel': val,
         \}})
 endfunction
 
