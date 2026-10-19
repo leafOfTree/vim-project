@@ -722,19 +722,23 @@ function! project#RunShellCmd(cmd, ...)
 
   if v:shell_error
     if !empty(output) && warning
-      call project#Warn('----------------------------------------')
-      call project#Warn(a:cmd)
-      for error in output
-        let formatted_error = substitute(error, '	', '    ', 'g')
-        call project#Warn(formatted_error)
-      endfor
-      redraw
-      execute (len(output) + 2).'messages'
+      call project#WarnCommandOutput(a:cmd, output)
     endif
     return []
   endif
 
   return output
+endfunction
+
+" Show a failed command and its output
+function! project#WarnCommandOutput(cmd, output)
+  call project#Warn('----------------------------------------')
+  call project#Warn(a:cmd)
+  for error in a:output
+    call project#Warn(substitute(error, '\t', '    ', 'g'))
+  endfor
+  redraw
+  execute (len(a:output) + 2).'messages'
 endfunction
 
 function! project#HasMoreOnList(list)

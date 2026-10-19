@@ -349,3 +349,96 @@ function! Test_DeleteShelfFolder_asks_first()
   call assert_equal(1, s:Call('DeleteShelfFolder', dir, 'my shelf', 1))
   call assert_false(isdirectory(dir))
 endfunction
+
+" ---------------------------------------------------------------- push / pull
+
+function! s:WaitGitJob()
+  let tries = 0
+  while s:Call('IsGitJobRunning') && tries < 1000
+    sleep 10m
+    let tries += 1
+  endwhile
+endfunction
+
+" A bare remote with two clones: 'mine' is the project, 'theirs' another user
+function! s:Remote(name)
+  let base = Helper_TmpDir(a:name)
+  let g = ' -c user.name=t -c user.email=t@t '
+  call system('git init -q --bare -b main '.shellescape(base.'/remote.git'))
+  for clone in ['mine', 'theirs']
+    call system('git clone -q '.shellescape(base.'/remote.git').' '.shellescape(base.'/'.clone))
+    call system('git -C '.shellescape(base.'/'.clone).' config pull.rebase false')
+    call system('git -C '.shellescape(base.'/'.clone).' config user.name t')
+    call system('git -C '.shellescape(base.'/'.clone).' config user.email t@t')
+  endfor
+  call s:CommitIn(base.'/theirs', 'first.txt')
+  call system('git -C '.shellescape(base.'/theirs').' push -q origin HEAD:main')
+  call system('git -C '.shellescape(base.'/mine').' pull -q origin main')
+  call system('git -C '.shellescape(base.'/mine').' branch -q --set-upstream-to origin/main')
+  return base
+endfunction
+
+function! s:CommitIn(dir, file)
+  call writefile([a:file], a:dir.'/'.a:file)
+  call system('git -C '.shellescape(a:dir).' add . && git -C '.shellescape(a:dir).' commit -q -m '.shellescape(a:file))
+endfunction
+
+function! s:Head(dir)
+  return trim(system('git -C '.shellescape(a:dir).' rev-parse HEAD'))
+endfunction
+
+function! s:RemoteHead(base)
+  return trim(system('git -C '.shellescape(a:base.'/remote.git').' rev-parse main'))
+endfunction
+
+function! s:CheckPushPull(base)
+  let mine = a:base.'/mine'
+  let theirs = a:base.'/theirs'
+
+  " Push
+  call s:CommitIn(mine, 'pushed.txt')
+  call s:Call('TryPush')
+  call assert_true(s:Call('IsGitJobRunning') || s:RemoteHead(a:base) ==# s:Head(mine), 'push runs in the background')
+  " A second one while running is refused
+  if s:Call('IsGitJobRunning')
+    messages clear
+    call s:Call('TryPull')
+    call assert_match('Wait for the running git push or pull', execute('messages'))
+  endif
+  call s:WaitGitJob()
+  call assert_equal(s:Head(mine), s:RemoteHead(a:base))
+
+  " Pull
+  call system('git -C '.shellescape(theirs).' pull -q')
+  call s:CommitIn(theirs, 'theirs.txt')
+  call system('git -C '.shellescape(theirs).' push -q')
+  call s:Call('TryPull')
+  call s:WaitGitJob()
+  call assert_equal(s:RemoteHead(a:base), s:Head(mine))
+
+  " Pull then push, with commits on both sides
+  call s:CommitIn(theirs, 'theirs2.txt')
+  call system('git -C '.shellescape(theirs).' push -q')
+  call s:CommitIn(mine, 'mine2.txt')
+  call s:Call('TryPullThenPush')
+  call s:WaitGitJob()
+  sleep 50m
+  call s:WaitGitJob()
+  call assert_equal(s:Head(mine), s:RemoteHead(a:base))
+  call assert_true(filereadable(mine.'/theirs2.txt'))
+
+  " A rejected push is reported and leaves no job behind
+  call s:CommitIn(theirs, 'theirs3.txt')
+  call system('git -C '.shellescape(theirs).' pull -q && git -C '.shellescape(theirs).' push -q')
+  call s:CommitIn(mine, 'mine3.txt')
+  messages clear
+  call s:Call('TryPush')
+  call s:WaitGitJob()
+  call assert_match('rejected', execute('messages'))
+  call assert_false(s:Call('IsGitJobRunning'))
+endfunction
+
+function! Test_push_and_pull_run_in_background()
+  let base = s:Remote('push-pull')
+  call s:WithProject(base.'/mine', function('s:CheckPushPull', [base]))
+endfunction

@@ -1843,46 +1843,109 @@ endfunction
 
 function! s:TryPush(...)
   let force = get(a:000, 0, 0)
-  call project#Info(force ? 'Force pushing...' : 'Pushing...')
   let cmd = force ? 'git push --force-with-lease' : 'git push'
-  let result = project#RunShellCmd(cmd)
-  if v:shell_error
-    return 
-  endif
+  call s:RunGitInBackground(cmd, force ? 'Force pushing...' : 'Pushing...',
+        \'Pushed successfully', function('s:OnPushed'))
+endfunction
 
-  redraw
-  if len(result) == 1
-    call project#Info(result[0])
-  else
-    call project#Info('Pushed successfully')
-  endif
+function! s:OnPushed()
   call s:CloseBuffer(s:commit_result_buffer)
 endfunction
 
 function! s:TryPullThenPush()
-  call s:TryPull()
-  if v:shell_error
+  call s:TryPull(function('s:TryPush'))
+endfunction
+
+" a:1: called after a successful pull
+function! s:TryPull(...)
+  let Then = get(a:000, 0, v:null)
+  call s:RunGitInBackground('git pull', 'Updating...', 'Updated successfully',
+        \function('s:OnPulled', [Then]))
+endfunction
+
+function! s:OnPulled(Then)
+  call project#search_files#Reset()
+  if a:Then isnot v:null
+    call a:Then()
+  endif
+endfunction
+
+" ---------------------------------------------------------------- background git
+
+" Push and pull talk to the network, which may take seconds: run them as a
+" job so Vim stays usable. Only one runs at a time. git cannot ask for
+" credentials without a terminal, so it is told to fail instead of waiting;
+" credential helpers and ssh-agent still work.
+let s:git_job = v:null
+
+function! s:IsGitJobRunning()
+  return s:git_job isnot v:null
+endfunction
+
+function! s:RunGitInBackground(cmd, start_message, done_message, OnSuccess)
+  if s:IsGitJobRunning()
+    call project#Warn('Wait for the running git push or pull to finish')
+    return
+  endif
+  call project#Info(a:start_message)
+
+  if !exists('*job_start') && !exists('*jobstart')
+    let result = project#RunShellCmd(a:cmd)
+    if !v:shell_error
+      call s:OnGitJobDone(a:cmd, a:done_message, a:OnSuccess, {'lines': result}, 0)
+    endif
     return
   endif
 
-  call s:TryPush()
+  let ctx = {'lines': []}
+  let shell_cmd = [&shell, &shellcmdflag, a:cmd]
+  let Done = function('s:OnGitJobDone', [a:cmd, a:done_message, a:OnSuccess, ctx])
+  let env = {'GIT_TERMINAL_PROMPT': '0'}
+  if exists('*job_start')
+    let s:git_job = job_start(shell_cmd, {
+          \'cwd': $vim_project,
+          \'env': env,
+          \'in_io': 'null',
+          \'out_cb': {_, line -> add(ctx.lines, line)},
+          \'err_cb': {_, line -> add(ctx.lines, line)},
+          \'exit_cb': {job, status -> s:OnVimGitJobExit(job, status, Done)},
+          \})
+  else
+    let s:git_job = jobstart(shell_cmd, {
+          \'cwd': $vim_project,
+          \'env': env,
+          \'stdin': 'null',
+          \'stdout_buffered': v:true,
+          \'stderr_buffered': v:true,
+          \'on_stdout': {_, data, __ -> extend(ctx.lines, data)},
+          \'on_stderr': {_, data, __ -> extend(ctx.lines, data)},
+          \'on_exit': {_, status, __ -> Done(status)},
+          \})
+  endif
 endfunction
 
-function! s:TryPull()
-  call project#Info('Updating...') 
-  let cmd = 'git pull'
-  let result = project#RunShellCmd(cmd)
-  if v:shell_error
-    return 
+" exit_cb may run before all output was read; wait for the channel
+function! s:OnVimGitJobExit(job, status, Done)
+  let channel = job_getchannel(a:job)
+  let tries = 0
+  while ch_status(channel) ==# 'open' && tries < 200
+    sleep 5m
+    let tries += 1
+  endwhile
+  call a:Done(a:status)
+endfunction
+
+function! s:OnGitJobDone(cmd, done_message, OnSuccess, ctx, status)
+  let s:git_job = v:null
+  let lines = filter(copy(a:ctx.lines), '!empty(v:val)')
+  if a:status != 0
+    call project#WarnCommandOutput(a:cmd, lines)
+    return
   endif
 
   redraw
-  if len(result) == 1
-    call project#Info(result[0])
-  else
-    call project#Info('Updated successfully')
-  endif
-  call project#search_files#Reset()
+  call project#Info(len(lines) == 1 ? lines[0] : a:done_message)
+  call a:OnSuccess()
 endfunction
 
 function! s:OpenResultWindow(title, cmd, result)
