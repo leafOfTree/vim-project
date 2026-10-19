@@ -425,15 +425,19 @@ endfunction
 " Run each available program for real: argument order mistakes only show
 " up there (grep and ag take the first operand as the pattern)
 function! s:SearchWith(program, search, flags)
-  let Cmd = Helper_Funcref(s:file, {'rg': 'GetRgCmd', 'ag': 'GetAgCmd', 'grep': 'GetGrepCmd'}[a:program])
-  let output = project#RunShellCmd(Cmd(shellescape(a:search), a:flags), 0)
-  let items = map(output, {_, line -> s:Call('ParseGrepLine', line)})
+  if a:program ==# 'vimgrep'
+    let items = s:Call('RunVimGrep', a:search, a:flags, a:search)
+  else
+    let Cmd = Helper_Funcref(s:file, {'rg': 'GetRgCmd', 'ag': 'GetAgCmd', 'grep': 'GetGrepCmd'}[a:program])
+    let output = project#RunShellCmd(Cmd(shellescape(a:search), a:flags), 0)
+    let items = map(output, {_, line -> s:Call('ParseGrepLine', line)})
+  endif
   return sort(map(items, {_, item -> item.file.':'.item.lnum.':'.item.line}))
 endfunction
 
 function! s:CheckPrograms(dir)
-  for program in ['rg', 'ag', 'grep']
-    if !executable(program)
+  for program in ['rg', 'ag', 'grep', 'vimgrep']
+    if program !=# 'vimgrep' && !executable(program)
       continue
     endif
     call assert_equal(['a.txt:1:Needle here', 'a.txt:3:needle.*x', 'sub/b.txt:2:-needle- again'],
@@ -452,7 +456,8 @@ function! s:CheckPrograms(dir)
 endfunction
 
 function! Test_grep_programs_find_matches_for_real()
-  let dir = Helper_TmpDir('grep-programs')
+  " A space in the path catches unescaped commands
+  let dir = Helper_TmpDir('grep programs')
   call mkdir(dir.'/sub')
   call mkdir(dir.'/node_modules')
   call writefile(['Needle here', 'nothing', 'needle.*x'], dir.'/a.txt')

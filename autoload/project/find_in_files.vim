@@ -775,9 +775,11 @@ function! s:RunVimGrep(search, flags, full_input)
     let pattern_flag .= '\V'
   endif
 
-  let pattern = '/'.pattern_flag.escape(a:search, '/').'/j'
-  let cmd = 'silent! vimgrep '.pattern.' '.$vim_project.'/**/*'
-  execute cmd
+  let pattern = '/'.pattern_flag.escape(a:search, '/\').'/j'
+  " Search the include paths of the project; escape them for :vimgrep
+  let paths = map(s:GetInclude(), {_, path ->
+        \fnameescape(substitute($vim_project.'/'.path, '/\.\?/\?$', '', '')).'/**/*'})
+  execute 'silent! vimgrep' pattern join(paths, ' ')
   redraw!
 
   let &wildignore = original_wildignore
@@ -798,12 +800,18 @@ function! s:RunVimGrep(search, flags, full_input)
   return result
 endfunction
 
+" The path relative to the project. Compared as a string: the project path
+" may contain regexp characters
 function! s:RemoveProjectPath(path)
-  let result = substitute(a:path, $vim_project, '', '')
-  if result != a:path
-    let result = substitute(result, '^/', '', '')
+  let path = fnamemodify(a:path, ':p')
+  let root = fnamemodify($vim_project, ':p')
+  if stridx(path, root) == 0
+    return path[len(root):]
   endif
-  return result
+  " e.g. /tmp vs /private/tmp on macOS
+  let path = resolve(path)
+  let root = fnamemodify(resolve($vim_project), ':p')
+  return stridx(path, root) == 0 ? path[len(root):] : a:path
 endfunction
 
 " ---------------------------------------------------------------- background

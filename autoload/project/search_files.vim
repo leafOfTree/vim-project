@@ -216,13 +216,14 @@ endfunction
 
 function! s:GetFindCmd()
   let include = join(s:GetInclude(), ' ')
-
   let search_exclude = s:GetExclude()
-  let exclude_string = join(map(search_exclude, {_, val -> '-name "'.val.'"'}), ' -o ')
-  let exclude = '\( '.exclude_string.' \) -prune -false -o '
+  if empty(search_exclude)
+    return 'find '.include.' -mindepth 1'
+  endif
 
-  let filter = '-ipath "*"'
-  return 'find '.include.' -mindepth 1 '.exclude.filter
+  " Pruned directories are not printed, nor their contents
+  let names = join(map(search_exclude, {_, val -> '-name '.shellescape(val)}), ' -o ')
+  return 'find '.include.' -mindepth 1 \( '.names.' \) -prune -o -print'
 endfunction
 
 function! s:GetFdCmd()
@@ -242,7 +243,48 @@ function! s:GetFilesByFd()
   return project#RunShellCmd(s:GetFdCmd())
 endfunction
 
+" Without fd and find: walk the directories with readdir(). Unlike glob(),
+" it sees hidden files and matches excludes on names like fd and find
 function! s:GetFilesByGlob()
+  if !exists('*readdir')
+    return s:GetFilesByGlobPattern()
+  endif
+
+  let exclude = map(s:GetExclude(), {_, val -> glob2regpat(val)})
+  let result = []
+  for path in s:GetInclude()
+    let path = substitute(path, '^\./\?$', '', '')
+    call s:ReadDirRecursive($vim_project, path, exclude, result)
+  endfor
+  return result
+endfunction
+
+function! s:ReadDirRecursive(root, rel, exclude, result)
+  let dir = empty(a:rel) ? a:root : a:root.'/'.a:rel
+  for name in readdir(dir)
+    if s:MatchAnyPattern(name, a:exclude)
+      continue
+    endif
+    let rel = empty(a:rel) ? name : a:rel.'/'.name
+    if isdirectory(a:root.'/'.rel) && getftype(a:root.'/'.rel) !=# 'link'
+      call add(a:result, rel.'/')
+      call s:ReadDirRecursive(a:root, rel, a:exclude, a:result)
+    else
+      call add(a:result, rel)
+    endif
+  endfor
+endfunction
+
+function! s:MatchAnyPattern(name, patterns)
+  for pattern in a:patterns
+    if a:name =~# pattern
+      return 1
+    endif
+  endfor
+  return 0
+endfunction
+
+function! s:GetFilesByGlobPattern()
   let original_wildignore = &wildignore
   let cwd = getcwd()
   execute 'cd' fnameescape($vim_project)

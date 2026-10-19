@@ -230,3 +230,47 @@ function! Test_GetSearchFilesByMatchFuzzy()
   " No match
   call assert_equal([], s:FuzzyNames(list, 'zzzz'))
 endfunction
+
+" ---------------------------------------------------------------- real programs
+
+" List files with each program for real; all must agree
+function! s:ListWith(program)
+  let name = {'fd': 'GetFilesByFd', 'find': 'GetFilesByFind', 'glob': 'GetFilesByGlob'}[a:program]
+  let lines = s:Call(name)
+  " './a' (find, glob) and 'a/' (fd directories) are the same path
+  call map(lines, {_, line -> substitute(substitute(line, '^\.[/\\]', '', ''), '[/\\]$', '', '')})
+  return uniq(sort(lines))
+endfunction
+
+function! s:CheckListPrograms(dir)
+  let expected = ['.env', 'a.txt', 'sub', 'sub/.hidden_dir', 'sub/.hidden_dir/c.txt',
+        \ 'sub/b.txt', 'with space', 'with space/d.txt']
+  for program in ['fd', 'find', 'glob']
+    if program !=# 'glob' && !executable(program)
+      continue
+    endif
+    call assert_equal(expected, s:ListWith(program), program)
+  endfor
+endfunction
+
+function! Test_list_programs_agree_for_real()
+  let dir = Helper_TmpDir('list programs')
+  for sub in ['sub/.hidden_dir', 'with space', 'node_modules/pkg']
+    call mkdir(dir.'/'.sub, 'p')
+  endfor
+  for file in ['a.txt', '.env', 'sub/b.txt', 'sub/.hidden_dir/c.txt',
+        \ 'with space/d.txt', 'node_modules/pkg/x.js']
+    call writefile(['x'], dir.'/'.file)
+  endfor
+
+  let config = project#config#All()
+  let saved = [$vim_project, config.search_include, config.search_exclude]
+  let $vim_project = dir
+  let config.search_include = ['.']
+  let config.search_exclude = ['node_modules']
+  try
+    call s:CheckListPrograms(dir)
+  finally
+    let [$vim_project, config.search_include, config.search_exclude] = saved
+  endtry
+endfunction
