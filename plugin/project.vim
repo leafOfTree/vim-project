@@ -27,7 +27,7 @@ command -complete=customlist,project#ListAllProjectNames -nargs=1
       \ ProjectRemove call project#RemoveProjectByName(s:TrimQuote(<q-args>))
 
 command -complete=customlist,project#ListAllProjectNames -nargs=+
-      \ ProjectRename call project#RenameProjectByName(s:TrimQuote(<q-args>))
+      \ ProjectRename call project#RenameProjectByName(<q-args>)
 
 command -complete=customlist,project#ListDirs -nargs=+
       \ Project call project#AddProject(s:TrimQuote(<q-args>))

@@ -374,3 +374,39 @@ function! Test_file_mappings_default_prefix_is_quote()
     call s:Call('UnmapFile')
   endtry
 endfunction
+
+" ---------------------------------------------------------------- rename args
+
+function! Test_SplitQuotedArgs()
+  call assert_equal(['old', 'new'], s:Call('SplitQuotedArgs', 'old new'))
+  call assert_equal(['my proj', 'new'], s:Call('SplitQuotedArgs', '"my proj" new'))
+  call assert_equal(['my proj', 'new name'], s:Call('SplitQuotedArgs', "'my proj' 'new name'"))
+  call assert_equal(['my proj', 'new'], s:Call('SplitQuotedArgs', 'my\ proj new'))
+  call assert_equal(['a', 'b', 'c'], s:Call('SplitQuotedArgs', '  a  b c '))
+  call assert_equal(['', 'x'], s:Call('SplitQuotedArgs', '"" x'))
+  call assert_equal([], s:Call('SplitQuotedArgs', ''))
+endfunction
+
+function! Test_ParseRenameArgs_matches_existing_name_with_spaces()
+  let projects = project#GetProjects()
+  call add(projects, {'name': 'my proj', 'fullpath': '/tmp/my proj'})
+  call add(projects, {'name': 'my', 'fullpath': '/tmp/my'})
+  try
+    " Longest existing name wins, as inserted by completion
+    call assert_equal(['my proj', 'renamed'], s:Call('ParseRenameArgs', 'my proj renamed'))
+    call assert_equal(['my', 'other'], s:Call('ParseRenameArgs', 'my other'))
+    " Quoted input is parsed as is
+    call assert_equal(['my proj', 'a b'], s:Call('ParseRenameArgs', '"my proj" "a b"'))
+  finally
+    call filter(projects, {_, p -> p.fullpath !~# '^/tmp/my'})
+  endtry
+endfunction
+
+function! Test_RenameProjectByName_warns_on_bad_args()
+  messages clear
+  call project#RenameProjectByName('only-one-name')
+  call assert_match('Usage: ProjectRename', execute('messages'))
+  messages clear
+  call project#RenameProjectByName('no-such-project new')
+  call assert_match('Project not found: \[no-such-project\]', execute('messages'))
+endfunction

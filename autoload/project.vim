@@ -765,7 +765,9 @@ function! s:RenameProjectByName(name, new_name)
     let project = s:GetProjectByName(a:name, s:projects_error)
   endif
 
-  if !empty(project)
+  if empty(project)
+    call project#Warn('Project not found: ['.a:name.']')
+  else
     call s:RenameProject(project, a:new_name)
 
     let s:projects = []
@@ -778,9 +780,58 @@ function! project#RemoveProjectByName(name)
   call s:RemoveProjectByName(a:name, 0)
 endfunction
 
-function! project#RenameProjectByName(names)
-  let [name, new_name] = split(a:names, ' ')
-  call s:RenameProjectByName(name, new_name)
+function! project#RenameProjectByName(args)
+  let names = s:ParseRenameArgs(a:args)
+  if len(names) != 2 || empty(names[1])
+    call project#Warn('Usage: ProjectRename <name> <new_name>. '
+          \.'Quote or escape names with spaces, e.g. "my project" new-name')
+    return
+  endif
+  call s:RenameProjectByName(names[0], names[1])
+endfunction
+
+" Split ':ProjectRename' args into [name, new_name]. A name may be quoted
+" ("a b" or 'a b') or have escaped spaces (a\ b). An unquoted name may
+" also contain plain spaces when it is an existing project name, as
+" inserted by completion.
+function! s:ParseRenameArgs(args)
+  let args = trim(a:args)
+  if args =~ '^["'']' || args =~ '\\ '
+    return s:SplitQuotedArgs(args)
+  endif
+
+  " Longest existing name followed by a space
+  let names = map(copy(s:projects + s:projects_error), {_, project -> project.name})
+  call sort(names, {a, b -> len(b) - len(a)})
+  for name in names
+    if stridx(args, name.' ') == 0
+      return [name, trim(args[len(name):])]
+    endif
+  endfor
+
+  return s:SplitQuotedArgs(args)
+endfunction
+
+" Split on spaces outside quotes, honoring backslash-escaped spaces
+function! s:SplitQuotedArgs(args)
+  let result = []
+  let rest = a:args
+  let token_pattern = '^\s*\%("\([^"]*\)"\|''\([^'']*\)''\|\(\%(\\.\|\S\)\+\)\)\(.*\)$'
+  while rest !~ '^\s*$'
+    let parts = matchlist(rest, token_pattern)
+    if empty(parts)
+      break
+    endif
+    if !empty(parts[1]) || rest =~ '^\s*""'
+      call add(result, parts[1])
+    elseif !empty(parts[2]) || rest =~ "^\\s*''"
+      call add(result, parts[2])
+    else
+      call add(result, substitute(parts[3], '\\\(.\)', '\1', 'g'))
+    endif
+    let rest = parts[4]
+  endwhile
+  return result
 endfunction
 
 function! project#ReloadProject()
