@@ -73,6 +73,8 @@ Project-wide
 
 ## Basic Usage
 
+Full reference: `:help vim-project` (run `:helptags ALL` first if your plugin manager does not).
+
 - `:Project <path>`
 - `:ProjectNew <path>`
 - `:ProjectList` 

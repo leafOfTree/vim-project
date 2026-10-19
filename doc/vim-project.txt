@@ -1,0 +1,408 @@
+*vim-project.txt*  Manage projects and sessions          *vim-project*
+
+==============================================================================
+CONTENTS                                              *vim-project-contents*
+
+    1. Introduction ..................... |vim-project-intro|
+    2. Commands ......................... |vim-project-commands|
+    3. Lists ............................ |vim-project-lists|
+    4. Search files / Find in files ..... |vim-project-search|
+    5. Run tasks ........................ |vim-project-tasks|
+    6. Git .............................. |vim-project-git|
+    7. Configuration .................... |vim-project-config|
+    8. Project local config ............. |vim-project-local-config|
+    9. Switch between files ............. |vim-project-file-mappings|
+   10. Variables ........................ |vim-project-variables|
+   11. Debug ............................ |vim-project-debug|
+
+Screenshots and more examples: https://github.com/leafOfTree/vim-project
+
+==============================================================================
+1. INTRODUCTION                                          *vim-project-intro*
+
+vim-project switches between projects, searches files by name, finds and
+replaces in files, runs tasks and works with git, all scoped to the current
+project. Each project can have its own config, session and viminfo.
+
+Optional external programs make search faster:
+- fd, or find, for |:ProjectSearchFiles|
+- rg, ag, or grep, for |:ProjectFindInFiles|
+Without them Vim's |glob()| and |:vimgrep| are used. None of them respects
+.gitignore, so results are the same whichever is used.
+
+Workflow:
+    Add      |:Project| or |:ProjectNew|
+    Open     |:ProjectList| or |:ProjectOpen|
+    Quit     |:ProjectQuit|, open another project, or quit Vim
+    Remove   |:ProjectRemove|
+
+If a command runs much slower than in a terminal, try setting 'shell' to
+"sh" or "cmd.exe".
+
+==============================================================================
+2. COMMANDS                                           *vim-project-commands*
+
+:Project {path} ["note"]                                          *:Project*
+    Add the folder {path} as a project and open it. A relative {path} or a
+    name is looked up from the current directory, then from each of
+    "project_base". <Tab> completes folders. The optional "note" is shown
+    in the project list.
+
+:ProjectNew {path}                                             *:ProjectNew*
+    Create a folder as a new project by one of "new_tasks". A relative
+    {path} is based on "new_project_base", or the current directory. A git
+    url runs "git clone". After creating, "new_tasks_post_cmd" is run.
+
+:ProjectList                                                  *:ProjectList*
+    Show all projects. See |vim-project-lists|.
+
+:ProjectOpen {name}                                           *:ProjectOpen*
+    Open the project {name}.
+
+:ProjectQuit                                                  *:ProjectQuit*
+    Quit the current project: save its session and viminfo when enabled,
+    and source its quit.vim.
+
+:ProjectRemove {name}                                       *:ProjectRemove*
+    Remove the project {name} from the list and add it to the ignore list,
+    so "auto_detect" does not offer it again. Its folder is kept.
+
+:ProjectRename {name} {new_name}                            *:ProjectRename*
+    Rename the project {name} and its folder to {new_name}. Quote or
+    escape a name with spaces: >
+        :ProjectRename "my project" new-name
+        :ProjectRename my\ project new-name
+<
+:ProjectIgnore {path}                                       *:ProjectIgnore*
+    Do not offer {path} again when "auto_detect" is "ask" or "always".
+
+:ProjectSearchFiles                                    *:ProjectSearchFiles*
+    Search files by name in the project. See |vim-project-search|.
+
+:ProjectSearchFilesReset                          *:ProjectSearchFilesReset*
+    Forget the cached file list, e.g. after files were added outside Vim.
+
+:[range]ProjectFindInFiles [text]                      *:ProjectFindInFiles*
+    Find text in files of the project. With a visual selection, or [text],
+    start with it as the input. See |vim-project-search|.
+
+:ProjectRun                                                    *:ProjectRun*
+    Run a task from "tasks". See |vim-project-tasks|.
+
+:ProjectGitLog                                              *:ProjectGitLog*
+:[range]ProjectGitFileHistory                       *:ProjectGitFileHistory*
+:ProjectGitBranch                                        *:ProjectGitBranch*
+:ProjectGitTag                                              *:ProjectGitTag*
+:ProjectGitStatus                                        *:ProjectGitStatus*
+:ProjectGitCommit                                        *:ProjectGitCommit*
+    See |vim-project-git|.
+
+:ProjectRoot                                                  *:ProjectRoot*
+    Open the project root, see "project_root".
+
+:ProjectConfig                                              *:ProjectConfig*
+    Open the project's init.vim. It is reloaded when written.
+
+:ProjectAllConfig                                        *:ProjectAllConfig*
+    Open project.add.vim, the list of added projects.
+
+:ProjectConfigReload                                  *:ProjectConfigReload*
+    Write all buffers, then quit and reopen the current project.
+
+:ProjectInfo                                                  *:ProjectInfo*
+:ProjectAllInfo                                            *:ProjectAllInfo*
+    Show brief or all info of the current project and the config in use.
+
+:ProjectOutput [filter]                                     *:ProjectOutput*
+    Echo the projects matching [filter].
+
+==============================================================================
+3. LISTS                                                 *vim-project-lists*
+
+Commands like |:ProjectList| open a list at the bottom. Type to filter it.
+Typed text is matched literally, not as a regexp. In the project, task and
+file lists the characters only need to appear in order, so "vp" matches
+"vim-project"; in git lists each space separated word must appear in
+order. Default keys, see "list_mappings" to change them:
+
+    <CR>                open the selected item
+    <Esc>               close the list
+    <C-k> <Up>          previous item
+    <C-j> <Down>        next item
+    <C-h> <Left>        first item
+    <C-l> <Right>       last item
+    <C-p> <C-n>         scroll up / down
+    <BS> <C-a>          delete a character
+    <C-w>               delete a word
+    <C-u>               delete all input
+    <C-b>               paste the "*" register
+    <C-o>               leave the list window open and go to it, unless
+                        the list uses <C-o> itself (tasks, git)
+
+In the project list, <Tab> and <S-Tab> switch between "project_views".
+
+==============================================================================
+4. SEARCH FILES / FIND IN FILES                         *vim-project-search*
+
+Both use "include" and "exclude", extended by "search_include",
+"search_exclude", "find_in_files_include" and "find_in_files_exclude".
+Patterns may be globs like "dist", "*.png" or "**/dist".
+
+In both lists:
+    <C-s> <C-v> <C-t>   open in a split, vertical split, or tab
+
+Find in files:
+    Input is a literal string, case insensitive, at least 2 characters.
+    Start the input with \C to match case, or \E to use a regexp.
+
+Find and replace:                                *vim-project-find-replace*
+    <C-r>   append the separator " => " ("find_replace_separator"), then
+            type the replacement
+    <C-d>   leave out the selected line or file
+    <C-y>   replace in all listed lines (<CR> also does)
+
+    The replacement is inserted literally ("&" and "\1" are not special).
+    A line is only replaced if it still reads as it did in the search
+    result. Files with unsaved changes in a buffer are skipped. Line
+    endings and a missing final newline are kept, and open buffers of
+    changed files are reloaded. Skipped lines and files are reported.
+
+    Commit your work before replacing in many files.
+
+==============================================================================
+5. RUN TASKS                                             *vim-project-tasks*
+
+|:ProjectRun| lists "tasks". Each task is a dict:
+
+    name    task name
+    cmd     shell command. An empty string opens a |:terminal| instead
+    args    optional. Asked for when run, appended to cmd
+    cd      optional. Directory relative to the project to run in
+    show    optional. List of patterns; only matching output is shown
+    hide    optional. List of patterns; matching output is hidden
+
+Keys in the task list:
+    <CR>    run or rerun the task
+    <C-q>   stop the task and remove its output
+    <C-o>   open the task's terminal buffer
+
+Example in a project's init.vim: >
+    let g:vim_project_local_config = {
+          \ 'tasks': [
+          \   {'name': 'start', 'cmd': 'npm start'},
+          \   {'name': 'npm', 'cmd': 'npm run', 'args': 'script name'},
+          \   {'name': 'terminal', 'cmd': ''},
+          \ ],
+          \ }
+<
+==============================================================================
+6. GIT                                                     *vim-project-git*
+
+|:ProjectGitLog| lists commits; the changed files of the selected commit are
+shown aside. |:ProjectGitFileHistory| lists commits of the current file, or
+of the selected lines with a range, with the diff aside.
+    <C-o>   check out the selected revision ("list_mappings_git")
+Go back to a branch with |:ProjectGitBranch|.
+
+|:ProjectGitBranch| lists branches. <CR> switches to the selected one, or
+creates a local branch for a remote one. The "New Branch" item asks for a
+name. <C-o> merges the selected branch into the current one.
+
+|:ProjectGitTag| lists tags. <CR> checks out the selected tag. The "New Tag"
+item runs "git tag" with what you type.
+
+|:ProjectGitStatus| (or |:ProjectGitCommit|) shows local changes grouped in
+changelists. Default keys ("git_local_changes_mappings"):
+
+    <CR>    expand a changelist, or open a file
+    a       new changelist
+    m       move files or a changelist to another changelist
+    r       rename a changelist
+    d       delete a changelist
+    c       commit the file(s) or changelist. Write "amend" on its own line
+            in the message to amend
+    R       roll back the file(s)
+    s       shelve the file(s) as a patch
+    S       unshelve
+    u       git pull
+    p       git push
+    P       git pull, then git push
+
+In the diff buffer, <CR> jumps to the source line ("git_diff_mappings").
+In the changes buffer, <CR> opens the file ("git_changes_mappings").
+
+==============================================================================
+7. CONFIGURATION                                        *vim-project-config*
+                                                        *g:vim_project_config*
+
+Set g:vim_project_config in your vimrc. Only keys you set are changed; for
+dict options like "list_mappings", only the keys you set are changed too. >
+
+    let g:vim_project_config = {
+          \ 'project_base': ['~/work'],
+          \ 'use_session': 1,
+          \ }
+<
+Options and defaults:
+
+config_home         '~/.vim/vim-project-config'
+    Directory of all config files, see |vim-project-files|.
+
+project_base        ['~']
+    Base directories for a relative path in |:Project|.
+
+use_session         0
+    Save and load a session per project. See 'sessionoptions'.
+
+check_branch_when_use_session   0
+    Keep one session per git branch, and switch sessions when the branch
+    changes. Needs |job| support and the "tail" command.
+
+open_root_when_use_session      0
+    Open the project root even when a session is loaded.
+
+use_viminfo         0
+    Save and load a viminfo (shada for Neovim) per project.
+
+project_root        './'
+    File or directory to open when a project is opened.
+
+auto_load_on_start  0
+    Open the project containing the file Vim is started with.
+
+auto_detect         'no'
+    When opening a file in a folder containing "auto_detect_file" that is
+    not a project: 'always' adds it, 'ask' asks, 'no' does nothing.
+
+auto_detect_file    ['.git', '.svn']
+    Files that mark a folder as a project for "auto_detect".
+
+ask_create_directory    'no'
+    'yes' to offer creating a missing folder in |:Project|.
+
+include             []
+exclude             ['.git', 'node_modules', '.DS_Store', '.github', '.next']
+search_include      []
+search_exclude      []
+find_in_files_include   []
+find_in_files_exclude   []
+    See |vim-project-search|. An empty include means everything.
+
+find_replace_separator  ' => '
+    Separates search and replace text, see |vim-project-find-replace|.
+    Change it to search for code containing " => ".
+
+project_views       []
+    Views of the project list, as [[show_pattern, hide_pattern], ...].
+
+file_mappings       {}
+file_mappings_prefix    "'"
+file_open_types     {'': 'edit', 's': 'split', 'v': 'vsplit', 't': 'tabedit'}
+    See |vim-project-file-mappings|.
+
+tasks               []
+    See |vim-project-tasks|.
+
+new_tasks           [{'name': 'git', 'cmd': 'git clone', 'args': 'url'},
+                     {'name': 'empty', 'cmd': 'mkdir'}]
+new_project_base    ''
+new_tasks_post_cmd  ''
+    See |:ProjectNew|. "new_tasks_post_cmd" is a shell command, or a
+    |Funcref| called with the project name, the task and the command that
+    returns one.
+
+commit_message      ''
+    Default commit message: a string, a list of lines, or a |Funcref|
+    called with the changelist name.
+
+debug               0
+    Show debug messages.
+
+Key mapping options, each a dict of command to key or list of keys. See
+README.md for every default:
+    list_mappings                   all lists, |vim-project-lists|
+    list_mappings_projects          project list
+    list_mappings_search_files      search files
+    list_mappings_find_in_files     find in files
+    list_mappings_run_tasks         run tasks
+    list_mappings_git               git log and file history
+    list_mappings_git_branch        git branch
+    git_diff_mappings               diff buffer
+    git_changes_mappings            changes buffer
+    git_local_changes_mappings      |:ProjectGitStatus|
+
+                                                         *vim-project-files*
+Config files are kept in "config_home": >
+
+    project.add.vim         added projects
+    project.ignore.vim      ignored projects
+    <project-name>___@<path>/
+        init.vim            sourced when the project opens
+        quit.vim            sourced when the project quits
+        sessions/           sessions, per branch when enabled
+        viminfo/            project viminfo or shada
+<
+==============================================================================
+8. PROJECT LOCAL CONFIG                           *vim-project-local-config*
+                                                  *g:vim_project_local_config*
+
+Set g:vim_project_local_config in a project's init.vim (|:ProjectConfig|).
+List and dict options extend the global value, others override it. These
+options can be set per project:
+
+    include, exclude, search_include, search_exclude,
+    find_in_files_include, find_in_files_exclude, project_root,
+    file_mappings, tasks, use_session, use_viminfo,
+    open_root_when_use_session, check_branch_when_use_session,
+    commit_message
+
+==============================================================================
+9. SWITCH BETWEEN FILES                         *vim-project-file-mappings*
+
+"file_mappings" maps a key to a file to open, set in a project's init.vim: >
+
+    let g:vim_project_local_config.file_mappings = {
+          \ 'r': 'README.md',
+          \ 'l': ['autoload/project.vim', 'plugin/project.vim'],
+          \ 't': ['html', 'css'],
+          \ 'c': function('MyFunc'),
+          \ 'd': {-> expand('%:p:h').'/style.css'},
+          \ }
+<
+A value is
+    a path      open that file, relative to the project
+    a list      switch between the files, or between file extensions at
+                the same path when the items are extensions
+    a |Funcref|   open the path it returns
+
+Each key is prefixed with "file_mappings_prefix" (default "'"), and with a
+key of "file_open_types" to open in another way: 'r edits README.md, 'vr
+opens it in a vertical split, 'tr in a tab.
+
+The default prefix "'" takes over jumping to marks like 'r while a project
+is open. To keep mark jumps, use another prefix: >
+
+    let g:vim_project_config.file_mappings_prefix = '<leader>'
+<
+==============================================================================
+10. VARIABLES                                        *vim-project-variables*
+
+g:vim_project           Dict of the current project: name, path, fullpath,
+                        note, option, branch. Empty when none is open.
+$vim_project            Path of the current project.
+$vim_project_config     Path of the current project's config folder.
+
+Example for 'statusline': >
+
+    function! ProjectName()
+      return empty(g:vim_project) ? '' : '['.g:vim_project.name.']'
+    endfunction
+    set statusline=%<%t%m\ %y\ %=%{ProjectName()}
+<
+==============================================================================
+11. DEBUG                                                *vim-project-debug*
+
+If something goes wrong, try |:ProjectInfo|, |:ProjectAllInfo|,
+":echo g:vim_project", or ":let g:vim_project_config.debug = 1".
+
+ vim:tw=78:ts=8:ft=help:norl:
