@@ -148,11 +148,11 @@ function! Test_GetAgCmd_include_exclude_and_fixed_strings()
   let cmd = s:WithIncludeExclude(['src', 'lib'], ['.git', 'node_modules'],
         \ {-> s:Call('GetAgCmd', "'pat'", '')})
   call assert_match('^ag ', cmd)
-  call Helper_AssertContains(cmd, ' src lib ')
   call Helper_AssertContains(cmd, '--ignore-dir .git --ignore-dir node_modules')
   call Helper_AssertContains(cmd, '--fixed-strings')
   call Helper_AssertContains(cmd, '--ignore-case')
-  call assert_match(" -- 'pat'$", cmd)
+  " The pattern comes before the paths
+  call assert_match(" -- 'pat' src lib$", cmd)
 endfunction
 
 function! Test_GetAgCmd_flags()
@@ -167,14 +167,14 @@ function! Test_GetGrepCmd_include_exclude_and_fixed_strings()
   let cmd = s:WithIncludeExclude(['src', 'lib'], ['.git', 'node_modules'],
         \ {-> s:Call('GetGrepCmd', "'pat'", '')})
   call assert_match('^grep ', cmd)
-  call Helper_AssertContains(cmd, ' src lib ')
   call Helper_AssertContains(cmd, '--exclude-dir .git --exclude-dir node_modules')
   call Helper_AssertContains(cmd, '--fixed-strings')
   call Helper_AssertNotContains(cmd, '--extended-regexp')
   call Helper_AssertContains(cmd, '--ignore-case')
   call Helper_AssertContains(cmd, '--recursive')
   call Helper_AssertContains(cmd, '--line-number')
-  call assert_match(" -- 'pat'$", cmd)
+  " The pattern comes before the paths
+  call assert_match(" -e 'pat' -- src lib$", cmd)
 endfunction
 
 function! Test_GetGrepCmd_regexp_flag_uses_extended_regexp()
@@ -195,7 +195,7 @@ endfunction
 function! Test_GetGrepCmd_empty_include_searches_current_dir()
   let cmd = s:WithIncludeExclude([], ['.git'],
         \ {-> s:Call('GetGrepCmd', "'pat'", '')})
-  call Helper_AssertContains(cmd, ' . --exclude-dir .git')
+  call assert_match(" -e 'pat' -- \\.$", cmd)
 endfunction
 
 function! Test_grep_commands_do_not_mutate_config_lists()
@@ -418,4 +418,46 @@ function! s:WithProjectDir(dir, Fn)
     call s:Call('StopGrep')
     let $vim_project = saved
   endtry
+endfunction
+
+" ---------------------------------------------------------------- real programs
+
+" Run each available program for real: argument order mistakes only show
+" up there (grep and ag take the first operand as the pattern)
+function! s:SearchWith(program, search, flags)
+  let Cmd = Helper_Funcref(s:file, {'rg': 'GetRgCmd', 'ag': 'GetAgCmd', 'grep': 'GetGrepCmd'}[a:program])
+  let output = project#RunShellCmd(Cmd(shellescape(a:search), a:flags), 0)
+  let items = map(output, {_, line -> s:Call('ParseGrepLine', line)})
+  return sort(map(items, {_, item -> item.file.':'.item.lnum.':'.item.line}))
+endfunction
+
+function! s:CheckPrograms(dir)
+  for program in ['rg', 'ag', 'grep']
+    if !executable(program)
+      continue
+    endif
+    call assert_equal(['a.txt:1:Needle here', 'a.txt:3:needle.*x', 'sub/b.txt:2:-needle- again'],
+          \ s:SearchWith(program, 'needle', ''), program.' fixed, ignore case')
+    call assert_equal(['sub/b.txt:2:-needle- again'],
+          \ s:SearchWith(program, '-needle-', ''), program.' pattern starting with -')
+    call assert_equal(['a.txt:1:Needle here'],
+          \ s:SearchWith(program, 'Needle', 'C'), program.' match case')
+    call assert_equal(['a.txt:3:needle.*x'],
+          \ s:SearchWith(program, 'needle.*x', 'C'), program.' literal')
+    call assert_equal(['a.txt:3:needle.*x', 'sub/b.txt:2:-needle- again'],
+          \ s:SearchWith(program, 'needle.', 'CE'), program.' regexp')
+    " Excluded directories are skipped
+    call assert_equal([], s:SearchWith(program, 'hidden_in_excluded', ''), program.' exclude')
+  endfor
+endfunction
+
+function! Test_grep_programs_find_matches_for_real()
+  let dir = Helper_TmpDir('grep-programs')
+  call mkdir(dir.'/sub')
+  call mkdir(dir.'/node_modules')
+  call writefile(['Needle here', 'nothing', 'needle.*x'], dir.'/a.txt')
+  call writefile(['nothing', '-needle- again'], dir.'/sub/b.txt')
+  call writefile(['hidden_in_excluded'], dir.'/node_modules/c.txt')
+  call s:WithIncludeExclude(['.'], ['node_modules'],
+        \ function('s:WithProjectDir', [dir, function('s:CheckPrograms', [dir])]))
 endfunction

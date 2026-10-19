@@ -640,8 +640,9 @@ function! s:GetAgCmd(pattern, flags)
     let search_arg .= ' --fixed-strings'
   endif
 
-  let cmd = 'ag '.search_arg.' '.include_arg.' '.exclude_arg.' -- '.a:pattern
-  return cmd
+  " ag takes the first operand as the pattern, the rest as paths
+  let cmd = 'ag '.search_arg.' '.exclude_arg.' -- '.a:pattern.' '.include_arg
+  return trim(cmd)
 endfunction
 
 function! s:GetGrepCmd(pattern, flags)
@@ -665,7 +666,9 @@ function! s:GetGrepCmd(pattern, flags)
     let search_arg .= ' --fixed-strings'
   endif
 
-  let cmd = 'grep '.search_arg.' '.include_arg.' '.exclude_arg.' -- '.a:pattern
+  " grep takes the first operand as the pattern: pass it with -e, then the
+  " paths after --
+  let cmd = 'grep '.search_arg.' '.exclude_arg.' -e '.a:pattern.' -- '.include_arg
   return cmd
 endfunction
 
@@ -746,7 +749,8 @@ endfunction
 function! s:ParseGrepLine(line)
   let parts = matchlist(a:line, '^\(.\{-}\):\(\d\+\):\(.*\)$')
   if !empty(parts)
-    return {'file': parts[1], 'lnum': parts[2], 'line': parts[3]}
+    " grep prints paths under '.' as './file'
+    return {'file': substitute(parts[1], '^\.[/\\]', '', ''), 'lnum': parts[2], 'line': parts[3]}
   endif
   " Not a match line, e.g. an error message: show it as is
   let segments = split(a:line, ':', 1)
