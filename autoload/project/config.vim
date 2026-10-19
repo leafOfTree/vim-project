@@ -29,6 +29,7 @@ let s:default = {
       \'ask_create_directory':          'no',
       \'project_views':                 [],
       \'file_mappings':                 {},
+      \'file_mappings_prefix':          "'",
       \'tasks':                         [],
       \'new_tasks':                     [
         \{ 'name': 'git', 'cmd': 'git clone', 'args': 'url' },

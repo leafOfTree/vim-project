@@ -1469,8 +1469,11 @@ function! s:MapLinkedFile(key, files)
   endfor
 endfunction
 
+" The default prefix "'" shadows jumping to marks while a project is open;
+" file_mappings_prefix can move the mappings elsewhere, e.g. '<leader>'
 function! s:AddFileMapping(key, rhs)
-  let lhs = "'".a:key
+  let prefix = project#config#Get('file_mappings_prefix')
+  let lhs = (empty(prefix) ? "'" : prefix).a:key
   execute 'nnoremap '.lhs.' :update<cr>'.a:rhs
   call add(s:file_mapping_keys, lhs)
 endfunction

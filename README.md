@@ -440,6 +440,7 @@ let g:vim_project_config = {
       \'ask_create_directory':          'no',
       \'project_views':                 [],
       \'file_mappings':                 {},
+      \'file_mappings_prefix':          "'",
       \'tasks':                         [],
       \'new_tasks':                     [
         \{ 'name': 'git', 'cmd': 'git clone', 'args': 'url' },
@@ -524,6 +525,7 @@ let g:vim_project_config.list_mappings_git_branch = {
 | search_exclude                | Excluding folders/files for search files                                      |
 | find_in_files_exclude         | Excluding folders/files for find in files                                     |
 | file_mappings                 | Keymappings to switch between files quickly                                   |
+| file_mappings_prefix          | Key before each `file_mappings` key. Default `'`, which shadows jumping to marks like `'a` while a project is open |
 | tasks                         | Tasks to run using vim 'terminal' feature                                     |
 | new_project_base              | The base directory used for `:ProjectNew path`.                               |
 | project_views                 | Define project views by `[[show-pattern, hide-pattern?], ...]`                |
@@ -615,7 +617,9 @@ let g:vim_project_local_config.file_mappings = {
 \}
 ```
 
-With `file_open_types`, you can use `'a`, `'va`, `'sa`, `'ta'` to edit file in different ways
+With `file_open_types`, you can use `'a`, `'va`, `'sa`, `'ta'` to edit file in different ways.
+
+These mappings start with `'`, so they take over jumping to marks like `'a` while a project is open. To keep mark jumps, set another prefix, e.g. `let g:vim_project_config.file_mappings_prefix = '<leader>'` to use `<leader>a`, `<leader>va` and so on.
 ```vim
 let g:vim_project_config.file_open_types = {
       \'':  'edit',

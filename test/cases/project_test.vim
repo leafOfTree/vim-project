@@ -335,3 +335,42 @@ function! Test_autoload_sources_have_no_stray_carriage_returns()
     call assert_equal([], crs, 'CR byte in '.file)
   endfor
 endfunction
+
+" ---------------------------------------------------------------- file mappings
+
+function! Test_file_mappings_use_configured_prefix_and_unmap()
+  let config = project#config#All()
+  let saved = [config.file_mappings, config.file_mappings_prefix, config.file_open_types]
+  let config.file_mappings = {'z': 'README.md'}
+  let config.file_mappings_prefix = ',p'
+  let config.file_open_types = {'': 'edit', 'v': 'vsplit'}
+  try
+    call s:Call('MapFile')
+    call assert_match('OpenFile("edit", "README.md")', maparg(',pz', 'n'))
+    call assert_match('OpenFile("vsplit", "README.md")', maparg(',pvz', 'n'))
+    " The mark jump stays free
+    call assert_equal('', maparg("'z", 'n'))
+
+    call s:Call('UnmapFile')
+    call assert_equal('', maparg(',pz', 'n'))
+    call assert_equal('', maparg(',pvz', 'n'))
+  finally
+    let [config.file_mappings, config.file_mappings_prefix, config.file_open_types] = saved
+    call s:Call('UnmapFile')
+  endtry
+endfunction
+
+function! Test_file_mappings_default_prefix_is_quote()
+  let config = project#config#All()
+  let saved = [config.file_mappings, config.file_open_types]
+  let config.file_mappings = {'z': 'README.md'}
+  let config.file_open_types = {'': 'edit'}
+  try
+    call assert_equal("'", config.file_mappings_prefix)
+    call s:Call('MapFile')
+    call assert_match('README.md', maparg("'z", 'n'))
+  finally
+    let [config.file_mappings, config.file_open_types] = saved
+    call s:Call('UnmapFile')
+  endtry
+endfunction
