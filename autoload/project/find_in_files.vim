@@ -149,7 +149,7 @@ function! s:Open(target, open_cmd, input)
 
   let file = $vim_project.'/'.a:target.file
   let lnum = has_key(a:target, 'lnum') ? a:target.lnum : 1
-  execute open_type.' +'.lnum.' '.file
+  execute open_type.' +'.lnum fnameescape(file)
 endfunction
 
 function! s:ShowResult(display, search, replace, full_input, id)

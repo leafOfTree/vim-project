@@ -466,3 +466,51 @@ function! Test_OpenProject_keeps_unsaved_changes()
     silent! %bwipeout!
   endtry
 endfunction
+
+" ---------------------------------------------------------------- special paths
+
+" '#' and '%' are expanded by Ex commands unless escaped
+function! Test_project_with_special_characters_in_path()
+  let base = Helper_TmpDir('special-path')
+  let dir = base.'/my proj#1%x'
+  call mkdir(dir)
+  call writefile(['content'], dir.'/c.txt')
+  let project = {'name': 'my proj#1%x', 'path': base, 'fullpath': dir, 'note': '', 'option': {}}
+  let saved_config = deepcopy(g:vim_project_config)
+  let g:vim_project_config.use_session = 1
+  let g:vim_project_config.use_viminfo = 1
+  try
+    call s:Call('InitProjectConfig', project)
+    messages clear
+    call project#OpenProject(project)
+    call assert_equal(resolve(dir), resolve(getcwd()))
+
+    " Open a file of the project, then save the session by quitting
+    call s:Call('OpenFile', 'edit', 'c.txt')
+    call assert_equal('c.txt', expand('%:t'))
+    call project#QuitProject()
+    let config_dir = project#GetProjectConfigPath(expand(g:vim_project_config.config_home), project)
+    " Without a git branch the session is named '.vim'
+    call assert_notequal([], (isdirectory(config_dir.'/sessions') ? readdir(config_dir.'/sessions') : []), 'session saved')
+
+    " Reopening restores the session
+    enew
+    silent! %bwipeout!
+    call project#OpenProject(project)
+    call assert_equal('c.txt', expand('%:t'))
+
+    " Writing init.vim reloads the config
+    ProjectConfig
+    call assert_equal(resolve(config_dir.'/init.vim'), resolve(expand('%:p')))
+    messages clear
+    write
+    call assert_match('Config Reloaded', execute('messages'))
+    tabclose
+
+    call assert_notmatch('E\d\+:', execute('messages'))
+  finally
+    let g:vim_project_config = saved_config
+    call project#QuitProject()
+    silent! %bwipeout!
+  endtry
+endfunction

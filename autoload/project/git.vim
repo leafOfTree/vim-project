@@ -199,7 +199,7 @@ function! s:JumpToSource(file)
   let line = s:SearchFileForLine(a:file, lnum)
 
   wincmd t
-  execute 'e '.a:file
+  execute 'edit' fnameescape(a:file)
   call search('\V'.line_prev2)
   call search('\V'.line_prev1)
   call search('\V'.line)
@@ -422,7 +422,7 @@ function! s:OpenChangedFile()
     return
   endif
   wincmd k
-  execute 'e '.s:GetAbsolutePath(file)
+  execute 'edit' fnameescape(s:GetAbsolutePath(file))
 endfunction
 
 function! s:CanShowDiff()
@@ -854,10 +854,10 @@ function! s:OpenFolderOrFile()
     let diff_file = s:TryGetDiffFile(file)
     wincmd k
     if empty(diff_file)
-      execute 'e '.s:GetAbsolutePath(file)
+      execute 'edit' fnameescape(s:GetAbsolutePath(file))
     else
       echom 'diff file'.diff_file
-      execute 'e '.diff_file
+      execute 'edit' fnameescape(diff_file)
     endif
   else
     let folder.expand = 1 - folder.expand

@@ -94,7 +94,7 @@ function! s:Open(target, open_cmd, input)
   let cmd = substitute(a:open_cmd, 'open_\?', '', '')
   let cmd = cmd == '' ? 'edit' : cmd
   let file = $vim_project.'/'.a:target.path.'/'.a:target.file
-  execute cmd.' '.file
+  execute cmd fnameescape(file)
 endfunction
 
 function! s:GetRecentIndex(list)
@@ -245,7 +245,7 @@ endfunction
 function! s:GetFilesByGlob()
   let original_wildignore = &wildignore
   let cwd = getcwd()
-  execute 'cd '.$vim_project
+  execute 'cd' fnameescape($vim_project)
   for exclue in s:GetExclude()
     execute 'set wildignore+=*/'.exclue.'*'
   endfor
@@ -255,7 +255,7 @@ function! s:GetFilesByGlob()
     let result = result + glob(path.'/**/*', 0, 1)
   endfor
 
-  execute 'cd '.cwd
+  execute 'cd' fnameescape(cwd)
   let &wildignore = original_wildignore
   return result
 endfunction

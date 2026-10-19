@@ -468,10 +468,10 @@ function! s:SourcePluginConfigFiles()
   endfor
   let s:is_init_adding = 1
   if filereadable(add_file)
-    execute 'source '.add_file
+    execute 'source' fnameescape(add_file)
   endif
   if filereadable(ignore_file)
-    execute 'source '.ignore_file
+    execute 'source' fnameescape(ignore_file)
   endif
   let s:is_init_adding = 0
 endfunction
@@ -545,13 +545,21 @@ endfunction
 function! s:WatchOnInitFileChange()
   augroup vim-project-init-file-change
     autocmd! vim-project-init-file-change
-    autocmd BufWritePost $vim_project_config/init.vim call s:OnInitFileChange()
-    
+    " The config path may contain spaces or '#': match the name, compare the
+    " full path in the handler
+    autocmd BufWritePost init.vim call s:OnInitFileWrite(expand('<afile>:p'))
   augroup END
 endfunction
 
 function! s:UnwatchOnInitFileChange()
   autocmd! vim-project-init-file-change
+endfunction
+
+function! s:OnInitFileWrite(file)
+  let init_file = $vim_project_config.'/'.s:init_file
+  if resolve(fnamemodify(a:file, ':p')) ==# resolve(fnamemodify(init_file, ':p'))
+    call s:OnInitFileChange()
+  endif
 endfunction
 
 function! s:OnInitFileChange()
@@ -1019,7 +1027,7 @@ function! project#OpenProjectRoot()
   if project#ProjectExist()
     let path = s:GetProjectRootPath()
     if !empty(path)
-      execute 'edit '.path
+      execute 'edit' fnameescape(path)
     endif
   endif
 endfunction
@@ -1030,11 +1038,11 @@ function! project#OpenProjectConfig()
   endif
 
   let config = project#GetProjectConfigPath(s:config_home, s:project)
-  execute 'tabedit '.config.'/'.s:init_file
+  execute 'tabedit' fnameescape(config.'/'.s:init_file)
 endfunction
 
 function! project#OpenAllConfig()
-  execute 'tabedit '.s:config_home.'/project.add.vim'
+  execute 'tabedit' fnameescape(s:config_home.'/project.add.vim')
 endfunction
 
 function! project#QuitProject()
@@ -1141,7 +1149,7 @@ function! s:SetStartBuffer()
 endfunction
 
 function! s:ChangeDirectoryToRoot(path)
-  execute 'cd '.a:path
+  execute 'cd' fnameescape(a:path)
 endfunction
 
 function! s:DeleteNerdtreeBuf()
@@ -1170,7 +1178,7 @@ function! s:OpenNewBufferOnly()
 endfunction
 
 function! s:EditPathAsFile(path)
-    execute 'edit '.a:path
+    execute 'edit' fnameescape(a:path)
 endfunction
 
 function! s:OpenRootPath(path)
@@ -1179,10 +1187,11 @@ function! s:OpenRootPath(path)
   else
     let edit_cmd = 'edit'
   endif
-  execute edit_cmd.' '.a:path
+  " NERDTree quotes its argument itself, :edit needs it escaped
+  execute edit_cmd.' '.(edit_cmd ==# 'edit' ? fnameescape(a:path) : a:path)
 
   silent only
-  execute 'cd '.a:path
+  execute 'cd' fnameescape(a:path)
 endfunction
 
 function! s:OpenRoot(path)
@@ -1244,7 +1253,7 @@ function! s:SourceFile(file)
   let file = config.'/'.a:file
   if filereadable(file)
     call s:Debug('Source file: '.file)
-    execute 'source '.file
+    execute 'source' fnameescape(file)
   else
     call s:Debug('File not found: '.file)
   endif
@@ -1286,9 +1295,9 @@ function! s:LoadViminfo()
   if filereadable(file)
     call s:Debug('Load viminfo file: '.file)
     if has('nvim')
-      execute 'rshada! '.file
+      execute 'rshada!' fnameescape(file)
     else
-      execute 'rviminfo! '.file
+      execute 'rviminfo!' fnameescape(file)
     endif
   endif
 endfunction
@@ -1306,9 +1315,9 @@ function! s:SaveViminfo()
   let file = s:GetViminfoFile()
   call s:Debug('Save viminfo to: '.file)
   if has('nvim')
-    execute 'wshada! '.file
+    execute 'wshada!' fnameescape(file)
   else
-    execute 'wviminfo! '.file
+    execute 'wviminfo!' fnameescape(file)
   endif
 endfunction
 
@@ -1334,7 +1343,7 @@ function! s:LoadSession()
   let file = s:GetSessionFile()
   if filereadable(file)
     call s:Debug('Load session file: '.file)
-    execute 'source '.file
+    execute 'source' fnameescape(file)
   else
     call s:Debug('No session file found: '.file)
   endif
@@ -1405,7 +1414,7 @@ function! s:SaveSession()
 
     let file = s:GetSessionFile()
     call s:Debug('Save session to: '.file)
-    execute 'mksession! '.file
+    execute 'mksession!' fnameescape(file)
 
     call s:AfterSaveSession()
   endif
@@ -1615,7 +1624,7 @@ function! s:OpenFile(open_type, target)
     return
   endif
 
-  execute a:open_type.' '.expended_open_target
+  execute a:open_type fnameescape(expended_open_target)
 endfunction
 
 function! project#Include(string, search_string)
