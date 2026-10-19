@@ -78,9 +78,13 @@ If a command runs much slower than in a terminal, try setting 'shell' to
 
 :ProjectSearchFiles                                    *:ProjectSearchFiles*
     Search files by name in the project. See |vim-project-search|.
+    The file list is listed once and cached. Later searches show the cache
+    at once and, with fd or find, list the files again in the background;
+    files added or removed outside Vim then show up a moment later.
 
 :ProjectSearchFilesReset                          *:ProjectSearchFilesReset*
-    Forget the cached file list, e.g. after files were added outside Vim.
+    Forget the cached file list, so the next search lists files again.
+    Rarely needed, mostly without fd and find.
 
 :[range]ProjectFindInFiles [text]                      *:ProjectFindInFiles*
     Find text in files of the project. With a visual selection, or [text],

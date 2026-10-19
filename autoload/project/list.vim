@@ -252,6 +252,11 @@ function! project#list#IsCurrentListBuffer()
   return s:IsCurrentListBuffer()
 endfunction
 
+" Whether the list of a:type is open and focused, e.g. for async updates
+function! project#list#IsOpen(type)
+  return s:IsCurrentListBuffer() && get(s:spec, 'type', '') ==# a:type
+endfunction
+
 function! project#list#HighlightCurrentLine(list_length)
   let length = a:list_length
   sign unplace 9

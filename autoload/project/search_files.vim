@@ -3,6 +3,10 @@ let s:prev_list = []
 let s:prev_display = []
 let s:prev_input = ''
 let s:update_timer = 0
+" Background refresh of s:initial_list, see s:StartRefresh()
+let s:refresh_job = v:null
+let s:refresh_id = 0
+let s:refresh_lines = []
 
 function! project#search_files#Run()
   if !project#util#RequireProject()
@@ -20,14 +24,26 @@ function! project#search_files#Run()
 endfunction
 
 function! project#search_files#Reset()
+  call s:StopRefresh()
   unlet! s:initial_list
+  call s:ClearResultCache()
+endfunction
+
+function! s:ClearResultCache()
   let s:prev_list = []
   let s:prev_display = []
   let s:prev_input = ''
 endfunction
 
 function! s:Init(input)
+  " The first search lists files synchronously. Later ones show the cached
+  " list at once and refresh it in the background, so files added or
+  " removed outside Vim show up without :ProjectSearchFilesReset
+  let has_cache = exists('s:initial_list')
   call s:Update(a:input)
+  if has_cache
+    call s:StartRefresh()
+  endif
 endfunction
 
 function! s:UpdateTimer(input)
@@ -196,7 +212,7 @@ function! s:FilterOldFilesByInput(oldfiles, input)
         \{_, val -> val.file =~ pattern})
 endfunction
 
-function! s:GetFilesByFind()
+function! s:GetFindCmd()
   let include = join(s:GetInclude(), ' ')
 
   let search_exclude = s:GetExclude()
@@ -204,20 +220,24 @@ function! s:GetFilesByFind()
   let exclude = '\( '.exclude_string.' \) -prune -false -o '
 
   let filter = '-ipath "*"'
-  let cmd = 'find '.include.' -mindepth 1 '.exclude.filter
-  let result = project#RunShellCmd(cmd)
-  return result
+  return 'find '.include.' -mindepth 1 '.exclude.filter
 endfunction
 
-function! s:GetFilesByFd()
+function! s:GetFdCmd()
   let include = join(s:GetInclude(), ' ')
 
   let search_exclude = s:GetExclude()
   let exclude = join(map(search_exclude, {_, val -> '-E "'.val.'"'}), ' ')
 
-  let cmd = 'fd -HI '.exclude.' . '.include
-  let result = project#RunShellCmd(cmd)
-  return result
+  return 'fd -HI '.exclude.' . '.include
+endfunction
+
+function! s:GetFilesByFind()
+  return project#RunShellCmd(s:GetFindCmd())
+endfunction
+
+function! s:GetFilesByFd()
+  return project#RunShellCmd(s:GetFdCmd())
 endfunction
 
 function! s:GetFilesByGlob()
@@ -257,7 +277,115 @@ function! s:TrySearchFilesProgram()
 
   let find_program = project#util#PickExecutable(['fd', 'find'], 'glob')
   let s:find_cmd_func = find_cmd_map[find_program]
+  let s:find_program = find_program
   return find_program
+endfunction
+
+" Shell command listing the files, or '' when glob() is used
+function! s:GetListFilesCmd()
+  if !exists('s:find_program')
+    call s:TrySearchFilesProgram()
+  endif
+  if s:find_program ==# 'fd'
+    return s:GetFdCmd()
+  elseif s:find_program ==# 'find'
+    return s:GetFindCmd()
+  endif
+  return ''
+endfunction
+
+" ---------------------------------------------------------------- refresh
+
+function! s:CanRefresh()
+  return exists('*job_start') || exists('*jobstart')
+endfunction
+
+function! s:IsRefreshing()
+  if s:refresh_job is v:null
+    return 0
+  endif
+  if exists('*job_status')
+    return job_status(s:refresh_job) ==# 'run'
+  endif
+  return jobwait([s:refresh_job], 0)[0] == -1
+endfunction
+
+" List the files again with a job. When done, replace s:initial_list and,
+" if the search files list is still open and the files changed, show it
+" again with the current input.
+function! s:StartRefresh()
+  let cmd = s:GetListFilesCmd()
+  if empty(cmd) || !s:CanRefresh() || s:IsRefreshing()
+    return
+  endif
+
+  let s:refresh_id += 1
+  let s:refresh_lines = []
+  let shell_cmd = [&shell, &shellcmdflag, cmd]
+  let Done = function('s:OnRefreshDone', [s:refresh_id, $vim_project])
+
+  if exists('*job_start')
+    let s:refresh_job = job_start(shell_cmd, {
+          \'cwd': $vim_project,
+          \'out_mode': 'nl',
+          \'err_io': 'null',
+          \'out_cb': {_, line -> add(s:refresh_lines, line)},
+          \'exit_cb': {job, status -> s:OnVimRefreshExit(job, status, Done)},
+          \})
+  else
+    let s:refresh_job = jobstart(shell_cmd, {
+          \'cwd': $vim_project,
+          \'stdout_buffered': v:true,
+          \'on_stdout': {_, data, __ -> extend(s:refresh_lines, data)},
+          \'on_exit': {_, status, __ -> Done(status)},
+          \})
+  endif
+endfunction
+
+" exit_cb may run before all output was read; wait for the channel
+function! s:OnVimRefreshExit(job, status, Done)
+  let channel = job_getchannel(a:job)
+  let tries = 0
+  while ch_status(channel) ==# 'open' && tries < 100
+    sleep 5m
+    let tries += 1
+  endwhile
+  call a:Done(a:status)
+endfunction
+
+function! s:OnRefreshDone(id, project, status)
+  let s:refresh_job = v:null
+  " Ignore a refresh superseded by Reset or for another project
+  if a:id != s:refresh_id || a:project !=# $vim_project || a:status != 0
+    return
+  endif
+
+  let lines = filter(s:refresh_lines, {_, line -> !empty(line)})
+  let s:refresh_lines = []
+  call s:MapSearchFiles(lines)
+  let new_list = lines
+  if exists('s:initial_list') && new_list == s:initial_list
+    return
+  endif
+
+  let s:initial_list = new_list
+  call s:ClearResultCache()
+  if project#list#IsOpen('SEARCH_FILES')
+    call s:Update(project#list#State().user_input)
+  endif
+endfunction
+
+function! s:StopRefresh()
+  let s:refresh_id += 1
+  if s:IsRefreshing()
+    if exists('*job_stop')
+      call job_stop(s:refresh_job)
+    else
+      call jobstop(s:refresh_job)
+    endif
+  endif
+  let s:refresh_job = v:null
+  let s:refresh_lines = []
 endfunction
 
 function! s:GetSearchFilesAll()

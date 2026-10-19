@@ -91,3 +91,105 @@ function! Test_FilterOldFilesByInput_matches_typed_chars_literally()
     call assert_equal(expected, s:Files(oldfiles), 'input: '.input)
   endfor
 endfunction
+
+" ---------------------------------------------------------------- refresh
+
+" Names in the cached file list, from s:initial_list
+function! s:CachedFiles()
+  return sort(map(s:Call('GetSearchFilesByFilter', s:CachedList(), ''),
+        \ {_, val -> val.file}))
+endfunction
+
+function! s:CachedList()
+  return Helper_ScriptVar(s:file, 'initial_list')
+endfunction
+
+function! s:WaitRefresh()
+  let tries = 0
+  while s:Call('IsRefreshing') && tries < 300
+    sleep 10m
+    let tries += 1
+  endwhile
+  " Let the exit callback run
+  sleep 50m
+endfunction
+
+function! s:WithProject(dir, Func)
+  let config = project#config#All()
+  let saved = [$vim_project, config.search_include, config.search_exclude]
+  let $vim_project = a:dir
+  let config.search_include = ['.']
+  let config.search_exclude = ['.git']
+  call project#search_files#Reset()
+  try
+    call a:Func()
+  finally
+    call project#search_files#Reset()
+    let [$vim_project, config.search_include, config.search_exclude] = saved
+  endtry
+endfunction
+
+function! s:RefreshPicksUpChanges(dir)
+  call s:Call('GetSearchFilesAll')
+  call assert_equal(['a.txt', 'gone.txt'],
+        \ sort(map(copy(s:CachedList()), {_, val -> val.file})))
+
+  " Changed outside Vim: one file added, one removed
+  call writefile(['new'], a:dir.'/added.txt')
+  call delete(a:dir.'/gone.txt')
+
+  call s:Call('StartRefresh')
+  call s:WaitRefresh()
+  call assert_equal(['a.txt', 'added.txt'],
+        \ sort(map(copy(s:CachedList()), {_, val -> val.file})))
+endfunction
+
+function! Test_StartRefresh_picks_up_files_changed_outside_vim()
+  if !s:Call('CanRefresh') || empty(s:Call('GetListFilesCmd'))
+    return
+  endif
+  let dir = Helper_TmpDir('search-refresh')
+  call writefile(['a'], dir.'/a.txt')
+  call writefile(['g'], dir.'/gone.txt')
+  call s:WithProject(dir, function('s:RefreshPicksUpChanges', [dir]))
+endfunction
+
+function! s:ResetDiscardsRefresh(dir)
+  call s:Call('GetSearchFilesAll')
+  call writefile(['new'], a:dir.'/late.txt')
+  call s:Call('StartRefresh')
+  " Reset while the job runs: its result must not come back
+  call project#search_files#Reset()
+  call s:WaitRefresh()
+  sleep 200m
+  call assert_false(exists('*Helper_ScriptVar') && has_key(
+        \ getscriptinfo({'sid': Helper_Sid(s:file)})[0].variables, 'initial_list'))
+endfunction
+
+function! Test_Reset_discards_a_running_refresh()
+  if !s:Call('CanRefresh') || empty(s:Call('GetListFilesCmd'))
+    return
+  endif
+  let dir = Helper_TmpDir('search-refresh-reset')
+  call writefile(['a'], dir.'/a.txt')
+  call s:WithProject(dir, function('s:ResetDiscardsRefresh', [dir]))
+endfunction
+
+function! s:RefreshKeepsUnchangedList(dir)
+  call s:Call('GetSearchFilesAll')
+  let before = s:CachedList()
+  call s:Call('StartRefresh')
+  call s:WaitRefresh()
+  " Same files: the cache is kept as is, so the list is not redrawn
+  call assert_true(before is s:CachedList() || before == s:CachedList())
+  call assert_equal(['a.txt'], map(copy(s:CachedList()), {_, val -> val.file}))
+endfunction
+
+function! Test_StartRefresh_keeps_unchanged_list()
+  if !s:Call('CanRefresh') || empty(s:Call('GetListFilesCmd'))
+    return
+  endif
+  let dir = Helper_TmpDir('search-refresh-same')
+  call writefile(['a'], dir.'/a.txt')
+  call s:WithProject(dir, function('s:RefreshKeepsUnchangedList', [dir]))
+endfunction

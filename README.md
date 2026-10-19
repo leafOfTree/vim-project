@@ -157,7 +157,7 @@ You need to remove this plugin as well as `config_home` (default: `~/.vim/vim-pr
 | ProjectNew `<path>`        | Create a new folder as project at `path` by running predefined tasks |
 | ProjectList                | Show all projects                        |
 | ProjectSearchFiles         | Search files by name                     |
-| ProjectSearchFilesReset    | Reset search files, useful when new files added outside |
+| ProjectSearchFilesReset    | Reset search files. Rarely needed: the file list is refreshed in the background each time you search |
 | ProjectFindInFiles         | Find given string/regexp (at least 2 chars) in files |
 | ProjectRun                 | Run a task defined by `tasks` config     |
 | ProjectGitLog              | Show git log                             |
@@ -262,7 +262,7 @@ endfunction
 
 ### Search files / Find in files
 
-- `:ProjectSearchFiles` Under the hood, it tries [[fd][4], `find`, `glob (vim function)`] for the first available one as the search engine.
+- `:ProjectSearchFiles` Under the hood, it tries [[fd][4], `find`, `glob (vim function)`] for the first available one as the search engine. The file list is cached: later searches show it at once, and with `fd` or `find` it is refreshed in the background, so files added or removed outside Vim show up a moment later.
 
 - `:ProjectFindInFiles` Under the hood, it tries [[rg][5], [ag][6], `grep`, `vimgrep (vim function)`] for the first available one as the search engine.
 
