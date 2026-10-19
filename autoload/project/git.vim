@@ -16,6 +16,10 @@ let s:commit_edit_buffer = 'commit_editmsg'
 let s:commit_result_buffer = 'commit_result'
 let s:file_history_range = []
 let s:splitter = ' ||| '
+" Separates the fields of a commit in its search string
+let s:field_splitter = "\x1f"
+" Commits shown in git log and file history, the most recent
+let s:log_show_max = 1000
 let s:commit_diffs = []
 
 let s:default_folder_name = 'Default'
@@ -272,6 +276,7 @@ function! s:UpdateLog(input)
   if should_reload
     let list = s:FilterLogs(s:list, a:input)
     let state.list = list
+    " May cut state.list to the commits shown
     let display = s:GetLogsDisplay(list, a:input)
 
     let s:input = a:input
@@ -285,6 +290,7 @@ function! s:UpdateLog(input)
   if should_reload
     call project#list#HighlightInputChars(a:input)
     call project#list#HighlightNoResults()
+    call project#list#HighlightExtraInfo()
   endif
 endfunction
 
@@ -675,40 +681,71 @@ function! s:GenerateBrief(revision)
   return brief
 endfunction
 
+" Most recent last, as lists show the last item at the bottom. Only what
+" filtering needs is computed here; display rows are formatted on demand
+" in s:GetLogsDisplay, as formatting 30k commits up front took seconds
 function! s:GetTabulatedList(logs)
   let list = []
+  let short_dates = {}
   for log in a:logs
     let [message, author, email, date, hash] = split(log, s:splitter, 1)
-    let date = project#ShortenDate(date)
-    call insert(list, 
-          \{ 'message': message, 'author': author, 'date': date, 'hash': hash, 'email': email })
+    " Relative dates repeat a lot, shorten each once
+    if !has_key(short_dates, date)
+      let short_dates[date] = project#ShortenDate(date)
+    endif
+    call add(list, {
+          \'message': message, 'author': author, 'date': short_dates[date],
+          \'hash': hash, 'email': email,
+          \'_search': message.s:field_splitter.author.s:field_splitter.hash,
+          \})
   endfor
-
-  let columns = project#list#TabulateFixed(list, ['message', 'author', 'date'], [&columns/2 - 25, 10, 15])
-  for idx in range(len(list))
-    let column = columns[idx]
-    let list[idx].row = column.message.' '.column.author.' '.column.date
-  endfor
-  return list
+  return reverse(list)
 endfunction
 
+" Words of the input must appear in order, literally, in one of message,
+" author or hash (or date, when the input starts with a digit). The string
+" expression is evaluated in C: about 5x faster than a lambda calling
+" functions per commit
 function! s:FilterLogs(list, input)
   let list = copy(a:list)
   if empty(a:input)
     return list
   endif
-  let pattern = project#util#GetRegexpFilter(a:input)
-  let list = filter(list, { idx, val ->
-        \project#util#Match(val.message, pattern)
-        \|| project#util#Match(val.author, pattern)
-        \|| project#util#Match(val.hash, pattern)
-        \|| (a:input[0] =~ '\d' && project#util#Match(val.date, pattern))
-        \})
-  return list
+  let words = map(split(a:input, ' '), {_, word -> escape(word, '\')})
+  " Between words, anything but the separator of fields
+  let pattern = '\V'.join(words, '\[^\x1f]\*')
+  let expr = 'v:val._search =~ '.string(pattern)
+  if a:input[0] =~ '\d'
+    let expr .= ' || v:val.date =~ '.string(pattern)
+  endif
+  return filter(list, expr)
 endfunction
 
+" Show at most s:log_show_max commits, the most recent; older ones can be
+" found by filtering. Rows are formatted once, when first shown
 function! s:GetLogsDisplay(list, input)
-  return map(copy(a:list), {_, val -> val.row})
+  let state = project#list#State()
+  let more = len(a:list) > s:log_show_max
+  if more
+    let state.list = a:list[-s:log_show_max :]
+  endif
+  let list = state.list
+
+  let missing = filter(copy(list), '!has_key(v:val, "_row")')
+  if !empty(missing)
+    let columns = project#list#TabulateFixed(missing,
+          \['message', 'author', 'date'], [&columns/2 - 25, 10, 15])
+    for idx in range(len(missing))
+      let column = columns[idx]
+      let missing[idx]._row = column.message.' '.column.author.' '.column.date
+    endfor
+  endif
+
+  let display = map(copy(list), 'v:val._row')
+  if more && !empty(display)
+    let display[0] .= '  ...more'
+  endif
+  return display
 endfunction
 
 function! project#git#Status()

@@ -206,3 +206,52 @@ function! Test_GetChangedFiles_runs_git_once_per_commit()
     let $vim_project = saved_project
   endtry
 endfunction
+
+function! s:Logs(count)
+  return map(range(1, a:count), {_, i ->
+        \ printf('message %d fix%d ||| Dev%d ||| d@x ||| %d days ago ||| h%05d', i, i % 3, i % 2, i, i)})
+endfunction
+
+function! Test_GetTabulatedList_parses_most_recent_last()
+  let list = Helper_Call(s:file, 'GetTabulatedList', [s:Logs(3)])
+  " git log prints the most recent first; the list shows it at the bottom
+  call assert_equal(['h00003', 'h00002', 'h00001'], map(copy(list), 'v:val.hash'))
+  call assert_equal('1d ago', list[-1].date)
+  call assert_false(has_key(list[0], '_row'))
+endfunction
+
+function! Test_FilterLogs_matches_words_within_one_field()
+  let list = Helper_Call(s:file, 'GetTabulatedList', [s:Logs(6)])
+  let Filter = {input -> map(Helper_Call(s:file, 'FilterLogs', [list, input]), 'v:val.hash')}
+  call assert_equal(['h00003', 'h00006'], sort(Filter('fix0')))
+  " Words in order: 'message 5 fix2' has no 'fix' after the '2'
+  call assert_equal(['h00002'], Filter('message 2 fix'))
+  " Words may not be split across message and author
+  call assert_equal([], Filter('fix1 Dev1'))
+  call assert_equal(['h00004'], Filter('h00004'))
+  " Input starting with a digit also matches the date
+  call assert_equal(['h00005'], Filter('5d'))
+  " Literal: '.' is not a wildcard
+  call assert_equal([], Filter('message.2'))
+endfunction
+
+function! Test_GetLogsDisplay_shows_most_recent_and_formats_once()
+  let state = project#list#State()
+  let saved = get(state, 'list', [])
+  let max = Helper_ScriptVar(s:file, 'log_show_max')
+  let list = Helper_Call(s:file, 'GetTabulatedList', [s:Logs(max + 5)])
+  try
+    let state.list = list
+    let display = Helper_Call(s:file, 'GetLogsDisplay', [list, ''])
+    call assert_equal(max, len(display))
+    call assert_equal(max, len(state.list))
+    " The list was cut to the most recent commits, newest at the bottom
+    call assert_equal('h00001', state.list[-1].hash)
+    call assert_match('\.\.\.more$', display[0])
+    " Older commits are not formatted
+    call assert_false(has_key(list[0], '_row'))
+    call assert_true(has_key(list[-1], '_row'))
+  finally
+    let state.list = saved
+  endtry
+endfunction
