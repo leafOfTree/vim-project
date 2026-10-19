@@ -410,3 +410,23 @@ function! Test_RenameProjectByName_warns_on_bad_args()
   call project#RenameProjectByName('no-such-project new')
   call assert_match('Project not found: \[no-such-project\]', execute('messages'))
 endfunction
+
+" ---------------------------------------------------------------- loading
+
+function! Test_SourcePluginConfigFiles_skips_duplicate_projects()
+  let dir = Helper_TmpDir('dup-project')
+  let add_file = expand(project#config#Get('config_home')).'/project.add.vim'
+  let saved = filereadable(add_file) ? readfile(add_file) : []
+  let projects = project#GetProjects()
+  let before = len(projects)
+  call writefile(['Project '.dir, 'Project '.dir.'/', 'Project '.dir], add_file)
+  try
+    call s:Call('SourcePluginConfigFiles')
+    let matches = filter(copy(projects), {_, p -> p.fullpath ==# dir})
+    call assert_equal(1, len(matches))
+    call assert_equal(before + 1, len(projects))
+  finally
+    call filter(projects, {_, p -> p.fullpath !=# dir})
+    call writefile(saved, add_file)
+  endtry
+endfunction

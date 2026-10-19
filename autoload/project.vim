@@ -12,6 +12,7 @@ function! s:Prepare()
   let s:start_project = {}
   let s:start_buf = ''
   let s:is_init_adding = 0
+  let s:init_fullpaths = {}
   let s:nerdtree_tmp = 'vim_project_nerdtree_tmp'
   let s:is_win_version = has('win32') || has('win64')
   let s:note_prefix = '- '
@@ -88,11 +89,7 @@ function! s:AddProject(path, ...)
   let fullpath = s:GetFullPath(a:path)
   let option = a:0 > 0 ? a:1 : {}
 
-  let hasProject = project#ProjectExistWithSameFullPath(
-        \fullpath,
-        \s:projects
-        \)
-  if hasProject
+  if s:HasProjectFullpath(fullpath)
     if !s:is_init_adding
       call s:Info('Already has ['.a:path.']')
     endif
@@ -136,6 +133,9 @@ function! s:AddProject(path, ...)
 
   call s:InitProjectConfig(project)
   call add(s:projects, project)
+  if s:is_init_adding
+    let s:init_fullpaths[fullpath] = 1
+  endif
   return [0, project]
 endfunction
 
@@ -151,13 +151,21 @@ function! s:CreateDirectoryForNewProject(fullpath, shortpath)
 endfunction
 
 function! project#ProjectExistWithSameFullPath(fullpath, projects)
-  let result = 0
   for project in a:projects
     if project.fullpath == a:fullpath
-      let result = 1
+      return 1
     endif
   endfor
-  return result
+  return 0
+endfunction
+
+" While the config files are sourced, every 'Project' line would scan all
+" projects added so far, which is quadratic. Use an index there instead.
+function! s:HasProjectFullpath(fullpath)
+  if s:is_init_adding
+    return has_key(s:init_fullpaths, a:fullpath)
+  endif
+  return project#ProjectExistWithSameFullPath(a:fullpath, s:projects)
 endfunction
 
 function! project#IgnoreProject(path)
@@ -199,11 +207,7 @@ endfunction
 " Ignore path for auto adding
 function! s:IgnoreProject(path)
   let fullpath = s:GetFullPath(a:path)
-  let hasProject = project#ProjectExistWithSameFullPath(
-        \fullpath,
-        \s:projects
-        \)
-  if hasProject
+  if s:HasProjectFullpath(fullpath)
     return -1
   endif
 
@@ -458,6 +462,10 @@ endfunction
 function! s:SourcePluginConfigFiles()
   let add_file = s:config_home.'/'.s:add_file
   let ignore_file = s:config_home.'/'.s:ignore_file
+  let s:init_fullpaths = {}
+  for project in s:projects
+    let s:init_fullpaths[project.fullpath] = 1
+  endfor
   let s:is_init_adding = 1
   if filereadable(add_file)
     execute 'source '.add_file
