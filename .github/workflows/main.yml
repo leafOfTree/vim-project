@@ -3,12 +3,18 @@ on: [push, pull_request]
 
 jobs:
   # Headless regression tests (test/run.sh) with both editors
+  # Each editor runs with only the system tools (grep, find: the fallbacks
+  # are tested) and with rg, ag and fd installed
   Test:
+    name: Test (${{ matrix.editor }}, ${{ matrix.tools }} tools)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         editor: [vim, nvim]
+        tools: [system, all]
+    env:
+      VIM_PROJECT_TEST_TOOLS: ${{ matrix.tools }}
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
@@ -29,11 +35,21 @@ jobs:
             | sudo tar -xz -C /opt
           echo /opt/nvim-linux-x86_64/bin >> "$GITHUB_PATH"
 
+      - name: Install rg, ag and fd
+        if: matrix.tools == 'all'
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install ripgrep silversearcher-ag fd-find
+          # Debian names the fd binary fdfind
+          sudo ln -sf "$(command -v fdfind)" /usr/local/bin/fd
+
       - name: Show versions
         run: |
           ${{ matrix.editor }} --version | head -1
           git --version
-          command -v rg ag grep || true
+          for program in rg ag grep fd find; do
+            command -v "$program" || echo "$program: not installed"
+          done
 
       - name: Run tests
         run: bash test/run.sh ${{ matrix.editor }}
