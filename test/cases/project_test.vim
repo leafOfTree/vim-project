@@ -430,3 +430,39 @@ function! Test_SourcePluginConfigFiles_skips_duplicate_projects()
     call writefile(saved, add_file)
   endtry
 endfunction
+
+" ---------------------------------------------------------------- switching
+
+function! Test_OpenProject_keeps_unsaved_changes()
+  let base = Helper_TmpDir('switch')
+  call mkdir(base.'/A')
+  call mkdir(base.'/B')
+  call writefile(['original'], base.'/A/a.txt')
+  let a = {'name': 'A', 'path': base, 'fullpath': base.'/A', 'note': '', 'option': {}}
+  let b = {'name': 'B', 'path': base, 'fullpath': base.'/B', 'note': '', 'option': {}}
+  set hidden
+  try
+    call project#OpenProject(a)
+    execute 'edit' fnameescape(base.'/A/a.txt')
+    call setline(1, 'unsaved edit')
+    let nr = bufnr('%')
+    enew
+
+    messages clear
+    call assert_equal(1, project#OpenProject(b))
+    " Still in A, the edit is kept and the user is told why
+    call assert_equal('A', g:vim_project.name)
+    call assert_true(bufloaded(nr))
+    call assert_equal(['unsaved edit'], getbufline(nr, 1, '$'))
+    call assert_match('Save or discard changes before switching project: .*a\.txt', execute('messages'))
+
+    " Once saved, switching works
+    call setbufvar(nr, '&modified', 0)
+    call project#OpenProject(b)
+    call assert_equal('B', g:vim_project.name)
+  finally
+    call project#QuitProject()
+    set nohidden
+    silent! %bwipeout!
+  endtry
+endfunction

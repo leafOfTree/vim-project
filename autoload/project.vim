@@ -867,6 +867,15 @@ endfunction
 
 function! project#OpenProject(project)
   if s:project != a:project
+    " Switching deletes the buffers of the current project
+    if project#ProjectExist()
+      let modified = s:GetModifiedFileBuffers()
+      if !empty(modified)
+        call project#Warn('Save or discard changes before switching project: '
+              \.join(map(modified, {_, nr -> fnamemodify(bufname(nr), ':~:.')}), ', '))
+        return 1
+      endif
+    endif
     call s:ClearCurrentProject()
     let s:project = a:project
 
@@ -914,6 +923,13 @@ function! s:PostLoadProject()
   call s:SyncGlobalVariables()
   call s:StartWatchJob()
   call s:WatchOnVimQuit()
+endfunction
+
+" Listed buffers of files with unsaved changes
+function! s:GetModifiedFileBuffers()
+  let buffers = getbufinfo({'buflisted': 1, 'bufmodified': 1})
+  call filter(buffers, {_, buf -> index(['', 'acwrite'], getbufvar(buf.bufnr, '&buftype')) != -1})
+  return map(buffers, {_, buf -> buf.bufnr})
 endfunction
 
 function! s:ClearCurrentProject()
