@@ -277,7 +277,10 @@ open_root_when_use_session      0
     Open the project root even when a session is loaded.
 
 use_viminfo         0
-    Save and load a viminfo (shada for Neovim) per project.
+    Save and load a viminfo (shada for Neovim) per project. Opening a
+    project first clears the history, recent files, file marks, jumps and
+    last search of the previous one, so each project keeps its own.
+    Registers are kept across projects.
 
 project_root        './'
     File or directory to open when a project is opened.

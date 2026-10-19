@@ -1295,6 +1295,7 @@ function! s:LoadViminfo()
     return
   endif
 
+  call s:ClearViminfoState()
   let file = s:GetViminfoFile()
   if filereadable(file)
     call s:Debug('Load viminfo file: '.file)
@@ -1304,6 +1305,19 @@ function! s:LoadViminfo()
       execute 'rviminfo!' fnameescape(file)
     endif
   endif
+endfunction
+
+" Forget the history the previous project, or the global viminfo, left in
+" memory. Otherwise it is written into this project's viminfo / shada too,
+" which then is not project-local (issue #9). Registers are kept.
+function! s:ClearViminfoState()
+  for type in ['cmd', 'search', 'expr', 'input', 'debug']
+    call histdel(type)
+  endfor
+  call filter(v:oldfiles, 0)
+  delmarks A-Z0-9
+  clearjumps
+  let @/ = ''
 endfunction
 
 function! s:SaveViminfo()

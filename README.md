@@ -635,6 +635,8 @@ let g:vim_project_config.file_open_types = {
 
 Viminfo can be used to keep registers, marks, v:oldfiles, etc.
 
+When a project is opened, the command and search history, recent files (`v:oldfiles`), file marks, jumps and the last search of the previous project are cleared before its own viminfo is loaded, so history stays per project. Registers are kept across projects.
+
 To load and save project-local viminfo, you can add
 
 ```vim

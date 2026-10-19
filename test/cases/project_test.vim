@@ -514,3 +514,58 @@ function! Test_project_with_special_characters_in_path()
     silent! %bwipeout!
   endtry
 endfunction
+
+" ---------------------------------------------------------------- viminfo
+
+function! s:History(type)
+  let last = histnr(a:type)
+  return last < 1 ? [] : filter(map(range(1, last), {_, nr -> histget(a:type, nr)}), '!empty(v:val)')
+endfunction
+
+" Issue #9: with use_viminfo, history of one project must not leak into
+" another, in memory or in its viminfo / shada file
+function! Test_use_viminfo_keeps_history_per_project()
+  let base = Helper_TmpDir('viminfo')
+  call mkdir(base.'/A')
+  call mkdir(base.'/B')
+  let a = {'name': 'A', 'path': base, 'fullpath': base.'/A', 'note': '', 'option': {}}
+  let b = {'name': 'B', 'path': base, 'fullpath': base.'/B', 'note': '', 'option': {}}
+  let saved_config = deepcopy(g:vim_project_config)
+  let g:vim_project_config.use_viminfo = 1
+  " The runner starts Vim with -i NONE, which also turns off :wviminfo
+  let saved_viminfofile = exists('+viminfofile') ? &viminfofile : ''
+  if exists('+viminfofile')
+    set viminfofile=
+  endif
+  try
+    call s:Call('InitProjectConfig', a)
+    call s:Call('InitProjectConfig', b)
+
+    call project#OpenProject(a)
+    call histadd('cmd', 'only-in-A')
+    call histadd('search', 'search-in-A')
+
+    call project#OpenProject(b)
+    call assert_equal(-1, index(s:History('cmd'), 'only-in-A'), 'cmd history of A in B')
+    call assert_equal(-1, index(s:History('search'), 'search-in-A'), 'search history of A in B')
+    call histadd('cmd', 'only-in-B')
+
+    call project#OpenProject(a)
+    call assert_notequal(-1, index(s:History('cmd'), 'only-in-A'), 'A gets its history back')
+    call assert_equal(-1, index(s:History('cmd'), 'only-in-B'), 'cmd history of B in A')
+
+    " B's file has none of A's history
+    call project#QuitProject()
+    let b_dir = project#GetProjectConfigPath(expand(g:vim_project_config.config_home), b)
+    let b_file = glob(b_dir.'/viminfo/*', 1, 1) + glob(b_dir.'/viminfo/.*', 1, 1)
+    call filter(b_file, 'filereadable(v:val)')
+    call assert_equal(1, len(b_file))
+    call assert_notmatch('only-in-A', join(readfile(b_file[0], 'b'), "\n"))
+  finally
+    let g:vim_project_config = saved_config
+    call project#QuitProject()
+    if exists('+viminfofile')
+      let &viminfofile = saved_viminfofile
+    endif
+  endtry
+endfunction
