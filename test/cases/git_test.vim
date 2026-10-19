@@ -332,3 +332,20 @@ function! Test_RunCommit_amend_keeps_message()
   let [dir, git] = s:CommitRepo('commit-amend')
   call s:WithProject(dir, function('s:CheckAmend', [dir, git]))
 endfunction
+
+" ---------------------------------------------------------------- shelf
+
+function! Test_DeleteShelfFolder_asks_first()
+  let dir = Helper_TmpDir('shelf').'/my shelf'
+  call mkdir(dir, 'p')
+  call writefile(['patch'], dir.'/a.txt.diff')
+
+  " Anything but 'y' keeps the patches
+  call feedkeys('n', 't')
+  call assert_equal(0, s:Call('DeleteShelfFolder', dir, 'my shelf', 1))
+  call assert_true(filereadable(dir.'/a.txt.diff'))
+
+  call feedkeys('y', 't')
+  call assert_equal(1, s:Call('DeleteShelfFolder', dir, 'my shelf', 1))
+  call assert_false(isdirectory(dir))
+endfunction

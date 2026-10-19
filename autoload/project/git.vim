@@ -1027,13 +1027,31 @@ function! s:IsUserFolder(folder)
   return !empty(a:folder) && !s:IsDefaultFolder(a:folder) && !s:IsSpecialFolder(a:folder)
 endfunction
 
+" Shelved patches exist nowhere else, so ask before deleting them
+function! s:DeleteShelfFolder(path, name, count)
+  echo 'Delete shelf ['.a:name.'] and its '.a:count.' patch(es)? (y/n) '
+  let answer = nr2char(getchar())
+  redraw
+  echo
+  if answer !=# 'y'
+    return 0
+  endif
+  if delete(a:path, 'rf') != 0
+    call project#Warn('Failed to delete '.a:path)
+    return 0
+  endif
+  return 1
+endfunction
+
 function! s:DeleteFolder()
   let lnum = line('.')
   let folder = s:GetCurrentFolder(lnum)
   if s:IsShelfFolder(folder)
     let shelf_folder = s:GetShelfFolder()
     let folder_path = shelf_folder.'/'.folder.name
-    call delete(folder_path, 'rf')
+    if !s:DeleteShelfFolder(folder_path, folder.name, len(folder.files))
+      return
+    endif
   endif
 
   if s:IsUserFolder(folder)
