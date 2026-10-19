@@ -1695,6 +1695,8 @@ function! s:Commit() range
   endif
 
   let file = s:GetCurrentFile()
+  " The Staged changelist commits the index as it is
+  let s:commit_staged_only = s:IsStagedFolder(s:GetBelongFolder(lnum))
   if empty(file)
     let folder = s:GetBelongFolder(lnum)
     let files = folder.files
@@ -1768,6 +1770,34 @@ function! s:ShowCommitMessage(message, files)
   augroup END
 endfunction
 
+" Commit a:files with a:message_lines, or amend the last commit. Only the
+" given files are committed: other staged changes stay staged. With
+" a:staged_only, the index is committed as it is, keeping partly staged
+" files. Returns [command, output]
+function! s:RunCommit(files, message_lines, is_amend, staged_only)
+  " Pass the message through a file so the shell never interprets it
+  let message = ''
+  let message_file = ''
+  if !empty(a:message_lines)
+    let message_file = tempname()
+    call writefile(a:message_lines, message_file)
+    let message = ' -F '.shellescape(message_file)
+  endif
+  let option = a:is_amend ? ' --amend --no-edit' : ''
+
+  if a:staged_only
+    let cmd = 'git commit'.message.option
+  else
+    let files = join(map(copy(a:files), {_, val -> shellescape(val)}), ' ')
+    let cmd = 'git add -- '.files.' && git commit'.message.option.' -- '.files
+  endif
+  let result = project#RunShellCmd(cmd)
+  if !empty(message_file)
+    call delete(message_file)
+  endif
+  return [cmd, result]
+endfunction
+
 function! s:TryCommit()
   let lines = getline(0, line('$'))
   let message_lines = filter(lines, {idx, val -> val =~ '^[^#]' && val !~ '^\s*$' && val !~ '^amend$'})
@@ -1780,27 +1810,8 @@ function! s:TryCommit()
     return
   endif
 
-  let files = join(map(copy(s:commit_files), {idx, val -> shellescape(val)}), ' ')
-
-  " Pass the message through a file so the shell never interprets it
-  let message = ''
-  let message_file = ''
-  if !is_empty_message
-    let message_file = tempname()
-    call writefile(message_lines, message_file)
-    let message = '-F '.shellescape(message_file)
-  endif
-
-  let option = ''
-  if is_amend
-    let option = option.' --amend --no-edit'
-  endif
-
-  let cmd = 'git add '.files.' && git commit '.message.option
-  let result = project#RunShellCmd(cmd)
-  if !empty(message_file)
-    call delete(message_file)
-  endif
+  let [cmd, result] = s:RunCommit(s:commit_files, message_lines, is_amend,
+        \get(s:, 'commit_staged_only', 0))
 
   quit
   call s:OpenResultWindow(s:commit_result_buffer, cmd, result)

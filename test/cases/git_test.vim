@@ -255,3 +255,80 @@ function! Test_GetLogsDisplay_shows_most_recent_and_formats_once()
     let state.list = saved
   endtry
 endfunction
+
+" ---------------------------------------------------------------- commit
+
+function! s:CommitRepo(name)
+  let dir = Helper_TmpDir(a:name)
+  let git = 'git -C '.shellescape(dir).' -c user.name=t -c user.email=t@t '
+  call system(git.'init -q')
+  for name in ['other.txt', 'mine.txt', 'gone.txt', 'partial.txt']
+    call writefile([name], dir.'/'.name)
+  endfor
+  call system(git.'add . && '.git.'commit -q -m init')
+  return [dir, git]
+endfunction
+
+function! s:CommittedFiles(git)
+  return sort(split(system(a:git.'show --name-only --pretty=format: HEAD'), "\n"))
+endfunction
+
+function! s:WithProject(dir, Fn)
+  let saved = $vim_project
+  let $vim_project = a:dir
+  try
+    call a:Fn()
+  finally
+    let $vim_project = saved
+  endtry
+endfunction
+
+function! s:CheckCommitOnlyGivenFiles(dir, git)
+  " other.txt is staged but belongs to another changelist
+  call writefile(['changed'], a:dir.'/other.txt')
+  call system(a:git.'add other.txt')
+  call writefile(['changed'], a:dir.'/mine.txt')
+  call delete(a:dir.'/gone.txt')
+  call writefile(['new'], a:dir.'/new.txt')
+
+  let [cmd, _] = s:Call('RunCommit', ['mine.txt', 'gone.txt', 'new.txt'], ['msg with $HOME `x`'], 0, 0)
+  call assert_equal(['gone.txt', 'mine.txt', 'new.txt'], s:CommittedFiles(a:git))
+  call assert_equal('msg with $HOME `x`', trim(system(a:git.'log -1 --pretty=%s')))
+  " The other change is still staged, not committed
+  call assert_equal(['other.txt'], split(system(a:git.'diff --cached --name-only'), "\n"))
+endfunction
+
+function! Test_RunCommit_commits_only_the_changelist_files()
+  let [dir, git] = s:CommitRepo('commit-only')
+  call s:WithProject(dir, function('s:CheckCommitOnlyGivenFiles', [dir, git]))
+endfunction
+
+function! s:CheckCommitStagedKeepsPartialStaging(dir, git)
+  " Stage only the first line of partial.txt, keep the second unstaged
+  call writefile(['partial.txt', 'staged line'], a:dir.'/partial.txt')
+  call system(a:git.'add partial.txt')
+  call writefile(['partial.txt', 'staged line', 'unstaged line'], a:dir.'/partial.txt')
+
+  call s:Call('RunCommit', ['partial.txt'], ['staged'], 0, 1)
+  call assert_equal(['partial.txt', 'staged line'],
+        \ split(system(a:git.'show HEAD:partial.txt'), "\n"))
+  call assert_equal(['partial.txt'], split(system(a:git.'diff --name-only'), "\n"))
+endfunction
+
+function! Test_RunCommit_staged_changelist_keeps_partial_staging()
+  let [dir, git] = s:CommitRepo('commit-staged')
+  call s:WithProject(dir, function('s:CheckCommitStagedKeepsPartialStaging', [dir, git]))
+endfunction
+
+function! s:CheckAmend(dir, git)
+  call writefile(['changed'], a:dir.'/mine.txt')
+  call s:Call('RunCommit', ['mine.txt'], [], 1, 0)
+  call assert_equal('init', trim(system(a:git.'log -1 --pretty=%s')))
+  call assert_equal('1', trim(system(a:git.'rev-list --count HEAD')))
+  call assert_equal(['changed'], split(system(a:git.'show HEAD:mine.txt'), "\n"))
+endfunction
+
+function! Test_RunCommit_amend_keeps_message()
+  let [dir, git] = s:CommitRepo('commit-amend')
+  call s:WithProject(dir, function('s:CheckAmend', [dir, git]))
+endfunction
