@@ -170,3 +170,39 @@ function! Test_SortChangelistFunc_pairwise_rules()
   call assert_equal(-1, Sort(user_b, shelf))
   call assert_equal(1, Sort(shelf, user_a))
 endfunction
+
+" ---------------------------------------------------------------- git log
+
+function! Test_GetChangedFiles_runs_git_once_per_commit()
+  let dir = Helper_TmpDir('git-log-cache')
+  let git = 'git -C '.shellescape(dir).' -c user.name=t -c user.email=t@t '
+  call system(git.'init -q')
+  call writefile(['a'], dir.'/a.txt')
+  call system(git.'add a.txt && '.git.'commit -q -m first')
+  let hash = trim(system(git.'rev-parse --short HEAD'))
+
+  let saved_project = $vim_project
+  let $vim_project = dir
+  try
+    call Helper_Call(s:file, 'InitGitLog', [''])
+  catch
+    " Init also renders the list, which needs the list window; the cache
+    " reset at its start is what matters here
+  endtry
+  try
+    let revision = {'hash': hash}
+    let first = Helper_Call(s:file, 'GetChangedFiles', [revision])
+    call assert_equal(1, len(first))
+    call assert_match('a\.txt', first[0])
+    call assert_true(has_key(s:Var('changed_files_cache'), hash))
+
+    " Second call is served from the cache: same list, no new git run
+    let second = Helper_Call(s:file, 'GetChangedFiles', [revision])
+    call assert_true(first is second)
+
+    call Helper_Call(s:file, 'CloseGitLog', [])
+    call assert_equal({}, s:Var('changed_files_cache'))
+  finally
+    let $vim_project = saved_project
+  endtry
+endfunction

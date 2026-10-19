@@ -255,6 +255,7 @@ endfunction
 
 
 function! s:InitGitLog(input)
+  let s:changed_files_cache = {}
   let format = join(["%s", "%aN", "%ae", "%ad", "%h"], s:splitter)
   let cmd = 'git log --pretty=format:"'.format.'" --date=relative'
   let logs = project#RunShellCmd(cmd)
@@ -304,7 +305,7 @@ function! s:ShowCurrentChangedFiles()
 
   call s:OpenBuffer(s:changes_buffer, 'vertical')
   call s:SetupChangesBuffer(revision)
-  call s:AddToBuffer(revision)
+  call s:AddToBuffer(revision, changed_files)
   wincmd p
 endfunction
 
@@ -321,6 +322,7 @@ function! s:OpenGitLog(revision, cmd, input)
 endfunction
 
 function! s:CloseGitLog()
+  let s:changed_files_cache = {}
   let s:list = []
   let s:display = []
   call s:CloseChangesBuffer()
@@ -629,22 +631,31 @@ function! s:ShowDiffOnGitLog(hash)
   wincmd p
 endfunction
 
+" Commits never change, so keep the result per hash while git log is open;
+" moving the cursor back to a commit then runs no command
+let s:changed_files_cache = {}
+
 function! s:GetChangedFiles(revision)
-  let cmd = 'git diff-tree --no-commit-id --name-status -r -m --root '.shellescape(a:revision.hash)
+  let hash = a:revision.hash
+  if has_key(s:changed_files_cache, hash)
+    return s:changed_files_cache[hash]
+  endif
+
+  let cmd = 'git diff-tree --no-commit-id --name-status -r -m --root '.shellescape(hash)
   let changed_files = map(project#RunShellCmd(cmd), 'substitute(v:val, "\t", " ", "")')
   if v:shell_error
     return []
-  else
-    return map(changed_files, {idx, v -> s:GetChangedFileDisplay(v, '')})
   endif
+  let result = map(changed_files, {idx, v -> s:GetChangedFileDisplay(v, '')})
+  let s:changed_files_cache[hash] = result
+  return result
 endfunction
 
-function! s:AddToBuffer(revision)
+function! s:AddToBuffer(revision, changed_files)
   setlocal modifiable
-  let changed_files = s:GetChangedFiles(a:revision)
-  if len(changed_files) > 0
-    call append(0, changed_files)
-    call s:HighlightFiles(changed_files)
+  if len(a:changed_files) > 0
+    call append(0, a:changed_files)
+    call s:HighlightFiles(a:changed_files)
   else
     call append(0, 'No files found')
   endif
