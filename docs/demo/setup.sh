@@ -134,6 +134,8 @@ test('adds up the cart', () => {
 })
 EOF
 git add -A && commit 9 "Ada Lovelace" "Add cart button and tests"
+perl -0pi -e 's/(export function addToCart\(product\) \{\n)/$1  if (product.stock === 0) return\n/' src/store/cart.js
+git add -A && commit 6 "Ada Lovelace" "Skip products out of stock"
 
 cat > src/utils/currency.js <<'EOF'
 export function formatPrice(cents) {
