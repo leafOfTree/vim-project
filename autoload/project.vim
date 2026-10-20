@@ -1152,8 +1152,11 @@ function! s:SetStartBuffer()
   endif
 endfunction
 
+" project_root may be a file (e.g. README.md): the working directory is
+" then the project itself, as for a root that is not found
 function! s:ChangeDirectoryToRoot(path)
-  execute 'cd' fnameescape(a:path)
+  let dir = isdirectory(a:path) ? a:path : s:project.fullpath
+  execute 'cd' fnameescape(dir)
 endfunction
 
 function! s:DeleteNerdtreeBuf()
@@ -1203,11 +1206,13 @@ function! s:OpenRoot(path)
 
   if empty(a:path)
     call s:OpenNewBufferOnly()
+    call s:ChangeDirectoryToRoot(a:path)
     return
   endif
 
   if !isdirectory(a:path)
     call s:EditPathAsFile(a:path)
+    call s:ChangeDirectoryToRoot(a:path)
     return
   endif
 

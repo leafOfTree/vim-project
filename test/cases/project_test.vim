@@ -569,3 +569,41 @@ function! Test_use_viminfo_keeps_history_per_project()
     endif
   endtry
 endfunction
+
+" ---------------------------------------------------------------- project_root
+
+" A project_root file (README.md) is opened, and the working directory is
+" the project, so relative paths work
+function! Test_project_root_file_sets_working_directory()
+  let base = Helper_TmpDir('root-file')
+  let dir = base.'/proj'
+  call mkdir(dir.'/src', 'p')
+  call writefile(['# proj'], dir.'/README.md')
+  call writefile(['code'], dir.'/src/a.js')
+  let project = {'name': 'proj', 'path': base, 'fullpath': dir, 'note': '', 'option': {}}
+  let saved = deepcopy(g:vim_project_config)
+  let g:vim_project_config.project_root = './README.md'
+  let cwd = getcwd()
+  try
+    call s:Call('InitProjectConfig', project)
+    enew
+    call project#OpenProject(project)
+    call assert_equal('README.md', expand('%:t'))
+    call assert_equal(resolve(dir), resolve(getcwd()))
+    edit src/a.js
+    call assert_equal(['code'], getline(1, '$'))
+    call project#QuitProject()
+
+    " Keeping the current file: only the directory changes, no E344
+    execute 'edit' fnameescape(dir.'/src/a.js')
+    messages clear
+    call project#OpenProject(project)
+    call assert_equal(resolve(dir), resolve(getcwd()))
+    call assert_notmatch('E344', execute('messages'))
+  finally
+    let g:vim_project_config = saved
+    call project#QuitProject()
+    execute 'cd' fnameescape(cwd)
+    silent! %bwipeout!
+  endtry
+endfunction
