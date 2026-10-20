@@ -6,7 +6,7 @@ Projects for Vim and Neovim: switch between them, find files and text, replace a
 
 [![Tests](https://img.shields.io/github/actions/workflow/status/leafOfTree/vim-project/main.yml?branch=master&label=test)](https://github.com/leafOfTree/vim-project/actions/workflows/main.yml) [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](UNLICENSE)
 
-![Open a project, search files, find in files, git changes](docs/images/overview.gif)
+![Open a project, search files, find in files, run lint and fix, git changes](docs/images/overview.gif)
 
 ## Why vim-project
 

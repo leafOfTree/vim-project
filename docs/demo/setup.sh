@@ -161,10 +161,27 @@ echo ""
 echo "  ➜  Local:   http://localhost:5173/"
 while true; do sleep 1; done
 EOF
+cat > scripts/lint.sh <<'EOF'
+#!/bin/sh
+# Report console.log calls left in src, like eslint's no-console rule
+echo "> eslint src"
+sleep 0.5
+problems=$(grep -rn 'console\.log' src)
+if [ -n "$problems" ]; then
+  echo "$problems" | while IFS=: read -r file line _; do
+    echo "$file:$line  error  Unexpected console statement  no-console"
+  done
+  echo ""
+  echo "✖ $(echo "$problems" | wc -l | tr -d ' ') problem"
+  exit 1
+fi
+echo "✔ No problems"
+EOF
 chmod +x scripts/*.sh
 git add -A && commit 0 "Ada Lovelace" "Add scripts"
 
-# Uncommitted work for the git demos
+# Uncommitted work for the git demos, with a console.log for lint to find
+perl -0pi -e 's/(  items.push\(product\)\n)/$1  console.log("added", product.name)\n/' src/store/cart.js
 cat >> src/store/cart.js <<'EOF'
 
 export function clearCart() {

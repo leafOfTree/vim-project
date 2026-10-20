@@ -42,6 +42,6 @@ let g:vim_project_config = {
       \'tasks': [
       \  {'name': 'test', 'cmd': 'sh scripts/test.sh'},
       \  {'name': 'dev', 'cmd': 'sh scripts/dev.sh'},
-      \  {'name': 'lint', 'cmd': 'echo "no problems"'},
+      \  {'name': 'lint', 'cmd': 'sh scripts/lint.sh'},
       \],
       \}
