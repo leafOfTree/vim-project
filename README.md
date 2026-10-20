@@ -4,7 +4,7 @@
 
 Projects for Vim and Neovim: switch between them, find files and text, replace across files, run tasks and work with git, all scoped to the project you are in.
 
-[![CI](https://github.com/leafOfTree/vim-project/actions/workflows/main.yml/badge.svg)](https://github.com/leafOfTree/vim-project/actions/workflows/main.yml) [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](UNLICENSE)
+[![Tests](https://img.shields.io/github/actions/workflow/status/leafOfTree/vim-project/main.yml?branch=master&label=test)](https://github.com/leafOfTree/vim-project/actions/workflows/main.yml) [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](UNLICENSE)
 
 ![Open a project, search files, find in files, git changes](docs/images/overview.gif)
 
