@@ -112,7 +112,7 @@ onMounted(async () => { products.value = await fetchProducts() })
   <ProductCard v-for="product in products" :key="product.id" :product="product" />
 </template>
 EOF
-git add -A && commit 21 "Grace Hopper" "Add product list and cart"
+git add -A && commit 21 "Grace Hopper" "Add cart and product list"
 
 cat > src/components/CartButton.vue <<'EOF'
 <script setup>
@@ -145,7 +145,7 @@ sed -i.bak 's/fetch(.\/api\/products.)/fetch("\/api\/products?limit=50")/' src/a
 git add -A && commit 1 "Grace Hopper" "Limit the products fetched"
 # A console.log for lint to find, removed in the overview demo
 perl -0pi -e 's/(  items.push\(product\)\n)/$1  console.log("added", product.name)\n/' src/store/cart.js
-git add -A && commit 1 "Linus Torvalds" "Log products added to the cart"
+git add -A && commit 1 "Linus Torvalds" "Log cart additions"
 
 # Scripts run by the demo tasks
 cat > scripts/test.sh <<'EOF'
