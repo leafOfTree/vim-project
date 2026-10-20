@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/leafOfTree/leafOfTree.github.io/master/vim-project.svg" height="60" alt="icon" align="left"/>
+<img src="docs/images/logo.svg" height="60" alt="vim-project logo" align="left"/>
 
 # vim-project
 
