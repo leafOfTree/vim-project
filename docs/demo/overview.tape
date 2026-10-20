@@ -1,4 +1,4 @@
-# Overview: open a project, search files, find in files, lint and fix, git changes
+# Overview: open a project, search files, find in files, lint and fix, commit
 # Title: Projects for Vim and Neovim
 Output docs/images/overview.gif
 Source docs/demo/common.tape
@@ -29,4 +29,8 @@ Escape Sleep 500ms
 
 Type ":ProjectGitStatus" Sleep 300ms Enter Sleep 1s
 # cart.js: console.log removed, clearCart added
-Down Sleep 900ms Down Sleep 3.5s
+Down Sleep 900ms Down Sleep 3s
+# Commit it: write the message, close the window to commit
+Type "c" Sleep 1.2s
+Type "iRemove console.log, add clearCart" Sleep 500ms Escape Sleep 500ms
+Type ":q" Sleep 300ms Enter Sleep 3s
