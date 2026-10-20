@@ -901,13 +901,23 @@ endfunction
 
 function! s:ShelfFile() range
   let files = []
+  let shelved = 0
   for lnum in range(a:firstline, a:lastline)
     let file = s:GetFileByLine(lnum)
-    if !empty(file)
-      call add(files, file)
+    if empty(file)
+      continue
     endif
+    " Lines of a shelf are patches already
+    if s:IsShelfFolder(s:GetBelongFolder(lnum))
+      let shelved += 1
+      continue
+    endif
+    call add(files, file)
   endfor
   if empty(files)
+    if shelved
+      call project#Warn('Already shelved. Press '.s:MappingName('unshelf').' to unshelve')
+    endif
     return
   endif
 
@@ -989,22 +999,76 @@ function! s:GetDiffFileByLine(lnum)
   return shelf_folder.'/'.folder_name.'/'.diff_file
 endfunction
 
+" Apply the patches of the shelf on the cursor line, or of the shelved
+" files in the selected lines. Lines outside a shelf are told apart instead
+" of passing git a patch that does not exist
 function! s:UnshelfFile() range
   let lnum = line('.')
   let folder = s:GetCurrentFolder(lnum)
-  if empty(folder)
-    let lines = range(a:firstline, a:lastline)
-    let files = map(lines, {idx, v -> shellescape(s:GetDiffFileByLine(v))})
-    let diff_files = join(files, ' ')
-  else
-    let folder_name = folder.name
-    let files = folder.files
+  if !empty(folder)
+    if !s:IsShelfFolder(folder)
+      call s:WarnNotInShelf(folder.name)
+      return
+    endif
     let shelf_folder = s:GetShelfFolder()
-    let diff_files = join(map(copy(files), {idx, v -> shellescape(shelf_folder.'/'.folder_name.'/'.v)}), ' ')
+    let patches = map(copy(folder.files), {_, v -> shelf_folder.'/'.folder.name.'/'.v})
+  else
+    let patches = []
+    for line in range(a:firstline, a:lastline)
+      if !empty(s:GetFileByLine(line)) && s:IsShelfFolder(s:GetBelongFolder(line))
+        call add(patches, s:GetDiffFileByLine(line))
+      endif
+    endfor
+    if empty(patches)
+      let belong = s:GetBelongFolder(lnum)
+      call s:WarnNotInShelf(empty(belong) ? '' : belong.name)
+      return
+    endif
   endif
-  let cmd = 'git apply '.diff_files
-  call project#RunShellCmd(cmd)
+
+  " git apply applies all patches or none
+  let cmd = 'git apply '.join(map(copy(patches), {_, v -> shellescape(v)}), ' ')
+  let [code, output] = s:RunWithOutput(cmd)
+  if code
+    let names = map(copy(patches), {_, v -> s:GetShelfFileDisplayName(v)})
+    call project#Warn('Cannot unshelve ['.join(names, ', ').']: '
+          \.'the changes conflict with the current files. Nothing was applied')
+    for line in filter(output, 'v:val =~# "^error:"')[:2]
+      call project#Warn('  '.line)
+    endfor
+    return
+  endif
   call s:ShowStatus(1)
+  redraw
+  call project#Info('Unshelved '.len(patches).' file(s)')
+endfunction
+
+function! s:WarnNotInShelf(folder_name)
+  let where = empty(a:folder_name) ? '' : ' This line is in ['.a:folder_name.'].'
+  call project#Warn('Unshelve works on a shelf ('.s:shelf_folder_prefix.') or its files.'.where)
+endfunction
+
+" 'dir+name.diff' -> 'dir/name'
+function! s:GetShelfFileDisplayName(patch)
+  let name = substitute(fnamemodify(a:patch, ':t'), '\.diff$', '', '')
+  let parts = split(name, s:shelf_path_file_spliter)
+  if len(parts) < 2
+    return name
+  endif
+  return substitute(parts[0], s:shelf_path_spliter, '/', 'g').'/'.parts[1]
+endfunction
+
+" Run a:cmd in the project; return [exit code, output with errors]
+function! s:RunWithOutput(cmd)
+  let cd_option = has('win32') ? '/d ' : ''
+  let output = systemlist('cd '.cd_option.shellescape($vim_project).' && '.a:cmd.' 2>&1')
+  return [v:shell_error, output]
+endfunction
+
+" The key of a git_local_changes_mappings command, for messages
+function! s:MappingName(command)
+  let key = get(project#config#Get('git_local_changes_mappings'), a:command, '')
+  return empty(key) ? a:command : strtrans(key)
 endfunction
 
 function! s:RollbackFile() range

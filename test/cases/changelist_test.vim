@@ -223,3 +223,58 @@ function! Test_MoveToFolder()
     call s:CloseRepo()
   endtry
 endfunction
+
+" ---------------------------------------------------------------- shelf messages
+
+function! s:Messages(Fn)
+  messages clear
+  call a:Fn()
+  return execute('messages')
+endfunction
+
+function! Test_shelf_lines_are_checked_with_clear_messages()
+  let repo = s:OpenRepo('shelf messages')
+  try
+    call writefile(['shelved change'], repo.'/tracked.txt')
+    call writefile(['new'], repo.'/new.txt')
+    call project#git#Status()
+    call s:Shelve('|tracked\.txt|')
+    call s:ExpandFolder('Untracked')
+
+    " Unshelve on a file outside a shelf: say so, do not run git
+    let lnum = s:Line('|new\.txt|')
+    let messages = s:Messages({-> s:RangeCall('UnshelfFile', lnum, lnum)})
+    call assert_match('Unshelve works on a shelf .* This line is in \[Untracked\]', messages)
+    call assert_notmatch('git apply\|E\d\+:', messages)
+
+    " ... or on a changelist that is not a shelf
+    let lnum = s:Line('|Default ')
+    let messages = s:Messages({-> s:RangeCall('UnshelfFile', lnum, lnum)})
+    call assert_match('This line is in \[Default\]', messages)
+
+    " Shelving a shelved file again
+    call s:ExpandFolder('work')
+    let lnum = s:Line('|tracked\.txt\.diff|')
+    let messages = s:Messages({-> s:RangeCall('ShelfFile', lnum, lnum)})
+    call assert_match('Already shelved', messages)
+
+    " A patch that conflicts with the current file: nothing applied
+    call writefile(['edited meanwhile'], repo.'/tracked.txt')
+    call project#git#Status()
+    let lnum = s:Line('|work ')
+    let messages = s:Messages({-> s:RangeCall('UnshelfFile', lnum, lnum)})
+    call assert_match('Cannot unshelve \[tracked.txt\]: the changes conflict', messages)
+    call assert_match('error: patch failed', messages)
+    call assert_equal(['edited meanwhile'], readfile(repo.'/tracked.txt'))
+
+    " Success is reported
+    call system('git -C '.shellescape(repo).' restore tracked.txt')
+    call project#git#Status()
+    let lnum = s:Line('|work ')
+    let messages = s:Messages({-> s:RangeCall('UnshelfFile', lnum, lnum)})
+    call assert_match('Unshelved 1 file(s)', messages)
+    call assert_equal(['shelved change'], readfile(repo.'/tracked.txt'))
+  finally
+    call s:CloseRepo()
+  endtry
+endfunction
