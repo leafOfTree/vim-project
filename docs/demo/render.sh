@@ -5,9 +5,7 @@
 #   docs/demo/render.sh overview   one tape
 #
 # Each tape starts from a fresh workspace (docs/demo/setup.sh) and writes
-# docs/images/<name>.gif. Feature tapes also take a screenshot, which gets a
-# play badge (docs/demo/play.png) to become the still poster shown in the
-# README. Needs vhs, ffmpeg, nvim, git and fd or find.
+# docs/images/<name>.gif. Needs vhs, nvim, git and fd or find.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -31,11 +29,5 @@ for name in "${tapes[@]}"; do
       exit 1
     fi
   done
-  poster="docs/images/$name.png"
-  if [ -f "$poster" ]; then
-    ffmpeg -loglevel error -y -i "$poster" -i docs/demo/play.png \
-      -filter_complex 'overlay=(W-w)/2:(H-h)/2' "$poster.tmp.png"
-    mv "$poster.tmp.png" "$poster"
-  fi
-  ls -lh "docs/images/$name".* | awk '{print "    " $5 "  " $9}'
+  ls -lh "docs/images/$name.gif" | awk '{print "    " $5 "  " $9}'
 done

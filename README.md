@@ -8,16 +8,17 @@ Projects for Vim and Neovim: switch between them, find files and text, replace a
 
 ## Why vim-project
 
-- **One plugin, Vim and Neovim.** Plain Vimscript, tested on Vim 8.2.3591 to 9.1 and Neovim 0.5.1 to 0.11 in CI.
-- **Never waits for you.** Searching in files runs in the background, so typing never freezes, even in large repositories. File names are matched with Vim's built-in fuzzy matcher.
-- **Safe find and replace.** A line is only replaced if it still reads as it did in the search, files with unsaved changes are skipped, and line endings are kept.
-- **Git changes like an IDE.** Group local changes in changelists, commit one changelist at a time, shelve and unshelve, roll back, pull and push in the background.
-- **Each project its own world.** Optional session and history (viminfo / shada) per project, a per-project config file, and tasks to run.
-- **Works with or without extra tools.** Uses fd, rg or ag when installed, and falls back to find, grep and Vim itself. Every program gives the same results.
+- **Vim and Neovim**: plain Vimscript, Vim 8.2+ and Neovim 0.5+.
+- **No freezing**: searches run in the background.
+- **Safe replace**: only lines unchanged since the search are replaced.
+- **Git like an IDE**: changelists, shelves, background pull and push.
+- **Per project**: session, history, config and tasks.
+- **No dependencies**: uses fd, rg or ag when installed.
 
 ## Quick start
 
-Install it with your plugin manager:
+<details>
+<summary>Install with lazy.nvim, vim-plug or Vim packages</summary>
 
 ```lua
 -- lazy.nvim
@@ -29,13 +30,14 @@ Install it with your plugin manager:
 Plug 'leafOfTree/vim-project'
 ```
 
-Or with Vim's built-in packages:
-
 ```sh
+# Vim's built-in packages
 git clone https://github.com/leafOfTree/vim-project ~/.vim/pack/plugins/start/vim-project
 ```
 
-Then add a project and start working:
+</details>
+
+Add a project and start working:
 
 ```vim
 :Project ~/code/my-app      " add a folder as a project and open it
@@ -56,11 +58,16 @@ For the full reference: `:help vim-project` (run `:helptags ALL` first if your p
 
 ## Features
 
-In every list, type to filter. <kbd>Ctrl-j</kbd> / <kbd>Ctrl-k</kbd> (or the arrow keys) move, <kbd>Enter</kbd> opens and <kbd>Esc</kbd> closes. See [keys in lists](#keys-in-lists). Click a picture to play its animation.
+In every list, type to filter. <kbd>Ctrl-j</kbd> / <kbd>Ctrl-k</kbd> (or the arrow keys) move, <kbd>Enter</kbd> opens and <kbd>Esc</kbd> closes. See [keys in lists](#keys-in-lists).
 
 ### Projects
 
-[![Switch between projects](docs/images/projects.png)](docs/images/projects.gif)
+<details>
+<summary>Watch the demo</summary>
+
+![Switch between projects](docs/images/projects.gif)
+
+</details>
 
 `:ProjectList` filters projects by name, note or path. Opening a project quits the current one (saving its session if enabled) and opens the new one's root.
 
@@ -71,7 +78,12 @@ In every list, type to filter. <kbd>Ctrl-j</kbd> / <kbd>Ctrl-k</kbd> (or the arr
 
 ### Search files
 
-[![Search files by name](docs/images/search-files.png)](docs/images/search-files.gif)
+<details>
+<summary>Watch the demo</summary>
+
+![Search files by name](docs/images/search-files.gif)
+
+</details>
 
 `:ProjectSearchFiles` matches file names fuzzily: `pcard` finds `ProductCard.vue`. Input with `/` matches the path (`store/c`), and input ending with `/` lists directories. Recently opened files come first. <kbd>Ctrl-s</kbd>, <kbd>Ctrl-v</kbd> and <kbd>Ctrl-t</kbd> open in a split, vertical split or tab.
 
@@ -79,7 +91,12 @@ The file list is cached and refreshed in the background, so new files show up wi
 
 ### Find and replace in files
 
-[![Find and replace in files](docs/images/find-replace.png)](docs/images/find-replace.gif)
+<details>
+<summary>Watch the demo</summary>
+
+![Find and replace in files](docs/images/find-replace.gif)
+
+</details>
 
 `:ProjectFindInFiles` searches as you type; with a visual selection it starts with the selected text. The input is literal and case insensitive: start it with `\C` to match case, or `\E` for a regular expression.
 
@@ -87,7 +104,12 @@ To replace, press <kbd>Ctrl-r</kbd>, type the replacement after ` => `, check th
 
 ### Run tasks
 
-[![Run tasks](docs/images/run-tasks.png)](docs/images/run-tasks.gif)
+<details>
+<summary>Watch the demo</summary>
+
+![Run tasks](docs/images/run-tasks.gif)
+
+</details>
 
 `:ProjectRun` lists the `tasks` of the project and shows their output as they run. <kbd>Enter</kbd> runs or reruns a task, <kbd>Ctrl-q</kbd> stops it and <kbd>Ctrl-o</kbd> opens its terminal.
 
@@ -106,7 +128,12 @@ let g:vim_project_local_config = {
 
 ### Git changes
 
-[![Local changes, changelists and shelves](docs/images/git-changes.png)](docs/images/git-changes.gif)
+<details>
+<summary>Watch the demo</summary>
+
+![Local changes, changelists and shelves](docs/images/git-changes.gif)
+
+</details>
 
 `:ProjectGitStatus` shows local changes with a diff of the file under the cursor. Group them in changelists, then commit one at a time: only its files are committed.
 
@@ -123,7 +150,12 @@ let g:vim_project_local_config = {
 
 ### Git log, file history, branches and tags
 
-[![Git log and file history](docs/images/git-log.png)](docs/images/git-log.gif)
+<details>
+<summary>Watch the demo</summary>
+
+![Git log and file history](docs/images/git-log.gif)
+
+</details>
 
 - `:ProjectGitLog` searches commits by message, author or hash and shows the changed files and their diffs. <kbd>Ctrl-o</kbd> checks out the revision.
 - `:ProjectGitFileHistory` shows the history of the current file, or of the selected lines.
