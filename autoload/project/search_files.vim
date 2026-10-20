@@ -189,8 +189,17 @@ function! s:FilterOldFilesByPath(oldfiles)
   let excludes = s:GetExclude()
   let result = []
   let seen = {}
+  let home = expand('~')
   for val in a:oldfiles
-    let full = fnamemodify(val, ':p')
+    " Recent files are absolute or start with ~: no fnamemodify(), which
+    " asks the file system about each path
+    if val =~# '^[/\\]\|^\a:[/\\]'
+      let full = val
+    elseif val[0] ==# '~'
+      let full = home.val[1:]
+    else
+      let full = fnamemodify(val, ':p')
+    endif
     let rel = s:RelativeToAny([full], roots)
     if empty(rel) || has_key(seen, rel) || s:IsPathStartWithAny(rel, excludes)
       continue
@@ -434,6 +443,12 @@ function! s:OnRefreshDone(id, project, status)
 
   let lines = filter(s:refresh_lines, 'v:val !=# ""')
   let s:refresh_lines = []
+  call s:ApplyRefresh(lines)
+endfunction
+
+" Replace the file list by a:lines, a fresh listing, if files changed
+function! s:ApplyRefresh(lines)
+  let lines = a:lines
   " Most of the time nothing changed: sorting and comparing the lines takes
   " tens of ms, making items of 50k lines hundreds, which would stall typing
   let sorted = sort(copy(lines))

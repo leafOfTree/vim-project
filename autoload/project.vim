@@ -321,7 +321,8 @@ function! s:InitProjectConfig(project)
           \'   \],',
           \'\}',
           \]
-    call writefile(init_content, init_file)
+    " 'S': no fsync, ~5 ms each, for templates of every new project
+    call writefile(init_content, init_file, 'S')
 
     " Generate quit file
     let quit_file = config.'/'.s:quit_file
@@ -332,7 +333,7 @@ function! s:InitProjectConfig(project)
           \'" Variables:    $vim_project, $vim_project_config',
           \'""""""""""""""""""""""""""""""""""""""""""""""',
           \]
-    call writefile(quit_content, quit_file)
+    call writefile(quit_content, quit_file, 'S')
   endif
 endfunction
 
