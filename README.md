@@ -10,7 +10,6 @@ Projects for Vim and Neovim: switch between them, find files and text, replace a
 
 - **Vim and Neovim**: plain Vimscript, Vim 8.2+ and Neovim 0.5+.
 - **No freezing**: searches run in the background.
-- **Safe replace**: only lines unchanged since the search are replaced.
 - **Git like an IDE**: changelists, shelves, background pull and push.
 - **Per project**: session, history, config and tasks.
 - **No dependencies**: uses fd, rg or ag when installed.
