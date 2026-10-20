@@ -141,3 +141,30 @@ function! Test_project_list_filters_and_opens_by_typing()
     silent! %bwipeout!
   endtry
 endfunction
+
+" ---------------------------------------------------------------- highlight
+
+" Typed characters must stand out, also where Constant looks like Normal
+" (Neovim 0.10+ default colors)
+function! Test_list_match_highlight_stands_out()
+  silent! highlight clear VimProjectMatch
+  call s:Type("\<Esc>")
+  let match = synIDtrans(hlID('InputChar'))
+  call assert_equal(hlID('VimProjectMatch'), match)
+  call assert_equal('1', synIDattr(match, 'bold'))
+  let normal = synIDtrans(hlID('Normal'))
+  let differs = synIDattr(match, 'fg#', 'gui') !=? synIDattr(normal, 'fg#', 'gui')
+        \ || synIDattr(match, 'fg', 'cterm') !=# synIDattr(normal, 'fg', 'cterm')
+        \ || synIDattr(match, 'underline') ==# '1'
+  call assert_true(differs, 'same color as Normal: '.synIDattr(match, 'fg#', 'gui'))
+endfunction
+
+function! Test_list_match_highlight_keeps_user_colors()
+  highlight VimProjectMatch guifg=#123456 ctermfg=1 gui=italic cterm=italic
+  try
+    call s:Type("\<Esc>")
+    call assert_equal('#123456', synIDattr(hlID('VimProjectMatch'), 'fg#', 'gui'))
+  finally
+    highlight clear VimProjectMatch
+  endtry
+endfunction

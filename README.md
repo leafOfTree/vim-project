@@ -176,7 +176,7 @@ Every option, key mapping and the per-project config are in `:help vim-project-c
 | <kbd>Ctrl-b</kbd> | paste |
 | <kbd>Ctrl-o</kbd> | go to the list window (in lists without their own <kbd>Ctrl-o</kbd>) |
 
-All of them can be changed with `list_mappings`.
+All of them can be changed with `list_mappings`. Typed characters are highlighted with the `VimProjectMatch` group, e.g. `highlight VimProjectMatch guifg=#f9e2af gui=bold`.
 
 ## Commands
 

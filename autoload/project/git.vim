@@ -385,9 +385,9 @@ function! s:CloseChangesBuffer()
 endfunction
 
 function! s:SetupChangesBuffer(revision)
-  hi DiffBufferModify ctermfg=3 guifg=#b58900
-  hi DiffBufferAdd ctermfg=2 guifg=#719e07
-  hi DiffBufferDelete ctermfg=9 guifg=#dc322f
+  hi default DiffBufferModify ctermfg=3 guifg=#b58900
+  hi default DiffBufferAdd ctermfg=2 guifg=#719e07
+  hi default DiffBufferDelete ctermfg=9 guifg=#dc322f
   syntax match DiffBufferModify /^M\ze\s/
   syntax match DiffBufferAdd /^A\ze\s/
   syntax match DiffBufferDelete /^D\ze\s/
@@ -1748,9 +1748,9 @@ function! s:SetupChangelistBuffer()
   call s:AddMapping(mappings.unshelf, '<SID>UnshelfFile()')
   call s:AddVisualMapping(mappings.unshelf, '<SID>UnshelfFile()')
 
-  hi DiffBufferModify ctermfg=3 guifg=#b58900
-  hi DiffBufferAdd ctermfg=2 guifg=#719e07
-  hi DiffBufferDelete ctermfg=9 guifg=#dc322f
+  hi default DiffBufferModify ctermfg=3 guifg=#b58900
+  hi default DiffBufferAdd ctermfg=2 guifg=#719e07
+  hi default DiffBufferDelete ctermfg=9 guifg=#dc322f
   syntax match DiffBufferModify /^\s\sM\ze\s/
   syntax match DiffBufferAdd /^\s\sA\ze\s/
   syntax match DiffBufferDelete /^\s\sD\ze\s/

@@ -56,7 +56,9 @@ function! s:Highlight(state)
   let a:state.first_column_pattern = '^'.a:state.column_pattern
   highlight link FirstColumn Keyword
   highlight link SecondColumn Comment
-  highlight link Status Constant
+  call project#list#DefineDistinctHighlight('VimProjectRunning',
+        \['WarningMsg', 'Special', 'Constant', 'Function'])
+  highlight link Status VimProjectRunning
 
   " Linking InfoRow to Normal does not work when overriding other syntax
   if has('nvim') || !exists('*hlget')

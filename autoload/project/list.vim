@@ -195,12 +195,45 @@ function! s:SetupListBuffer()
 
   highlight link ItemSelected CursorLine
   highlight! link SignColumn Noise
-  highlight link InputChar Constant
+  call project#list#DefineDistinctHighlight('VimProjectMatch',
+        \['Constant', 'Special', 'Function', 'Identifier', 'String', 'Statement'])
+  highlight link InputChar VimProjectMatch
 
   call s:HighlightWithBgBasedOn('Comment', 0, 0, 'BeforeReplace')
   call s:HighlightWithBgBasedOn('Function', 0, 'bold', 'AfterReplace')
 
   sign define selected text=> texthl=ItemSelected linehl=ItemSelected
+endfunction
+
+" Define a:group in bold with the first color of a:candidates that differs
+" from Normal, or underlined if none does. Linking to one group, e.g.
+" Constant, made text invisible where it looks like Normal (Neovim 0.10+
+" default colors). 'default' keeps a definition of the user, and a
+" :colorscheme clears ours, so it is worked out again for the new colors
+function! project#list#DefineDistinctHighlight(group, candidates)
+  let normal = s:GetColors('Normal')
+  let colors = {}
+  for group in a:candidates
+    let candidate = s:GetColors(group)
+    if (!empty(candidate.gui) && candidate.gui !=? normal.gui)
+          \|| (empty(candidate.gui) && !empty(candidate.cterm) && candidate.cterm != normal.cterm)
+      let colors = candidate
+      break
+    endif
+  endfor
+
+  if empty(colors)
+    execute 'highlight default' a:group 'term=bold,underline cterm=bold,underline gui=bold,underline'
+    return
+  endif
+  execute 'highlight default' a:group 'term=bold cterm=bold gui=bold'
+        \.(empty(colors.cterm) ? '' : ' ctermfg='.colors.cterm)
+        \.(empty(colors.gui) ? '' : ' guifg='.colors.gui)
+endfunction
+
+function! s:GetColors(group)
+  let id = synIDtrans(hlID(a:group))
+  return {'gui': synIDattr(id, 'fg#', 'gui'), 'cterm': synIDattr(id, 'fg', 'cterm')}
 endfunction
 
 function! s:HighlightWithBgBasedOn(base_group, bg_group, attr, new_group)

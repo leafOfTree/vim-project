@@ -145,6 +145,13 @@ order. Default keys, see "list_mappings" to change them:
 
 In the project list, <Tab> and <S-Tab> switch between "project_views".
 
+                                                        *VimProjectMatch*
+Typed characters found in the items are highlighted with VimProjectMatch:
+by default the first color of Constant, Special, Function, ... that differs
+from Normal, in bold. Set your own, e.g. in your vimrc: >
+    highlight VimProjectMatch guifg=#f9e2af ctermfg=yellow gui=bold cterm=bold
+<
+
 ==============================================================================
 4. SEARCH FILES / FIND IN FILES                         *vim-project-search*
 
