@@ -198,14 +198,15 @@ endfunction
 function! Test_MapSearchFiles_handles_fd_directories()
   let list = ['src/', 'src/app.js', 'a/b/c/', 'README.md']
   call s:Call('MapSearchFiles', list)
-  call assert_equal({'file': 'src', 'path': '', 'rel': 'src', 'dir': 1}, list[0])
-  call assert_equal({'file': 'app.js', 'path': 'src', 'rel': 'src/app.js'}, list[1])
-  call assert_equal({'file': 'c', 'path': 'a/b', 'rel': 'a/b/c', 'dir': 1}, list[2])
-  call assert_equal({'file': 'README.md', 'path': '', 'rel': 'README.md'}, list[3])
+  call assert_equal({'file': 'src', 'path': '', 'dir': 1}, list[0])
+  call assert_equal({'file': 'app.js', 'path': 'src'}, list[1])
+  call assert_equal({'file': 'c', 'path': 'a/b', 'dir': 1}, list[2])
+  call assert_equal({'file': 'README.md', 'path': ''}, list[3])
 endfunction
 
 function! s:FuzzyNames(list, input)
-  return map(s:Call('GetSearchFilesByMatchFuzzy', a:list, a:input), {_, val -> val.rel})
+  return map(s:Call('GetSearchFilesByMatchFuzzy', a:list, a:input),
+        \ {_, val -> empty(val.path) ? val.file : val.path.'/'.val.file})
 endfunction
 
 function! Test_GetSearchFilesByMatchFuzzy()

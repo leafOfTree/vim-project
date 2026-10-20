@@ -27,7 +27,7 @@ endfunction
 
 function! project#search_files#Reset()
   call s:StopRefresh()
-  unlet! s:initial_list
+  unlet! s:initial_list s:initial_lines
   call s:ClearResultCache()
 endfunction
 
@@ -397,12 +397,16 @@ function! s:StartRefresh()
   let Done = function('s:OnRefreshDone', [s:refresh_id, $vim_project])
 
   if exists('*job_start')
+    " To a file, read once at the end: a callback per line would run tens of
+    " thousands of times while the user types
+    let output = tempname()
     let s:refresh_job = job_start(shell_cmd, {
           \'cwd': $vim_project,
-          \'out_mode': 'nl',
+          \'in_io': 'null',
+          \'out_io': 'file',
+          \'out_name': output,
           \'err_io': 'null',
-          \'out_cb': {_, line -> add(s:refresh_lines, line)},
-          \'exit_cb': {job, status -> s:OnVimRefreshExit(job, status, Done)},
+          \'exit_cb': {job, status -> s:OnVimRefreshExit(output, status, Done)},
           \})
   else
     let s:refresh_job = jobstart(shell_cmd, {
@@ -415,13 +419,9 @@ function! s:StartRefresh()
 endfunction
 
 " exit_cb may run before all output was read; wait for the channel
-function! s:OnVimRefreshExit(job, status, Done)
-  let channel = job_getchannel(a:job)
-  let tries = 0
-  while ch_status(channel) ==# 'open' && tries < 100
-    sleep 5m
-    let tries += 1
-  endwhile
+function! s:OnVimRefreshExit(output, status, Done)
+  let s:refresh_lines = filereadable(a:output) ? readfile(a:output) : []
+  call delete(a:output)
   call a:Done(a:status)
 endfunction
 
@@ -432,15 +432,18 @@ function! s:OnRefreshDone(id, project, status)
     return
   endif
 
-  let lines = filter(s:refresh_lines, {_, line -> !empty(line)})
+  let lines = filter(s:refresh_lines, 'v:val !=# ""')
   let s:refresh_lines = []
-  call s:MapSearchFiles(lines)
-  let new_list = lines
-  if exists('s:initial_list') && new_list == s:initial_list
+  " Most of the time nothing changed: sorting and comparing the lines takes
+  " tens of ms, making items of 50k lines hundreds, which would stall typing
+  let sorted = sort(copy(lines))
+  if exists('s:initial_lines') && sorted ==# s:initial_lines
     return
   endif
 
-  let s:initial_list = new_list
+  let s:initial_lines = sorted
+  call s:MapSearchFiles(lines)
+  let s:initial_list = lines
   let s:initial_list_marks_dirs = s:find_program ==# 'fd'
   call s:ClearResultCache()
   if project#list#IsOpen('SEARCH_FILES')
@@ -467,6 +470,9 @@ function! s:GetSearchFilesAll()
   endif
 
   let result = s:find_cmd_func()
+  " Kept to tell cheaply whether a background refresh found any change.
+  " Sorted: fd lists in parallel, in a different order each time
+  let s:initial_lines = sort(copy(result))
   call s:MapSearchFiles(result)
   let s:initial_list = result
   let s:initial_list_marks_dirs = s:find_program ==# 'fd'
@@ -682,22 +688,22 @@ function! s:GetSearchFiles(input)
   return files
 endfunction
 
-" Items are {'file': name, 'path': parent, 'rel': path in the project}. fd
-" prints directories with a trailing slash: strip it so a directory gets its
-" name as 'file', and mark it with 'dir'. Kept to one lambda without calls
-" to other functions, as this runs once per file of the project.
+" Items are {'file': name, 'path': parent}, and 'dir': 1 for a directory
+" (fd prints directories with a trailing separator: it is stripped so the
+" directory gets its name as 'file'). 'rel', the path in the project, is
+" added by s:AddRelativePath() when first needed. This runs on every file
+" of the project: one lambda, one comparison, no other function calls.
 function! s:MapSearchFiles(list)
-  call map(a:list, {idx, val -> val[-1:] ==# '/' || val[-1:] ==# '\'
+  let sep = has('win32') ? '\' : '/'
+  call map(a:list, {idx, val -> val[-1:] ==# sep
         \? {
         \  'file': fnamemodify(val[:-2], ':t'),
         \  'path': fnamemodify(val[:-2], ':h:s+\./\|\.\\\|^\.$++'),
-        \  'rel': val[:-2],
         \  'dir': 1,
         \}
         \: {
         \  'file': fnamemodify(val, ':t'),
         \  'path': fnamemodify(val, ':h:s+\./\|\.\\\|^\.$++'),
-        \  'rel': val,
         \}})
 endfunction
 
