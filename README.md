@@ -169,14 +169,23 @@ let g:vim_project_local_config = {
 <details open>
 <summary>Watch the demo</summary>
 
-![Git log and file history](docs/images/git-log.gif)
+![Git log, file history and merging a branch](docs/images/git-log.gif)
 
 </details>
 
-- `:ProjectGitLog` searches commits by message, author or hash and shows the changed files and their diffs. <kbd>Ctrl-o</kbd> checks out the revision.
-- `:ProjectGitFileHistory` shows the history of the current file, or of the selected lines.
-- `:ProjectGitBranch` switches, creates (`New Branch`) and merges (<kbd>Ctrl-o</kbd>, after asking) branches.
+- `:ProjectGitLog` searches commits by message, author or hash, with the changed files of the selected one beside it.
+- `:ProjectGitFileHistory` shows the commits of the current file, or of the selected lines, with their diffs.
+- `:ProjectGitBranch` switches, creates and merges branches.
 - `:ProjectGitTag` checks out and creates tags.
+
+| List | Key | Action |
+|------|-----|--------|
+| log | <kbd>Enter</kbd> | show the changed files, and the diff of the one under the cursor |
+| log, file history | <kbd>Ctrl-o</kbd> | check out |
+| file history | <kbd>Enter</kbd> | show the diff |
+| branches | <kbd>Enter</kbd> | switch to it, or create one from `New Branch` |
+| branches | <kbd>Ctrl-o</kbd> | merge into the current branch (asks first) |
+| tags | <kbd>Enter</kbd> | check out, or create one from `New Tag` |
 
 ### Sessions and project config
 
