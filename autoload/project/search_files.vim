@@ -177,10 +177,12 @@ function! s:AddBuffers(oldfiles)
 endfunction
 
 " Keep the recent files of the project, as './path' relative to it. Paths
-" are compared expanded and with symlinks resolved, as a prefix: Neovim
-" records the real path of a file even when the project was opened through
-" a symlink (e.g. /tmp is /private/tmp on macOS), and a substring test let
-" '/private/tmp/p/a' pass for '/tmp/p/' and become '/private./a'
+" are compared as a prefix of the project path, as given or with symlinks
+" resolved: Neovim records the real path of a file even when the project
+" was opened through a symlink (e.g. /tmp is /private/tmp on macOS), and a
+" substring test let '/private/tmp/p/a' pass for '/tmp/p/' and become
+" '/private./a'. This runs on every key typed: only string tests come
+" first, the file system is asked about files of the project only
 function! s:FilterOldFilesByPath(oldfiles)
   let root = s:DirWithSlash(fnamemodify($vim_project, ':p'))
   let roots = uniq([root, s:DirWithSlash(resolve(root))])
@@ -188,13 +190,13 @@ function! s:FilterOldFilesByPath(oldfiles)
   let result = []
   let seen = {}
   for val in a:oldfiles
-    let full = fnamemodify(expand(val), ':p')
-    if count(['ControlP', ''], fnamemodify(full, ':t'))
-          \|| !(filereadable(full) || isdirectory(full))
+    let full = fnamemodify(val, ':p')
+    let rel = s:RelativeToAny([full], roots)
+    if empty(rel) || has_key(seen, rel) || s:IsPathStartWithAny(rel, excludes)
       continue
     endif
-    let rel = s:RelativeToAny([full, resolve(full)], roots)
-    if empty(rel) || has_key(seen, rel) || s:IsPathStartWithAny(rel, excludes)
+    if count(['ControlP', ''], fnamemodify(full, ':t'))
+          \|| !(filereadable(full) || isdirectory(full))
       continue
     endif
     let seen[rel] = 1
