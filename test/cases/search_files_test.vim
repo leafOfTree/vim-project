@@ -274,3 +274,52 @@ function! Test_list_programs_agree_for_real()
     let [$vim_project, config.search_include, config.search_exclude] = saved
   endtry
 endfunction
+
+" ---------------------------------------------------------------- recent files
+
+" A project opened through a symlink: v:oldfiles may hold the real path of
+" its files (Neovim resolves them), which must still map to 'src', not to a
+" mangled '/private...' path, and appear once
+function! s:CheckRecentFiles(link, real)
+  let saved = copy(v:oldfiles)
+  call filter(v:oldfiles, 0)
+  call extend(v:oldfiles, [a:real.'/src/a.js', a:link.'/src/a.js', a:real.'/node_modules/x.js',
+        \ a:real.'-other/src/b.js', a:link.'/gone.js'])
+  try
+    let items = s:Call('GetSearchFilesByOldFiles', '')
+    call assert_equal([{'file': 'a.js', 'path': 'src'}], items)
+  finally
+    call filter(v:oldfiles, 0)
+    call extend(v:oldfiles, saved)
+  endtry
+endfunction
+
+function! Test_recent_files_of_a_project_opened_through_a_symlink()
+  " Like /tmp -> /private/tmp on macOS: the real path is a prefix followed
+  " by the whole path of the link
+  let base = resolve(Helper_TmpDir('recent'))
+  let link_dir = base.'/link'
+  let real_dir = base.'/private'.link_dir
+  let real = real_dir.'/proj'
+  call mkdir(real.'/src', 'p')
+  call mkdir(real.'/node_modules', 'p')
+  call mkdir(real.'-other/src', 'p')
+  call writefile(['a'], real.'/src/a.js')
+  call writefile(['x'], real.'/node_modules/x.js')
+  call writefile(['b'], real.'-other/src/b.js')
+  call system('ln -s '.shellescape(real_dir).' '.shellescape(link_dir))
+  let link = link_dir.'/proj'
+  if !isdirectory(link)
+    return
+  endif
+
+  let config = project#config#All()
+  let saved = [$vim_project, config.search_exclude]
+  let $vim_project = link
+  let config.search_exclude = ['node_modules']
+  try
+    call s:CheckRecentFiles(link, real)
+  finally
+    let [$vim_project, config.search_exclude] = saved
+  endtry
+endfunction

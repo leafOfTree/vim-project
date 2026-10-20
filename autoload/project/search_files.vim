@@ -176,22 +176,48 @@ function! s:AddBuffers(oldfiles)
   endfor
 endfunction
 
+" Keep the recent files of the project, as './path' relative to it. Paths
+" are compared expanded and with symlinks resolved, as a prefix: Neovim
+" records the real path of a file even when the project was opened through
+" a symlink (e.g. /tmp is /private/tmp on macOS), and a substring test let
+" '/private/tmp/p/a' pass for '/tmp/p/' and become '/private./a'
 function! s:FilterOldFilesByPath(oldfiles)
-  let project_dir = project#GetProjectDirectory()
-  call filter(a:oldfiles, {_, val -> count(val, project_dir) > 0 })
-  let search_exclude = s:GetExclude()
-  call map(search_exclude, {_, val -> project_dir.val})
-  call filter(a:oldfiles, {_, val -> !s:IsPathStartWithAny(val, search_exclude)})
+  let root = s:DirWithSlash(fnamemodify($vim_project, ':p'))
+  let roots = uniq([root, s:DirWithSlash(resolve(root))])
+  let excludes = s:GetExclude()
+  let result = []
+  let seen = {}
+  for val in a:oldfiles
+    let full = fnamemodify(expand(val), ':p')
+    if count(['ControlP', ''], fnamemodify(full, ':t'))
+          \|| !(filereadable(full) || isdirectory(full))
+      continue
+    endif
+    let rel = s:RelativeToAny([full, resolve(full)], roots)
+    if empty(rel) || has_key(seen, rel) || s:IsPathStartWithAny(rel, excludes)
+      continue
+    endif
+    let seen[rel] = 1
+    call add(result, './'.rel)
+  endfor
+  call filter(a:oldfiles, 0)
+  call extend(a:oldfiles, result)
+endfunction
 
-  call map(a:oldfiles, {_, val -> fnamemodify(val, ':p')})
-  call filter(a:oldfiles, {_, val ->
-        \ count(['ControlP', ''], fnamemodify(val, ':t')) == 0
-        \ && (filereadable(val) || isdirectory(val))
-        \})
+function! s:DirWithSlash(path)
+  return substitute(a:path, '[/\\]\?$', '/', '')
+endfunction
 
-
-  let project_dir_pat = escape(fnamemodify(project_dir, ':p'), '\')
-  call map(a:oldfiles, {_, val -> substitute(val, project_dir_pat, './', '')})
+" The first of a:paths under one of a:roots, relative to it, or ''
+function! s:RelativeToAny(paths, roots)
+  for path in a:paths
+    for root in a:roots
+      if stridx(path, root) == 0 && len(path) > len(root)
+        return path[len(root):]
+      endif
+    endfor
+  endfor
+  return ''
 endfunction
 
 function! s:IsPathStartWithAny(fullpath, starts)
