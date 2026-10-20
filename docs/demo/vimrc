@@ -6,6 +6,12 @@ execute 'set runtimepath^='.fnameescape(s:repo)
 let s:demo = empty($VIM_PROJECT_DEMO) ? '/tmp/vim-project-demo' : $VIM_PROJECT_DEMO
 
 set termguicolors number noswapfile nobackup shortmess+=I
+" Keep the recordings independent of your history
+if has('nvim')
+  set shadafile=NONE
+else
+  set viminfofile=NONE
+endif
 set laststatus=2 cmdheight=1 nowrap
 syntax on
 filetype plugin indent on
