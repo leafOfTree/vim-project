@@ -234,8 +234,10 @@ changelists. Default keys ("git_local_changes_mappings"):
     c       commit the file(s) or changelist. Write "amend" on its own line
             in the message to amend
     R       roll back the file(s)
-    s       shelve the file(s) as a patch
-    S       unshelve
+    s       shelve the file(s): save the changes, staged or not, as a patch
+            in a named shelf, then revert them (an untracked file is
+            removed). The changes are kept if the patch cannot undo them
+    S       unshelve: apply the patches of a shelf, or of one file, again
     u       git pull
     p       git push
     P       git pull, then git push

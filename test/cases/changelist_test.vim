@@ -109,38 +109,65 @@ endfunction
 
 " ---------------------------------------------------------------- shelf
 
+function! s:Shelve(pattern)
+  let lnum = s:Line(a:pattern)
+  call feedkeys("work\<CR>", 't')
+  call s:RangeCall('ShelfFile', lnum, lnum)
+endfunction
+
+" Shelving saves the changes as a patch and reverts them, like IntelliJ;
+" unshelving applies the patch again
 function! Test_ShelfFile_and_UnshelfFile()
   let repo = s:OpenRepo('shelf')
+  let git = 'git -C '.shellescape(repo)
   try
+    call writefile(0z00010203, repo.'/bin.dat')
+    call system(git.' add bin.dat && '.git.' commit -q -m bin')
+
     call writefile(['shelved change'], repo.'/tracked.txt')
     call writefile(['deep change'], repo.'/sub/deep.txt')
+    call writefile(['staged'], repo.'/other.txt')
+    call system(git.' add other.txt')
+    call writefile(['staged', 'unstaged'], repo.'/other.txt')
+    call writefile(0zFF00FF, repo.'/bin.dat')
+    call writefile(['brand new'], repo.'/new.txt')
     call project#git#Status()
 
-    " Shelve each file into the shelf 'work'
-    for pattern in ['|tracked\.txt|', '|deep\.txt|']
-      let lnum = s:Line(pattern)
-      call feedkeys("work\<CR>", 't')
-      call s:RangeCall('ShelfFile', lnum, lnum)
+    for pattern in ['|tracked\.txt|', '|deep\.txt|', '|bin\.dat|']
+      call s:Shelve(pattern)
     endfor
-    let shelf = $vim_project_config.'/shelf/work'
-    call assert_match('+shelved change', join(readfile(shelf.'/tracked.txt.diff'), "\n"))
-    " A file in a sub directory is saved as 'dir+name'
-    call assert_match('+deep change', join(readfile(shelf.'/sub+deep.txt.diff'), "\n"))
-    call assert_equal(['sub+deep.txt.diff', 'tracked.txt.diff'], s:FolderFiles('work'))
+    " A file with staged and unstaged changes is listed under Staged
+    call s:ExpandFolder('Staged')
+    call s:Shelve('|other\.txt|')
+    call s:ExpandFolder('Untracked')
+    call s:Shelve('|new\.txt|')
 
-    " Shelving keeps the change in the working tree; roll it back first
-    call assert_equal(['shelved change'], readfile(repo.'/tracked.txt'))
-    call system('git -C '.shellescape(repo).' restore .')
-    call project#git#Status()
+    " Every change is reverted, staged or not, and the new file removed
+    call assert_equal('', system(git.' status --porcelain'))
+    call assert_equal(['one'], readfile(repo.'/tracked.txt'))
+    call assert_false(filereadable(repo.'/new.txt'))
+
+    " ... and kept in the patches
+    let shelf = $vim_project_config.'/shelf/work'
+    call assert_equal(['bin.dat.diff', 'new.txt.diff', 'other.txt.diff', 'sub+deep.txt.diff', 'tracked.txt.diff'],
+          \ s:FolderFiles('work'))
+    call assert_match('+shelved change', join(readfile(shelf.'/tracked.txt.diff'), "\n"))
+    call assert_match('+staged\n+unstaged', join(readfile(shelf.'/other.txt.diff'), "\n"))
+    call assert_match('+brand new', join(readfile(shelf.'/new.txt.diff'), "\n"))
+    call assert_match('GIT binary patch', join(readfile(shelf.'/bin.dat.diff'), "\n"))
 
     " Unshelve the whole shelf from its line
+    call project#git#Status()
     let lnum = s:Line('|work ')
     call s:RangeCall('UnshelfFile', lnum, lnum)
     call assert_equal(['shelved change'], readfile(repo.'/tracked.txt'))
     call assert_equal(['deep change'], readfile(repo.'/sub/deep.txt'))
+    call assert_equal(['staged', 'unstaged'], readfile(repo.'/other.txt'))
+    call assert_equal(0zFF00FF, readfile(repo.'/bin.dat', 'B'))
+    call assert_equal(['brand new'], readfile(repo.'/new.txt'))
 
     " Unshelve a single file of the shelf
-    call system('git -C '.shellescape(repo).' restore .')
+    call system(git.' restore --source=HEAD --staged --worktree . && '.git.' clean -fdq')
     call project#git#Status()
     call s:ExpandFolder('work')
     let lnum = s:Line('|deep\.txt\.diff| sub')

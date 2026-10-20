@@ -409,8 +409,12 @@ let g:vim_project_config.git_local_changes_mappings = {
       \'push': 'p',
       \'pull_and_push': 'P',
       \'force_push': '<NOP>',
+      \'shelf': 's',
+      \'unshelf': 'S',
       \}
 ```
+
+Shelving (`s`) saves the changes of the selected files, staged or not, as patches in a named shelf and reverts them, like IntelliJ. Unshelving (`S`) on a shelf or on one of its files applies the patches again.
 
 ## Config and Keymappings
 

@@ -924,7 +924,6 @@ function! s:ShelfFile() range
 
   for file in files
     let segments = split(file, '/\|\\')
-    let diff_cmd = s:GetDiffCmd(file)
     if len(segments) == 1
       let diff_file = file
     else
@@ -932,15 +931,48 @@ function! s:ShelfFile() range
       let filename = segments[-1]
       let diff_file = s:GetDiffFilePath(dir, filename)
     endif
-    let cmd = diff_cmd.' > '.shellescape(folder.'/'.diff_file.'.diff')
-    call project#RunShellCmd(cmd)
-    if v:shell_error
+    if !s:ShelveFile(file, folder.'/'.diff_file.'.diff')
       break
     endif
   endfor
 
   call s:ShowStatus(1)
   call s:CloseBuffer(s:diff_buffer)
+endfunction
+
+" Save the changes of a:file as a patch, then revert them, like shelving in
+" IntelliJ. The patch holds every change against HEAD, staged or not, and
+" binary content; the changes are only reverted once the patch is checked
+" to undo them exactly. Returns 1 on success
+function! s:ShelveFile(file, patch)
+  let file = shellescape(a:file)
+  let untracked = s:IsFileUntracked(a:file)
+  if untracked
+    let diff_cmd = 'git diff --binary --no-index -- /dev/null '.file
+  else
+    let diff_cmd = 'git diff --binary HEAD -- '.file
+  endif
+  call project#RunShellCmd(diff_cmd.' > '.shellescape(a:patch), 0)
+  " git diff --no-index exits with 1 when there are differences
+  let failed = untracked ? v:shell_error > 1 : v:shell_error != 0
+  if failed || getfsize(a:patch) <= 0
+    call delete(a:patch)
+    call project#Warn('Nothing to shelve for '.a:file)
+    return 0
+  endif
+
+  call project#RunShellCmd('git apply --check -R '.shellescape(a:patch))
+  if v:shell_error
+    call project#Warn('Kept the changes of '.a:file.': the patch does not undo them')
+    return 0
+  endif
+
+  if untracked
+    call project#RunShellCmd('git clean -fdq -- '.file)
+  else
+    call project#RunShellCmd('git restore --source=HEAD --staged --worktree -- '.file)
+  endif
+  return !v:shell_error
 endfunction
 
 function! s:GetDiffFileByLine(lnum)
