@@ -61,7 +61,7 @@ In every list, type to filter. <kbd>Ctrl-j</kbd> / <kbd>Ctrl-k</kbd> (or the arr
 
 ### Projects
 
-<details>
+<details open>
 <summary>Watch the demo</summary>
 
 ![Switch between projects](docs/images/projects.gif)
@@ -77,7 +77,7 @@ In every list, type to filter. <kbd>Ctrl-j</kbd> / <kbd>Ctrl-k</kbd> (or the arr
 
 ### Search files
 
-<details>
+<details open>
 <summary>Watch the demo</summary>
 
 ![Search files by name](docs/images/search-files.gif)
@@ -90,7 +90,7 @@ The file list is cached and refreshed in the background, so new files show up wi
 
 ### Find and replace in files
 
-<details>
+<details open>
 <summary>Watch the demo</summary>
 
 ![Find and replace in files](docs/images/find-replace.gif)
@@ -103,7 +103,7 @@ To replace, press <kbd>Ctrl-r</kbd>, type the replacement after ` => `, check th
 
 ### Run tasks
 
-<details>
+<details open>
 <summary>Watch the demo</summary>
 
 ![Run tasks](docs/images/run-tasks.gif)
@@ -127,7 +127,7 @@ let g:vim_project_local_config = {
 
 ### Git changes
 
-<details>
+<details open>
 <summary>Watch the demo</summary>
 
 ![Local changes, changelists and shelves](docs/images/git-changes.gif)
@@ -149,7 +149,7 @@ let g:vim_project_local_config = {
 
 ### Git log, file history, branches and tags
 
-<details>
+<details open>
 <summary>Watch the demo</summary>
 
 ![Git log and file history](docs/images/git-log.gif)
