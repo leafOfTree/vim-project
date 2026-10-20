@@ -4,6 +4,8 @@
 
 Projects for Vim and Neovim: switch between them, find files and text, replace across files, run tasks and work with git, all scoped to the project you are in.
 
+[![CI](https://github.com/leafOfTree/vim-project/actions/workflows/main.yml/badge.svg)](https://github.com/leafOfTree/vim-project/actions/workflows/main.yml) [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](UNLICENSE)
+
 ![Open a project, search files, find in files, git changes](docs/images/overview.gif)
 
 ## Why vim-project
@@ -12,9 +14,11 @@ Projects for Vim and Neovim: switch between them, find files and text, replace a
 - **No freezing**: searches run in the background.
 - **Git like an IDE**: changelists, shelves, background pull and push.
 - **Per project**: session, history, config and tasks.
-- **No dependencies**: uses fd, rg or ag when installed.
+- **Fast search**: with fd, rg or ag (recommended), or find and grep.
 
 ## Quick start
+
+Needs Vim 8.2.3591+ or Neovim 0.5.1+, and git for the git features. [fd](https://github.com/sharkdp/fd) and [rg](https://github.com/BurntSushi/ripgrep) (or [ag](https://github.com/ggreer/the_silver_searcher)) are recommended for fast search; without them, find, grep and Vim's `:vimgrep` are used.
 
 <details>
 <summary>Install with lazy.nvim, vim-plug or Vim packages</summary>
@@ -33,6 +37,10 @@ Plug 'leafOfTree/vim-project'
 # Vim's built-in packages
 git clone https://github.com/leafOfTree/vim-project ~/.vim/pack/plugins/start/vim-project
 ```
+
+For icons, add a [Nerd Font](https://github.com/ryanoasis/nerd-fonts) with [nerdfont.vim](https://github.com/lambdalisue/nerdfont.vim), and [glyph-palette.vim](https://github.com/lambdalisue/glyph-palette.vim) to color them.
+
+To uninstall, remove the plugin and `config_home` (`~/.vim/vim-project-config` by default).
 
 </details>
 
@@ -194,6 +202,14 @@ let g:vim_project_config = {
 
 Every option, key mapping and the per-project config are in `:help vim-project-config`.
 
+### Status line
+
+`g:vim_project` holds the current project (`name`, `path`, `branch`, ...) and `$vim_project` its path, e.g.
+
+```vim
+set statusline=%f%=%{empty(g:vim_project)?'':g:vim_project.name}
+```
+
 ## Keys in lists
 
 | Key | Action |
@@ -210,6 +226,9 @@ Every option, key mapping and the per-project config are in `:help vim-project-c
 All of them can be changed with `list_mappings`. Typed characters are highlighted with the `VimProjectMatch` group, e.g. `highlight VimProjectMatch guifg=#f9e2af gui=bold`.
 
 ## Commands
+
+<details>
+<summary>All commands</summary>
 
 | Command | Description |
 |---------|-------------|
@@ -235,22 +254,7 @@ All of them can be changed with `list_mappings`. Typed characters are highlighte
 | `:ProjectInfo` / `:ProjectAllInfo` | show the project and config in use |
 | `:ProjectOutput [filter]` | print the projects |
 
-## Requirements
-
-- Vim 8.2.3591+ or Neovim 0.5.1+. CI tests these oldest versions and Vim 9.1, Neovim 0.11.
-- git, for the git features.
-- Optional, faster search: [fd](https://github.com/sharkdp/fd) for file names, [rg](https://github.com/BurntSushi/ripgrep) or [ag](https://github.com/ggreer/the_silver_searcher) for text. Without them, find, grep and Vim's `:vimgrep` are used.
-- Optional icons: a [Nerd Font](https://github.com/ryanoasis/nerd-fonts) with [nerdfont.vim](https://github.com/lambdalisue/nerdfont.vim), and [glyph-palette.vim](https://github.com/lambdalisue/glyph-palette.vim) to color them.
-
-To uninstall, remove the plugin and `config_home` (`~/.vim/vim-project-config` by default).
-
-## Status line
-
-`g:vim_project` holds the current project (`name`, `path`, `branch`, ...) and `$vim_project` its path, e.g.
-
-```vim
-set statusline=%f%=%{empty(g:vim_project)?'':g:vim_project.name}
-```
+</details>
 
 ## Troubleshooting
 
@@ -268,7 +272,7 @@ vint --error plugin autoload
 docs/demo/render.sh                             # re-record the animations above with VHS
 ```
 
-Tests are `Test_*` functions in `test/cases/*.vim`. CI runs them with Vim and Neovim, each with and without rg, ag and fd, and with the oldest supported Vim 8.2.3591 and Neovim 0.5.1. Editors that can't read script variables by `getscriptinfo()` load the plugin from a temporary copy, where each script ends with a function returning its `s:` dict. `test/perf/` holds time budgets for the code that runs on every key typed in a list, on generated projects of 40k files and 20k commits; change that code with them in mind. The animations come from the scripts in `docs/demo/`, so they can be recorded again when the plugin changes.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for how the tests, time budgets and demos work.
 
 ## Credits
 
