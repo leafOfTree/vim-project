@@ -27,10 +27,22 @@ git init -q -b main
 cat > README.md <<'EOF'
 # webshop
 
-A small online shop: product list, cart and checkout.
+A small online shop: **product list**, cart and checkout.
 
-    npm install
-    npm run dev
+## Getting started
+
+```sh
+npm install
+npm run dev     # http://localhost:5173
+```
+
+## Features
+
+- Browse products from `/api/products`
+- Add items to the *cart*
+- [Checkout](docs/checkout.md) with discounts
+
+> Prices are stored in cents, see `src/utils/currency.js`.
 EOF
 cat > package.json <<'EOF'
 {
