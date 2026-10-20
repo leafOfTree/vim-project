@@ -143,6 +143,9 @@ EOF
 git add -A && commit 4 "Linus Torvalds" "Format prices as currency"
 sed -i.bak 's/fetch(.\/api\/products.)/fetch("\/api\/products?limit=50")/' src/api/client.js && rm src/api/client.js.bak
 git add -A && commit 1 "Grace Hopper" "Limit the products fetched"
+# A console.log for lint to find, removed in the overview demo
+perl -0pi -e 's/(  items.push\(product\)\n)/$1  console.log("added", product.name)\n/' src/store/cart.js
+git add -A && commit 1 "Linus Torvalds" "Log products added to the cart"
 
 # Scripts run by the demo tasks
 cat > scripts/test.sh <<'EOF'
@@ -180,8 +183,7 @@ EOF
 chmod +x scripts/*.sh
 git add -A && commit 0 "Ada Lovelace" "Add scripts"
 
-# Uncommitted work for the git demos, with a console.log for lint to find
-perl -0pi -e 's/(  items.push\(product\)\n)/$1  console.log("added", product.name)\n/' src/store/cart.js
+# Uncommitted work for the git demos
 cat >> src/store/cart.js <<'EOF'
 
 export function clearCart() {
