@@ -2,8 +2,8 @@
 # tape: VHS sizes the terminal before running Source, so they can't be sourced
 Set Shell "bash"
 Set FontSize 20
-Set Width 1200
-Set Height 720
+Set Width 1000
+Set Height 600
 Set Padding 16
 Set Framerate 24
 Set PlaybackSpeed 1.4
