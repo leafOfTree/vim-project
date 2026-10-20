@@ -14,13 +14,21 @@ if [ ${#tapes[@]} -eq 0 ]; then
   tapes=(overview projects search-files find-replace run-tasks git-changes git-log)
 fi
 
+tape="$(mktemp "${TMPDIR:-/tmp}/vim-project-demo.XXXXXX")"
+trap 'rm -f "$tape"' EXIT
+
 for name in "${tapes[@]}"; do
   echo "==> $name"
   # Now and then VHS dithers every frame differently, which makes the GIF
   # hundreds of times bigger (once 118M, over GitHub's 100M limit): record again
   for try in 1 2 3; do
     docs/demo/setup.sh >/dev/null
-    vhs "docs/demo/$name.tape" >/dev/null 2>&1
+    # settings.tape goes right after Output: VHS applies Set only at the top
+    { grep '^Output' "docs/demo/$name.tape"
+      cat docs/demo/settings.tape
+      grep -v '^Output' "docs/demo/$name.tape"
+    } > "$tape"
+    vhs "$tape" >/dev/null 2>&1
     size=$(wc -c < "docs/images/$name.gif")
     [ "$size" -le $((3 * 1024 * 1024)) ] && break
     echo "    $((size / 1024 / 1024))M is too big, recording again"

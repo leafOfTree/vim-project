@@ -170,9 +170,14 @@ Find in files:
     stops once it has more lines than can be shown.
 
 Search files:
-    Typed characters are matched fuzzily by name: "cmpCtl" finds
-    "componentController". Input with "/" matches the path in the project,
-    e.g. "pkg3/rout". Input ending with "/" lists directories only.
+    Typed characters are matched fuzzily, in order but not necessarily
+    next to each other. Input with "/" matches the path in the project,
+    the folders and the file name together:
+
+        pcard         ProductCard.vue                  file names
+        store/c       src/store/cart.js                with "/", the path too
+        comp/pcard    src/components/ProductCard.vue   both parts shortened
+        store/        the store directory              directories only
 
 Find and replace:                                *vim-project-find-replace*
     <C-r>   append the separator " => " ("find_replace_separator"), then

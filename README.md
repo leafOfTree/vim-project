@@ -92,7 +92,16 @@ In every list, type to filter. <kbd>Ctrl-j</kbd> / <kbd>Ctrl-k</kbd> (or the arr
 
 </details>
 
-`:ProjectSearchFiles` matches file names fuzzily: `pcard` finds `ProductCard.vue`. Input with `/` matches the path (`store/c`), and input ending with `/` lists directories. Recently opened files come first. <kbd>Ctrl-s</kbd>, <kbd>Ctrl-v</kbd> and <kbd>Ctrl-t</kbd> open in a split, vertical split or tab.
+`:ProjectSearchFiles` matches fuzzily, so typing a few letters of each part is enough:
+
+| Input | Finds | |
+|-------|-------|-|
+| `pcard` | `ProductCard.vue` | file names |
+| `store/c` | `src/store/cart.js` | with `/`, the path too |
+| `comp/pcard` | `src/components/ProductCard.vue` | both parts can be shortened |
+| `store/` | the `store` directory | ending with `/`, directories only |
+
+Recently opened files come first. <kbd>Ctrl-s</kbd>, <kbd>Ctrl-v</kbd> and <kbd>Ctrl-t</kbd> open in a split, vertical split or tab.
 
 The file list is cached and refreshed in the background, so new files show up without waiting.
 
