@@ -54,6 +54,61 @@ jobs:
       - name: Run tests
         run: bash test/run.sh ${{ matrix.editor }}
 
+  # The oldest supported versions: Vim 8.2.3591 adds the WinClosed event,
+  # Neovim 0.5.0 ignores jobstart() 'stdin' so rg reads the pipe forever
+  Oldest:
+    name: Test (${{ matrix.editor }} ${{ matrix.version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - editor: vim
+            version: v8.2.3591
+          - editor: nvim
+            version: v0.5.1
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Cache vim build
+        if: matrix.editor == 'vim'
+        id: cache-vim
+        uses: actions/cache@v4
+        with:
+          path: ~/vim
+          key: vim-${{ matrix.version }}
+
+      - name: Build vim
+        if: matrix.editor == 'vim' && steps.cache-vim.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install libncurses-dev
+          git clone --depth 1 --branch ${{ matrix.version }} https://github.com/vim/vim /tmp/vim-src
+          cd /tmp/vim-src
+          # Old code with newer gcc: keep implicit declarations as warnings
+          CFLAGS="-O2 -Wno-error=implicit-function-declaration" \
+            ./configure --prefix="$HOME/vim" --with-features=huge --enable-gui=no --without-x
+          make -j"$(nproc)"
+          make install
+
+      - name: Install vim
+        if: matrix.editor == 'vim'
+        run: echo "$HOME/vim/bin" >> "$GITHUB_PATH"
+
+      - name: Install neovim
+        if: matrix.editor == 'nvim'
+        run: |
+          curl -fsSL https://github.com/neovim/neovim/releases/download/${{ matrix.version }}/nvim-linux64.tar.gz \
+            | sudo tar -xz -C /opt
+          echo /opt/nvim-linux64/bin >> "$GITHUB_PATH"
+
+      - name: Show versions
+        run: ${{ matrix.editor }} --version | head -2
+
+      - name: Run tests
+        run: bash test/run.sh ${{ matrix.editor }}
+
   # vint lint of plugin/ and autoload/. Warnings are reported but do not
   # fail the build yet; errors do.
   Lint:

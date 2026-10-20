@@ -121,7 +121,8 @@ function! Test_ShelfFile_and_UnshelfFile()
   let repo = s:OpenRepo('shelf')
   let git = 'git -C '.shellescape(repo)
   try
-    call writefile(0z00010203, repo.'/bin.dat')
+    " Bytes 00 01 02 03: NUL is written as "\n" (Neovim 0.5.0 has no blob writefile())
+    call writefile(["\n\x01\x02\x03"], repo.'/bin.dat', 'b')
     call system(git.' add bin.dat && '.git.' commit -q -m bin')
 
     call writefile(['shelved change'], repo.'/tracked.txt')
@@ -129,7 +130,7 @@ function! Test_ShelfFile_and_UnshelfFile()
     call writefile(['staged'], repo.'/other.txt')
     call system(git.' add other.txt')
     call writefile(['staged', 'unstaged'], repo.'/other.txt')
-    call writefile(0zFF00FF, repo.'/bin.dat')
+    call writefile(["\xff\n\xff"], repo.'/bin.dat', 'b')
     call writefile(['brand new'], repo.'/new.txt')
     call project#git#Status()
 
@@ -163,7 +164,7 @@ function! Test_ShelfFile_and_UnshelfFile()
     call assert_equal(['shelved change'], readfile(repo.'/tracked.txt'))
     call assert_equal(['deep change'], readfile(repo.'/sub/deep.txt'))
     call assert_equal(['staged', 'unstaged'], readfile(repo.'/other.txt'))
-    call assert_equal(0zFF00FF, readfile(repo.'/bin.dat', 'B'))
+    call assert_equal(["\xff\n\xff"], readfile(repo.'/bin.dat', 'b'))
     call assert_equal(['brand new'], readfile(repo.'/new.txt'))
 
     " Unshelve a single file of the shelf
@@ -174,6 +175,31 @@ function! Test_ShelfFile_and_UnshelfFile()
     call s:RangeCall('UnshelfFile', lnum, lnum)
     call assert_equal(['deep change'], readfile(repo.'/sub/deep.txt'))
     call assert_equal(['one'], readfile(repo.'/tracked.txt'))
+  finally
+    call s:CloseRepo()
+  endtry
+endfunction
+
+" ---------------------------------------------------------------- commit
+
+" Commit a file from its line: the message window commits when closed
+function! Test_Commit_from_message_window()
+  let repo = s:OpenRepo('commit')
+  let git = 'git -C '.shellescape(repo)
+  try
+    call writefile(['changed'], repo.'/tracked.txt')
+    call writefile(['changed'], repo.'/other.txt')
+    call project#git#Status()
+
+    let lnum = s:Line('|tracked\.txt|')
+    call s:RangeCall('Commit', lnum, lnum)
+    call assert_equal('gitcommit', &filetype)
+    call append(0, 'from window')
+    quit
+    call assert_equal('from window', trim(system(git.' log -1 --pretty=%s')))
+    call assert_equal(['tracked.txt'],
+          \ split(system(git.' show --name-only --pretty=format: HEAD'), "\n"))
+    call assert_equal(['other.txt'], split(system(git.' diff --name-only'), "\n"))
   finally
     call s:CloseRepo()
   endtry

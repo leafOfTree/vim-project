@@ -250,6 +250,11 @@ function! Test_ReplaceInFiles_is_safe()
   call s:WriteBinary(dir, 'stale.txt', ['foo changed', ''])
   call s:WriteBinary(dir, 'unsaved.txt', ['foo', ''])
   call s:WriteBinary(dir, 'loaded.txt', ['foo', ''])
+  " Before Vim 8.2.3510 and Neovim 0.7 a change within about 2 seconds isn't
+  " detected, as file times are compared in seconds
+  if (has('nvim') ? !has('nvim-0.7') : !has('patch-8.2.3510')) && executable('touch')
+    call system('touch -d "1 hour ago" '.shellescape(dir).'/*.txt')
+  endif
 
   " unsaved.txt has unsaved edits, loaded.txt is open without changes
   execute 'edit' fnameescape(dir.'/unsaved.txt')

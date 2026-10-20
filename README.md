@@ -8,7 +8,7 @@ Projects for Vim and Neovim: switch between them, find files and text, replace a
 
 ## Why vim-project
 
-- **One plugin, Vim and Neovim.** Plain Vimscript, tested on Vim 9.1 and Neovim 0.11 in CI.
+- **One plugin, Vim and Neovim.** Plain Vimscript, tested on Vim 8.2.3591 to 9.1 and Neovim 0.5.1 to 0.11 in CI.
 - **Never waits for you.** Searching in files runs in the background, so typing never freezes, even in large repositories. File names are matched with Vim's built-in fuzzy matcher.
 - **Safe find and replace.** A line is only replaced if it still reads as it did in the search, files with unsaved changes are skipped, and line endings are kept.
 - **Git changes like an IDE.** Group local changes in changelists, commit one changelist at a time, shelve and unshelve, roll back, pull and push in the background.
@@ -206,7 +206,7 @@ All of them can be changed with `list_mappings`. Typed characters are highlighte
 
 ## Requirements
 
-- Vim 9.1 or Neovim 0.11, the versions tested in CI. Older versions are not tested.
+- Vim 8.2.3591+ or Neovim 0.5.1+. CI tests these oldest versions and Vim 9.1, Neovim 0.11.
 - git, for the git features.
 - Optional, faster search: [fd](https://github.com/sharkdp/fd) for file names, [rg](https://github.com/BurntSushi/ripgrep) or [ag](https://github.com/ggreer/the_silver_searcher) for text. Without them, find, grep and Vim's `:vimgrep` are used.
 - Optional icons: a [Nerd Font](https://github.com/ryanoasis/nerd-fonts) with [nerdfont.vim](https://github.com/lambdalisue/nerdfont.vim), and [glyph-palette.vim](https://github.com/lambdalisue/glyph-palette.vim) to color them.
@@ -236,7 +236,7 @@ vint --error plugin autoload
 docs/demo/render.sh       # re-record the animations above with VHS
 ```
 
-Tests are `Test_*` functions in `test/cases/*.vim`. CI runs them with Vim and Neovim, each with and without rg, ag and fd. The animations come from the scripts in `docs/demo/`, so they can be recorded again when the plugin changes.
+Tests are `Test_*` functions in `test/cases/*.vim`. CI runs them with Vim and Neovim, each with and without rg, ag and fd, and with the oldest supported Vim 8.2.3591 and Neovim 0.5.1. Editors that can't read script variables by `getscriptinfo()` load the plugin from a temporary copy, where each script ends with a function returning its `s:` dict. The animations come from the scripts in `docs/demo/`, so they can be recorded again when the plugin changes.
 
 ## Credits
 

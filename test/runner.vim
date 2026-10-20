@@ -38,7 +38,35 @@ let g:vim_project_config = {
       \'debug': 0,
       \}
 
-let &runtimepath = s:root.','.&runtimepath
+" Older editors (Vim before 9.0.0244, Neovim before 0.10) can't read
+" script-local variables by getscriptinfo(). Load the plugin from a copy
+" instead, where each script ends with a function returning its s: dict for
+" Helper_ScriptVar().
+function! s:CanReadScriptVars()
+  try
+    return has_key(get(getscriptinfo({'sid': 1}), 0, {}), 'variables')
+  catch
+    return 0
+  endtry
+endfunction
+
+let s:plugin_root = s:root
+if !s:CanReadScriptVars()
+  let s:plugin_root = g:vim_project_test_tmp.'/plugin-copy'
+  for s:file in glob(s:root.'/plugin/**/*.vim', 0, 1) + glob(s:root.'/autoload/**/*.vim', 0, 1)
+    let s:relative = s:file[len(s:root) + 1:]
+    let s:copy = s:plugin_root.'/'.s:relative
+    call mkdir(fnamemodify(s:copy, ':h'), 'p')
+    call writefile(readfile(s:file) + [
+          \ '',
+          \ 'function! Helper_ScriptVars_'.substitute(s:relative, '\W', '_', 'g').'()',
+          \ '  return s:',
+          \ 'endfunction',
+          \ ], s:copy)
+  endfor
+endif
+
+let &runtimepath = s:plugin_root.','.&runtimepath
 runtime plugin/project.vim
 
 " Load the modules under test so their script-local functions exist.
