@@ -774,6 +774,15 @@ function! project#list#IsShowHistoryList(input)
   return a:input == '' && s:state.input == -1 && !empty(s:state.list)
 endfunction
 
+" Highlight each word of a:input where it appears, for lists filtered by
+" words rather than by characters in order
+function! project#list#HighlightInputWords(input)
+  call clearmatches()
+  for word in split(a:input, ' ')
+    call matchadd('InputChar', '\V'.escape(word, '\'))
+  endfor
+endfunction
+
 function! project#list#HighlightInputChars(input)
   call clearmatches()
   if empty(a:input)

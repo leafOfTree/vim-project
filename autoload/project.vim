@@ -1671,13 +1671,18 @@ function! project#SetOsSlash(val)
   endif
 endfunction
 
+" Relative dates of git, short: '3 weeks ago' -> '3w', '2 years, 3 months
+" ago' -> '2y 3mo'. All are in the past, 'ago' says nothing
 function! project#ShortenDate(origin)
-  let date = substitute(a:origin, ' years\?', 'y', 'g')
-  let date = substitute(date, ' months\?', 'mon', 'g')
+  let date = substitute(a:origin, ' ago$', '', '')
+  let date = substitute(date, ',', '', 'g')
+  let date = substitute(date, ' years\?', 'y', 'g')
+  let date = substitute(date, ' months\?', 'mo', 'g')
   let date = substitute(date, ' weeks\?', 'w', 'g')
   let date = substitute(date, ' days\?', 'd', 'g')
   let date = substitute(date, ' hours\?', 'h', 'g')
-  let date = substitute(date, ' minutes\?', 'min', 'g')
+  let date = substitute(date, ' minutes\?', 'm', 'g')
+  let date = substitute(date, ' seconds\?', 's', 'g')
   return date
 endfunction
 

@@ -216,7 +216,7 @@ function! Test_GetTabulatedList_parses_most_recent_last()
   let list = Helper_Call(s:file, 'GetTabulatedList', [s:Logs(3)])
   " git log prints the most recent first; the list shows it at the bottom
   call assert_equal(['h00003', 'h00002', 'h00001'], map(copy(list), 'v:val.hash'))
-  call assert_equal('1d ago', list[-1].date)
+  call assert_equal('1d', list[-1].date)
   call assert_false(has_key(list[0], '_row'))
 endfunction
 
@@ -233,6 +233,47 @@ function! Test_FilterLogs_matches_words_within_one_field()
   call assert_equal(['h00005'], Filter('5d'))
   " Literal: '.' is not a wildcard
   call assert_equal([], Filter('message.2'))
+endfunction
+
+function! Test_ShortenDate_keeps_numbers_and_units()
+  call assert_equal('39s', project#ShortenDate('39 seconds ago'))
+  call assert_equal('5m', project#ShortenDate('5 minutes ago'))
+  call assert_equal('1h', project#ShortenDate('1 hour ago'))
+  call assert_equal('3w', project#ShortenDate('3 weeks ago'))
+  call assert_equal('11mo', project#ShortenDate('11 months ago'))
+  call assert_equal('2y 3mo', project#ShortenDate('2 years, 3 months ago'))
+endfunction
+
+function! Test_log_columns_fill_the_list()
+  " Dates of s:Logs are '1d' to '3d': the date column is 2 wide
+  call s:Call('GetTabulatedList', s:Logs(3))
+  let [message, author, date] = s:Call('GetLogColumnWidths', 72)
+  call assert_equal(2, date)
+  " Rows fill the list exactly: the width of the last log opened, or half
+  let width = s:Var('log_list_width') > 0 ? s:Var('log_list_width') : &columns / 2
+  let list = s:Call('GetTabulatedList', s:Logs(3))
+  let state = project#list#State()
+  let saved = get(state, 'list', [])
+  try
+    let state.list = list
+    call assert_equal(width, strdisplaywidth('> '.s:Call('GetLogsDisplay', list, '')[-1]))
+  finally
+    let state.list = saved
+  endtry
+  " In a narrow list the message keeps 20
+  call assert_equal(20, s:Call('GetLogColumnWidths', 30)[0])
+endfunction
+
+function! Test_log_highlights_the_words_typed()
+  new
+  try
+    call setline(1, 'Add product list and cart  Grace Hopper  3w')
+    call project#list#HighlightInputWords('cart gr')
+    " Whole words where they are, not 'c' then 'a' anywhere in the line
+    call assert_equal(['\Vcart', '\Vgr'], map(getmatches(), 'v:val.pattern'))
+  finally
+    bwipeout!
+  endtry
 endfunction
 
 function! Test_GetLogsDisplay_shows_most_recent_and_formats_once()

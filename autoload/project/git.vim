@@ -23,6 +23,10 @@ let s:right_pane = 'vertical rightbelow'
 let s:field_splitter = "\x1f"
 " Commits shown in git log and file history, the most recent
 let s:log_show_max = 1000
+" Width of the list of commits: the log shows short changed files beside it,
+" file history a diff, which needs more room
+let s:log_list_width = 0
+let s:log_date_width = 12
 let s:commit_diffs = []
 
 let s:default_folder_name = 'Default'
@@ -105,6 +109,7 @@ function! project#git#FileHistory(...)
 endfunction
 
 function! s:InitFileHistory(input)
+  let s:log_list_width = &columns / 2
   let range = s:GetLineRange()
   let format = join(["%s", "%aN", "%ae", "%ad", "%h"], s:splitter)
   let cmd = 'git log --pretty=format:"'.format.'" --date=relative '.range.s:current_file
@@ -262,6 +267,7 @@ endfunction
 
 
 function! s:InitGitLog(input)
+  let s:log_list_width = &columns * 3 / 5
   let s:changed_files_cache = {}
   let format = join(["%s", "%aN", "%ae", "%ad", "%h"], s:splitter)
   let cmd = 'git log --pretty=format:"'.format.'" --date=relative'
@@ -291,7 +297,7 @@ function! s:UpdateLog(input)
   call project#list#Show(display, a:input)
   call project#list#HighlightCurrentLine(len(display))
   if should_reload
-    call project#list#HighlightInputChars(a:input)
+    call project#list#HighlightInputWords(a:input)
     call project#list#HighlightNoResults()
     call project#list#HighlightExtraInfo()
   endif
@@ -316,6 +322,7 @@ function! s:ShowCurrentChangedFiles()
   call s:SetupChangesBuffer(revision)
   call s:AddToBuffer(revision, changed_files)
   wincmd p
+  execute 'vertical resize' s:log_list_width
 endfunction
 
 
@@ -704,6 +711,7 @@ function! s:GetTabulatedList(logs)
           \'_search': message.s:field_splitter.author.s:field_splitter.hash,
           \})
   endfor
+  let s:log_date_width = min([12, max(map(values(short_dates), 'strdisplaywidth(v:val)'))])
   return reverse(list)
 endfunction
 
@@ -726,6 +734,15 @@ function! s:FilterLogs(list, input)
   return filter(list, expr)
 endfunction
 
+" [message, author, date] widths filling a list a:list_width wide: '> ', then
+" each column with the space TabulateFixed ends it with, and a space between
+" columns. The message keeps at least 20
+function! s:GetLogColumnWidths(list_width)
+  let author = 10
+  let date = s:log_date_width
+  return [max([20, a:list_width - author - date - 7]), author, date]
+endfunction
+
 " Show at most s:log_show_max commits, the most recent; older ones can be
 " found by filtering. Rows are formatted once, when first shown
 function! s:GetLogsDisplay(list, input)
@@ -739,7 +756,8 @@ function! s:GetLogsDisplay(list, input)
   let missing = filter(copy(list), '!has_key(v:val, "_row")')
   if !empty(missing)
     let columns = project#list#TabulateFixed(missing,
-          \['message', 'author', 'date'], [&columns/2 - 25, 10, 15])
+          \['message', 'author', 'date'],
+          \s:GetLogColumnWidths(s:log_list_width > 0 ? s:log_list_width : &columns / 2))
     for idx in range(len(missing))
       let column = columns[idx]
       let missing[idx]._row = column.message.' '.column.author.' '.column.date
