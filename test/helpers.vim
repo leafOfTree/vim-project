@@ -5,13 +5,28 @@
 " e.g. 'autoload/project.vim' or 'autoload/project/git.vim'.
 function! Helper_Sid(suffix)
   let suffix = substitute(a:suffix, '\\', '/', 'g')
-  for info in getscriptinfo()
+  for info in s:ScriptInfo()
     let name = substitute(fnamemodify(info.name, ':p'), '\\', '/', 'g')
     if name[len(name) - len(suffix):] ==# suffix
       return info.sid
     endif
   endfor
   throw 'Script not loaded: '.a:suffix
+endfunction
+
+" List of {'sid': N, 'name': path} of sourced scripts
+function! s:ScriptInfo()
+  if exists('*getscriptinfo')
+    return getscriptinfo()
+  endif
+  let infos = []
+  for line in split(execute('scriptnames'), "\n")
+    let m = matchlist(line, '^\s*\(\d\+\): \(.*\)$')
+    if !empty(m)
+      call add(infos, {'sid': str2nr(m[1]), 'name': expand(m[2])})
+    endif
+  endfor
+  return infos
 endfunction
 
 " Call script-local function a:name defined in the script a:suffix.
@@ -24,13 +39,23 @@ function! Helper_Funcref(suffix, name)
   return function(printf('<SNR>%d_%s', Helper_Sid(a:suffix), a:name))
 endfunction
 
-" Read a script-local variable of the script a:suffix.
-function! Helper_ScriptVar(suffix, name)
+" Script-local variables (the s: dict) of the script a:suffix.
+function! Helper_ScriptVars(suffix)
+  " Set up by the runner for editors that can't read them by getscriptinfo()
+  let Vars = 'Helper_ScriptVars_'.substitute(a:suffix, '\W', '_', 'g')
+  if exists('*'.Vars)
+    return call(Vars, [])
+  endif
   let info = getscriptinfo({'sid': Helper_Sid(a:suffix)})
   if empty(info) || !has_key(info[0], 'variables')
     throw 'getscriptinfo() does not expose script variables in this editor'
   endif
-  return info[0].variables[a:name]
+  return info[0].variables
+endfunction
+
+" Read a script-local variable of the script a:suffix.
+function! Helper_ScriptVar(suffix, name)
+  return Helper_ScriptVars(a:suffix)[a:name]
 endfunction
 
 " Create (and return) a fresh temporary directory under the test root.

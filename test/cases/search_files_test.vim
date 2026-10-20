@@ -162,8 +162,7 @@ function! s:ResetDiscardsRefresh(dir)
   call project#search_files#Reset()
   call s:WaitRefresh()
   sleep 200m
-  call assert_false(exists('*Helper_ScriptVar') && has_key(
-        \ getscriptinfo({'sid': Helper_Sid(s:file)})[0].variables, 'initial_list'))
+  call assert_false(has_key(Helper_ScriptVars(s:file), 'initial_list'))
 endfunction
 
 function! Test_Reset_discards_a_running_refresh()
