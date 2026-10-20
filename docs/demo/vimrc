@@ -1,0 +1,39 @@
+" Neovim config for the demo recordings: this repository's plugin only,
+" on the workspace made by docs/demo/setup.sh
+set nocompatible
+let s:repo = fnamemodify(expand('<sfile>:p'), ':h:h:h')
+execute 'set runtimepath^='.fnameescape(s:repo)
+let s:demo = empty($VIM_PROJECT_DEMO) ? '/tmp/vim-project-demo' : $VIM_PROJECT_DEMO
+
+set termguicolors number noswapfile nobackup shortmess+=I
+set laststatus=2 cmdheight=1 nowrap
+syntax on
+filetype plugin indent on
+
+" Path relative to the working directory; resolve() as /tmp is a symlink on macOS
+function! DemoPath()
+  let path = resolve(expand('%:p'))
+  let cwd = resolve(getcwd()).'/'
+  return stridx(path, cwd) == 0 ? path[len(cwd):] : expand('%:~')
+endfunction
+
+function! DemoStatusline()
+  if empty(get(g:, 'vim_project', {}))
+    return ' %{DemoPath()}'
+  endif
+  let head = get(readfile(g:vim_project.fullpath.'/.git/HEAD'), 0, '')
+  let branch = matchstr(head, 'refs/heads/\zs.*')
+  return ' %{DemoPath()}%m %= '.g:vim_project.name.(empty(branch) ? '' : '  '.branch).' '
+endfunction
+set statusline=%!DemoStatusline()
+
+let g:vim_project_config = {
+      \'config_home': s:demo.'/config',
+      \'project_base': [s:demo.'/projects'],
+      \'project_root': './README.md',
+      \'tasks': [
+      \  {'name': 'test', 'cmd': 'sh scripts/test.sh'},
+      \  {'name': 'dev', 'cmd': 'sh scripts/dev.sh'},
+      \  {'name': 'lint', 'cmd': 'echo "no problems"'},
+      \],
+      \}
