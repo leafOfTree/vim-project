@@ -4,14 +4,18 @@ Output docs/images/git-log.gif
 Source docs/demo/common.tape
 Source docs/demo/open-webshop.tape
 
-# Search the log: the changed files of each commit show on the right
+# Search the log, then open a commit to see the diff of each file
 Hide Type ":Say What changed in the cart lately?" Enter Show
 Sleep 1.8s
 Type ":ProjectGitLog" Sleep 300ms Enter Sleep 900ms
 Type "cart" Sleep 1.5s
 Ctrl+K Sleep 1.5s
-Ctrl+K Sleep 1.8s
-Escape Sleep 400ms
+Ctrl+K Sleep 1.5s
+# Open the commit: its files, with the diff of the one under the cursor
+Enter Sleep 2s
+Down Sleep 1.8s
+Down Sleep 2.5s
+Type ":only" Sleep 300ms Enter Sleep 400ms
 
 # History of the selected line: the commit that added it, with its diff
 Type ":edit src/store/cart.js" Sleep 300ms Enter
