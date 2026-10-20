@@ -17,8 +17,8 @@
       <path d="M100 124l28 40 28-40" fill="none" stroke="#06904F" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
     </g>
     <g font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
-      <text x="186" y="354" font-size="56" font-weight="bold" fill="#cdd6f4">vim-project</text>
-      <text x="188" y="408" font-size="34" fill="#a6adc8">TITLE</text>
+      <text x="186" y="350" font-size="48" font-weight="bold" fill="#cdd6f4">vim-project</text>
+      <text x="187" y="400" font-size="38" fill="#a6adc8">TITLE</text>
     </g>
   </g>
 </svg>
