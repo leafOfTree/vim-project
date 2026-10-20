@@ -862,7 +862,8 @@ function! s:OpenFolderOrFile()
   else
     let folder.expand = 1 - folder.expand
     call s:ShowStatus()
-    execute lnum
+    \" The buffer may have fewer lines now
+    call cursor(min([lnum, line('$')]), 1)
   endif
 endfunction
 
@@ -1058,7 +1059,8 @@ function! s:DeleteFolder()
     call remove(s:changelist, index(s:changelist, folder))
   endif
   call s:ShowStatus()
-  execute lnum
+  \" The buffer may have fewer lines now
+  call cursor(min([lnum, line('$')]), 1)
 endfunction
 
 " Completion for input(), referenced as <SNR>N_UserFolderNames
@@ -1610,18 +1612,22 @@ function! s:ShowStatus(...)
     let lnum = line('.')
   endif
 
-  call s:OpenBuffer(s:changelist_buffer, 'belowright')
-  call s:SetupChangelistBuffer()
-  let success = s:UpdateChangelist(run_git)
-  if success
-    call s:WriteChangelist()
-    call s:HighlightChangelist()
-  endif
-
-  let &eventignore = save_eventignore
+  " Events must come back even after an error, or autocmds stay off
+  try
+    call s:OpenBuffer(s:changelist_buffer, 'belowright')
+    call s:SetupChangelistBuffer()
+    let success = s:UpdateChangelist(run_git)
+    if success
+      call s:WriteChangelist()
+      call s:HighlightChangelist()
+    endif
+  finally
+    let &eventignore = save_eventignore
+  endtry
 
   if on_changelist_buffer
-    execute lnum
+    \" The buffer may have fewer lines now
+    call cursor(min([lnum, line('$')]), 1)
   endif
 endfunction
 
@@ -1688,6 +1694,10 @@ function! s:HighlightChangelist()
   call matchadd('Normal', s:unmerged_folder_name)
 endfunction
 
+" diffAdded only exists once diff syntax is loaded, and matchadd() fails
+" (E28) in Vim with an unknown group: go through a group of our own
+highlight default link VimProjectAdded diffAdded
+
 function! s:HighlightFiles(lines)
   call clearmatches()
   let index = 1
@@ -1696,7 +1706,7 @@ function! s:HighlightFiles(lines)
     if line =~ '\$'
       call matchadd('Comment', line_pattern)
     elseif line =~ '!'
-      call matchadd('diffAdded', line_pattern)
+      call matchadd('VimProjectAdded', line_pattern)
     endif
     call matchadd('Comment', line_pattern.' \S*$')
     let index += 1

@@ -91,9 +91,13 @@ function! project#list#Open(spec)
   " Ignore events to avoid a cursor bug when opening from Fern.vim
   let save_eventignore = &eventignore
   set eventignore=all
-  call s:OpenListBuffer()
-  call s:SetupListBuffer()
-  let &eventignore = save_eventignore
+  " Events must come back even after an error, or autocmds stay off
+  try
+    call s:OpenListBuffer()
+    call s:SetupListBuffer()
+  finally
+    let &eventignore = save_eventignore
+  endtry
 
   call s:RenderList()
 endfunction
