@@ -183,6 +183,17 @@ EOF
 chmod +x scripts/*.sh
 git add -A && commit 0 "Ada Lovelace" "Add scripts"
 
+# A branch to merge in the git log demo
+git checkout -q -b feature/checkout
+cat > src/api/checkout.js <<'EOF'
+export async function checkout(items) {
+  const res = await fetch('/api/checkout', { method: 'POST', body: JSON.stringify(items) })
+  return res.json()
+}
+EOF
+git add -A && commit 0 "Grace Hopper" "Add checkout API"
+git checkout -q main
+
 # Uncommitted work for the git demos
 cat >> src/store/cart.js <<'EOF'
 

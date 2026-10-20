@@ -236,9 +236,6 @@ All of them can be changed with `list_mappings`. Typed characters are highlighte
 
 ## Commands
 
-<details>
-<summary>All commands</summary>
-
 | Command | Description |
 |---------|-------------|
 | `:Project <path> ["note"]` | add a folder as a project and open it |
@@ -262,8 +259,6 @@ All of them can be changed with `list_mappings`. Typed characters are highlighte
 | `:ProjectConfigReload` | write all buffers and reopen the project |
 | `:ProjectInfo` / `:ProjectAllInfo` | show the project and config in use |
 | `:ProjectOutput [filter]` | print the projects |
-
-</details>
 
 ## Troubleshooting
 
