@@ -54,6 +54,17 @@ jobs:
       - name: Run tests
         run: bash test/run.sh ${{ matrix.editor }}
 
+      # Time budgets of the code run on every key typed in a list
+      - name: Performance budgets
+        env:
+          VIM_PROJECT_TEST_CASES: perf
+          VIM_PROJECT_PERF_REPORT: perf-report.txt
+        run: bash test/run.sh ${{ matrix.editor }}
+
+      - name: Performance report
+        if: always()
+        run: cat perf-report.txt || true
+
   # The oldest supported versions: Vim 8.2.3591 adds the WinClosed event,
   # Neovim 0.5.0 ignores jobstart() 'stdin' so rg reads the pipe forever
   Oldest:

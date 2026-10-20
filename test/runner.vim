@@ -75,7 +75,9 @@ runtime autoload/project/list_projects.vim
 runtime autoload/project/git.vim
 
 execute 'source '.fnameescape(s:test_dir.'/helpers.vim')
-for s:file in sort(glob(s:test_dir.'/cases/*.vim', 0, 1))
+" $VIM_PROJECT_TEST_CASES picks another folder, e.g. 'perf'
+let s:cases = empty($VIM_PROJECT_TEST_CASES) ? 'cases' : $VIM_PROJECT_TEST_CASES
+for s:file in sort(glob(s:test_dir.'/'.s:cases.'/*.vim', 0, 1))
   execute 'source '.fnameescape(s:file)
 endfor
 

@@ -231,12 +231,13 @@ set statusline=%f%=%{empty(g:vim_project)?'':g:vim_project.name}
 ## Development
 
 ```sh
-bash test/run.sh          # tests with every editor found (or: nvim, vim)
+bash test/run.sh                                # tests with every editor found (or: nvim, vim)
+VIM_PROJECT_TEST_CASES=perf bash test/run.sh    # time budgets of the code run on every key
 vint --error plugin autoload
-docs/demo/render.sh       # re-record the animations above with VHS
+docs/demo/render.sh                             # re-record the animations above with VHS
 ```
 
-Tests are `Test_*` functions in `test/cases/*.vim`. CI runs them with Vim and Neovim, each with and without rg, ag and fd, and with the oldest supported Vim 8.2.3591 and Neovim 0.5.1. Editors that can't read script variables by `getscriptinfo()` load the plugin from a temporary copy, where each script ends with a function returning its `s:` dict. The animations come from the scripts in `docs/demo/`, so they can be recorded again when the plugin changes.
+Tests are `Test_*` functions in `test/cases/*.vim`. CI runs them with Vim and Neovim, each with and without rg, ag and fd, and with the oldest supported Vim 8.2.3591 and Neovim 0.5.1. Editors that can't read script variables by `getscriptinfo()` load the plugin from a temporary copy, where each script ends with a function returning its `s:` dict. `test/perf/` holds time budgets for the code that runs on every key typed in a list, on generated projects of 40k files and 20k commits; change that code with them in mind. The animations come from the scripts in `docs/demo/`, so they can be recorded again when the plugin changes.
 
 ## Credits
 
