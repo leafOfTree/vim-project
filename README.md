@@ -175,7 +175,7 @@ let g:vim_project_local_config = {
 
 - `:ProjectGitLog` searches commits by message, author or hash and shows the changed files and their diffs. <kbd>Ctrl-o</kbd> checks out the revision.
 - `:ProjectGitFileHistory` shows the history of the current file, or of the selected lines.
-- `:ProjectGitBranch` switches, creates (`New Branch`) and merges (<kbd>Ctrl-o</kbd>) branches.
+- `:ProjectGitBranch` switches, creates (`New Branch`) and merges (<kbd>Ctrl-o</kbd>, after asking) branches.
 - `:ProjectGitTag` checks out and creates tags.
 
 ### Sessions and project config

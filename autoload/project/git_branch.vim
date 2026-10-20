@@ -87,13 +87,28 @@ function! s:Open(branch, open_cmd, input)
   call project#Info('Switched to: '.a:branch.name)
 endfunction
 
-" Merge the selected branch into the current one, then close the list
+" Merge the selected branch into the current one once confirmed, then close
+" the list. Nothing to merge on the current branch or the other items
 function! s:MergeBranch(state)
-  let show_current_cmd = 'git branch --show-current'
-  let current = project#RunShellCmd(show_current_cmd)[0]
-
   let target = project#list#GetTarget()
+  if empty(target) || target.head != ' ' || target.name == s:item_splitter
+    return ''
+  endif
+
+  let show_current_cmd = 'git branch --show-current'
+  let current = get(project#RunShellCmd(show_current_cmd), 0, 'HEAD')
   let name = target.name
+
+  " Like rollback, ask first: the key is easy to press by habit. In place of
+  " the input line, so the messages after it don't ask to press Enter
+  redraw
+  echo 'Merge '.name.' into '.current.'? (y/n) '
+  let answer = nr2char(getchar())
+  redraw
+  if answer !=# 'y'
+    return ''
+  endif
+
   let cmd = 'git merge '.shellescape(name)
 
   call project#RunShellCmd(cmd)

@@ -230,7 +230,8 @@ Go back to a branch with |:ProjectGitBranch|.
 
 |:ProjectGitBranch| lists branches. <CR> switches to the selected one, or
 creates a local branch for a remote one. The "New Branch" item asks for a
-name. <C-o> merges the selected branch into the current one.
+name. <C-o> merges the selected branch into the current one, after
+asking.
 
 |:ProjectGitTag| lists tags. <CR> checks out the selected tag. The "New Tag"
 item runs "git tag" with what you type.
