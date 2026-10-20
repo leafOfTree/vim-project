@@ -1,4 +1,5 @@
 # Overview: open a project, search files, find in files, git changes
+# Title: Projects for Vim and Neovim
 Output docs/images/overview.gif
 Source docs/demo/common.tape
 

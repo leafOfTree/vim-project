@@ -1,4 +1,5 @@
 # Search files by name: fuzzy, by path, directories, open in a split
+# Title: Search files
 Output docs/images/search-files.gif
 Source docs/demo/common.tape
 Source docs/demo/open-webshop.tape

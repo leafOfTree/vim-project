@@ -1,4 +1,5 @@
 # Local changes: diff, changelists, shelve and unshelve
+# Title: Git changes
 Output docs/images/git-changes.gif
 Source docs/demo/common.tape
 Source docs/demo/open-webshop.tape

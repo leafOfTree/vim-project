@@ -1,4 +1,5 @@
 # Switch between projects: filter by name, note or path
+# Title: Projects
 Output docs/images/projects.gif
 Source docs/demo/common.tape
 

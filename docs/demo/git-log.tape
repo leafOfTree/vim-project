@@ -1,4 +1,5 @@
 # Search git log, see the changed files and diffs
+# Title: Git log and file history
 Output docs/images/git-log.gif
 Source docs/demo/common.tape
 Source docs/demo/open-webshop.tape

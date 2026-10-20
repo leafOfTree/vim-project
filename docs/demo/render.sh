@@ -5,7 +5,9 @@
 #   docs/demo/render.sh overview   one tape
 #
 # Each tape starts from a fresh workspace (docs/demo/setup.sh) and writes
-# docs/images/<name>.gif. Needs vhs, nvim, git and fd or find.
+# docs/images/<name>.gif, starting with a title card made from title.svg and
+# the "# Title:" of the tape. Needs vhs, ffmpeg, rsvg-convert, gifsicle,
+# python3, nvim, git and fd or find.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -15,7 +17,33 @@ if [ ${#tapes[@]} -eq 0 ]; then
 fi
 
 tape="$(mktemp "${TMPDIR:-/tmp}/vim-project-demo.XXXXXX")"
-trap 'rm -f "$tape"' EXIT
+card="$(mktemp "${TMPDIR:-/tmp}/vim-project-card.XXXXXX")"
+trap 'rm -f "$tape" "$card" "$card".*' EXIT
+
+# title.svg with $1 as title, moved right by $2, written to $card.png
+render_card() {
+  sed -e "s/TITLE/$1/" -e "s/OFFSET/$2/" docs/demo/title.svg | rsvg-convert -o "$card.png"
+}
+
+# $card.gif: the title card fading in and out, 2.1 seconds
+make_card() {
+  # Render once to find the columns with content, then again centered
+  render_card "$1" 0
+  local left right
+  read -r left right < <(ffmpeg -loglevel error -i "$card.png" -f rawvideo -pix_fmt gray - |
+    python3 -c '
+import sys
+w = 1200
+px = sys.stdin.buffer.read()
+cols = [x for x in range(w) if any(abs(px[y * w + x] - px[0]) > 16 for y in range(0, len(px) // w, 2))]
+print(cols[0], cols[-1])')
+  render_card "$1" $(( (1200 - (right - left + 1)) / 2 - left ))
+  # Few flat colors: without dithering the card stays small
+  ffmpeg -loglevel error -y -loop 1 -framerate 25 -t 2.1 -i "$card.png" -vf \
+    'fade=in:d=0.4:color=0x1e1e2e,fade=out:st=1.7:d=0.4:color=0x1e1e2e,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=none' \
+    "$card.gif"
+  gifsicle -O2 --batch "$card.gif"
+}
 
 for name in "${tapes[@]}"; do
   echo "==> $name"
@@ -37,5 +65,10 @@ for name in "${tapes[@]}"; do
       exit 1
     fi
   done
+  # Start with a title card, so a reader sees where the loop begins
+  make_card "$(sed -n 's/^# Title: //p' "docs/demo/$name.tape")"
+  gifsicle --no-warnings --loopcount=forever "$card.gif" \
+    "docs/images/$name.gif" -o "$card.out.gif"
+  mv "$card.out.gif" "docs/images/$name.gif"
   ls -lh "docs/images/$name.gif" | awk '{print "    " $5 "  " $9}'
 done

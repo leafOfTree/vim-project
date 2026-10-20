@@ -1,4 +1,5 @@
 # Find in files, then replace in all listed lines
+# Title: Find and replace in files
 Output docs/images/find-replace.gif
 Source docs/demo/common.tape
 Source docs/demo/open-webshop.tape

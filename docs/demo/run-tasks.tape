@@ -1,4 +1,5 @@
 # Run tasks and watch their output in the list
+# Title: Run tasks
 Output docs/images/run-tasks.gif
 Source docs/demo/common.tape
 Source docs/demo/open-webshop.tape
