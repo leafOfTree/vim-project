@@ -16,6 +16,9 @@ let s:commit_edit_buffer = 'commit_editmsg'
 let s:commit_result_buffer = 'commit_result'
 let s:file_history_range = []
 let s:splitter = ' ||| '
+" Details (changed files, diffs) open right of the list they belong to, as
+" in IDEs, whatever 'splitright' is
+let s:right_pane = 'vertical rightbelow'
 " Separates the fields of a commit in its search string
 let s:field_splitter = "\x1f"
 " Commits shown in git log and file history, the most recent
@@ -153,7 +156,7 @@ function! s:ShowDiffOnFileHistory()
   if empty(revision)
     return
   endif
-  call s:OpenBuffer(s:diff_buffer, 'vertical')
+  call s:OpenBuffer(s:diff_buffer, s:right_pane)
   call s:AddDiffDetails(revision.hash, s:current_file)
   call s:AddBrief(revision)
   call s:SetupDiffBuffer(s:current_file)
@@ -309,7 +312,7 @@ function! s:ShowCurrentChangedFiles()
     return
   endif
 
-  call s:OpenBuffer(s:changes_buffer, 'vertical')
+  call s:OpenBuffer(s:changes_buffer, s:right_pane)
   call s:SetupChangesBuffer(revision)
   call s:AddToBuffer(revision, changed_files)
   wincmd p
@@ -426,7 +429,8 @@ function! s:OpenChangedFile()
 endfunction
 
 function! s:CanShowDiff()
-  if mode() != 'n'
+  " Not while selecting lines, e.g. to move or commit several files
+  if mode() =~# "^[vV\<C-v>]"
     return 0
   endif
   let lnum = line('.')
@@ -457,10 +461,11 @@ function! s:ShowDiffOnChangelist()
   endif
   " Avoid E242
   try
-    call s:OpenBuffer(s:diff_buffer, 'vertical')
+    call s:OpenBuffer(s:diff_buffer, s:right_pane)
     call s:SetupDiffBuffer(s:GetAbsolutePath(file))
-    vertical resize 130%
     wincmd p
+    " The list of changes on the left, the diff taking the rest
+    execute 'vertical resize' max([30, &columns * 2 / 5])
 
     call s:AddChangeDetails(file)
   catch
@@ -627,7 +632,7 @@ function! s:ShowDiffOnGitLog(hash)
     return
   endif
   let file = s:GetCurrentFile()
-  call s:OpenBuffer(s:diff_buffer, 'vertical')
+  call s:OpenBuffer(s:diff_buffer, s:right_pane)
   call s:SetupDiffBuffer(s:GetAbsolutePath(file))
   if empty(file)
     wincmd p

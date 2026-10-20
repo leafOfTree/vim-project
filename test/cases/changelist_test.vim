@@ -304,3 +304,50 @@ function! Test_shelf_lines_are_checked_with_clear_messages()
     call s:CloseRepo()
   endtry
 endfunction
+
+" ---------------------------------------------------------------- layout
+
+function! s:Column(bufname)
+  let winid = bufwinid(bufnr('^'.a:bufname.'$'))
+  return winid == -1 ? -1 : win_screenpos(winid)[1]
+endfunction
+
+" Lists on the left, details on the right, as in IDEs, whatever 'splitright'
+function! Test_diff_opens_right_of_the_changelist()
+  let repo = s:OpenRepo('layout changes')
+  set nosplitright
+  try
+    call writefile(['changed'], repo.'/tracked.txt')
+    call project#git#Status()
+    call cursor(s:Line('|tracked\.txt|'), 1)
+    call s:Call('ShowDiffOnChangelist')
+    call assert_true(s:Column('diff') > s:Column('local_changes'),
+          \ 'diff at column '.s:Column('diff').', changes at '.s:Column('local_changes'))
+    call assert_equal(max([30, &columns * 2 / 5]), winwidth(bufwinnr('^local_changes$')))
+  finally
+    call s:CloseRepo()
+  endtry
+endfunction
+
+function! Test_git_log_shows_changed_files_right_of_the_list()
+  call s:OpenRepo('layout log')
+  set nosplitright
+  let s:log_layout = []
+  " Recorded as the pane opens, not by a timer: Vim -es would read stdin
+  " while the list waits for keys with none typed ahead
+  augroup vim-project-test-log-layout
+    autocmd!
+    autocmd BufWinEnter changes
+          \ let s:log_layout = [s:Column('changes'), s:Column('vim_project_list')]
+  augroup END
+  try
+    call feedkeys("\<Esc>", 't')
+    ProjectGitLog
+    call assert_equal(2, len(s:log_layout))
+    call assert_true(s:log_layout[0] > s:log_layout[1],
+          \ 'changed files at column '.s:log_layout[0].', commits at '.s:log_layout[1])
+  finally
+    autocmd! vim-project-test-log-layout
+    call s:CloseRepo()
+  endtry
+endfunction
