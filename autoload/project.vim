@@ -1073,6 +1073,9 @@ function! s:QuitProject()
     call project#run_tasks#Reset()
 
     call s:SyncGlobalVariables()
+    " Status lines showing g:vim_project would keep the project until the
+    " next redraw
+    redrawstatus!
   endif
 endfunction
 
