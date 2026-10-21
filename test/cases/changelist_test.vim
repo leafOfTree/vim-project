@@ -250,6 +250,51 @@ function! Test_MoveToFolder()
   endtry
 endfunction
 
+" Only what git status can't tell is saved. The rest changed on every
+" commit, which shows when config_home is in a repository you work on
+function! Test_changelist_file_keeps_only_what_git_status_cannot_tell()
+  let repo = s:OpenRepo('saved changelist')
+  try
+    call writefile(['changed'], repo.'/tracked.txt')
+    call writefile(['changed'], repo.'/other.txt')
+    call system('git -C '.shellescape(repo).' add other.txt')
+    call writefile(['changed'], repo.'/sub/deep.txt')
+    call writefile(['new'], repo.'/new.txt')
+    call project#git#Status()
+
+    " A changelist of its own
+    let lnum = s:Line('|deep\.txt|')
+    call feedkeys("feature\<CR>", 't')
+    call s:RangeCall('MoveToFolder', lnum, lnum)
+    " An untracked file moved to Default
+    call s:ExpandFolder('Untracked')
+    let lnum = s:Line('|new\.txt|')
+    call feedkeys("Default\<CR>", 't')
+    call s:RangeCall('MoveToFolder', lnum, lnum)
+    call assert_equal(['new.txt', 'tracked.txt'], sort(s:FolderFiles('Default')))
+
+    execute 'bwipeout!' bufnr('local_changes')
+    let saved = {}
+    for folder in json_decode(join(readfile($vim_project_config.'/changelist.json'), ''))
+      let saved[folder.name] = folder.files
+    endfor
+    call assert_equal(['sub/deep.txt'], saved.feature)
+    call assert_equal(['new.txt'], saved.Default)
+    call assert_equal([], saved.Staged)
+    call assert_equal([], saved.Untracked)
+    call assert_equal([], saved.Unmerged)
+
+    " Opened again, git status fills in the rest
+    call project#git#Status()
+    call assert_equal(['new.txt', 'tracked.txt'], sort(s:FolderFiles('Default')))
+    call assert_equal(['other.txt'], s:FolderFiles('Staged'))
+    call assert_equal(['sub/deep.txt'], s:FolderFiles('feature'))
+    call assert_equal([], s:FolderFiles('Untracked'))
+  finally
+    call s:CloseRepo()
+  endtry
+endfunction
+
 " ---------------------------------------------------------------- shelf messages
 
 function! s:Messages(Fn)

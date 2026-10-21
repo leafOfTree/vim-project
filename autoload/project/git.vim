@@ -834,9 +834,25 @@ function! s:ReadChangelistFile()
   endtry
 endfunction
 
+" Save only what git status can't tell: the files of user changelists, and
+" untracked files moved to Default. Staged, Unmerged, Untracked and the rest
+" of Default are filled from git status each time; saving them changed the
+" file on every commit, which shows when config_home is in a repository
+" you work on
 function! s:WriteChangelistFile()
   call filter(s:changelist, {idx, v -> !s:IsShelfFolder(v) })
-  let changelist_string = json_encode(s:changelist)
+  let untracked = map(copy(s:untracked_files), 's:GetFilename(v:val)')
+  let saved = []
+  for folder in s:changelist
+    let folder = copy(folder)
+    if s:IsSpecialFolder(folder)
+      let folder.files = []
+    elseif s:IsDefaultFolder(folder)
+      let folder.files = filter(copy(folder.files), 'index(untracked, v:val) >= 0')
+    endif
+    call add(saved, folder)
+  endfor
+  let changelist_string = json_encode(saved)
   let content = split(changelist_string, '\(]\|}\),\zs')
   call writefile(content, s:GetChangelistFile())
 endfunction
