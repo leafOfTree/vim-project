@@ -217,6 +217,11 @@ for name in api-server design-system blog dotfiles notes; do
   git -C "$demo/projects/$name" init -q -b main
 done
 
+# A folder the projects demo adds as a project
+mkdir -p "$demo/projects/inventory"
+printf '# inventory\n\nStock levels of the webshop products.\n' > "$demo/projects/inventory/README.md"
+git -C "$demo/projects/inventory" init -q -b main
+
 cat > "$demo/config/project.add.vim" <<EOF
 Project $demo/projects/webshop "online shop"
 Project $demo/projects/api-server "REST API"

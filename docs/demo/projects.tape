@@ -1,12 +1,21 @@
-# Switch between projects: filter by name, note or path
+# Add a project, switch between projects, quit
 # Title: Projects
 Output docs/images/projects.gif
 Source docs/demo/common.tape
 
-Type ":ProjectList" Sleep 300ms Enter Sleep 1s
-# Matches the note of webshop
-Type "online" Sleep 1200ms
-Ctrl+U Sleep 400ms
-Type "shop" Sleep 900ms Enter Sleep 1.5s
+# A relative path is looked up in project_base
+Hide Type ":Say Add a folder as a project, with a note" Enter Show
+Sleep 1.8s
+Type `:Project inventory "stock service"` Sleep 500ms Enter Sleep 2.2s
+
+Hide Type ":Say Switch projects: move in the list, or type a name, note or path" Enter Show
+Sleep 2.2s
 Type ":ProjectList" Sleep 300ms Enter Sleep 900ms
-Type "blg" Sleep 900ms Enter Sleep 2s
+Ctrl+K Sleep 500ms Ctrl+K Sleep 500ms Ctrl+K Sleep 600ms Ctrl+J Sleep 800ms
+# Matches the note of webshop
+Type "online" Sleep 1.5s
+Enter Sleep 2s
+
+Hide Type ":Say Quit the project" Enter Show
+Sleep 1.5s
+Type ":ProjectQuit" Sleep 300ms Enter Sleep 2.2s
