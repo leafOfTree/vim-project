@@ -3,10 +3,12 @@
 set nocompatible
 let s:repo = fnamemodify(expand('<sfile>:p'), ':h:h:h')
 execute 'set runtimepath^='.fnameescape(s:repo)
+" The colorscheme of the recordings, copied into docs/demo/runtime
+execute 'set runtimepath+='.fnameescape(s:repo.'/docs/demo/runtime')
 let s:demo = empty($VIM_PROJECT_DEMO) ? '/tmp/vim-project-demo' : $VIM_PROJECT_DEMO
 
 set termguicolors number noswapfile nobackup shortmess+=I
-colorscheme retrobox
+colorscheme onedark
 " Keep the recordings independent of your history
 if has('nvim')
   set shadafile=NONE

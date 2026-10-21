@@ -47,7 +47,7 @@ print(cols[0], cols[-1])')
   render_card "$1" $(( (1200 - (right - left + 1)) / 2 - left )) scaled
   # Few flat colors: without dithering the card stays small
   ffmpeg -loglevel error -y -loop 1 -framerate 25 -t 2.1 -i "$card.png" -vf \
-    'fade=in:d=0.4:color=0x1e1e2e,fade=out:st=1.7:d=0.4:color=0x1e1e2e,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=none' \
+    'fade=in:d=0.4:color=0x282c34,fade=out:st=1.7:d=0.4:color=0x282c34,split[a][b];[a]palettegen=max_colors=128[p];[b][p]paletteuse=dither=none' \
     "$card.gif"
   gifsicle -O2 --batch "$card.gif"
 }

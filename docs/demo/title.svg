@@ -8,7 +8,7 @@
       <stop offset="1" stop-color="#05804A"/>
     </linearGradient>
   </defs>
-  <rect width="1200" height="720" fill="#1e1e2e"/>
+  <rect width="1200" height="720" fill="#282c34"/>
   <g transform="translate(OFFSET 0)">
     <g transform="translate(0 285) scale(0.5859375)">
       <rect x="8" y="8" width="240" height="240" rx="58" fill="url(#tile)"/>
@@ -17,8 +17,8 @@
       <path d="M100 124l28 40 28-40" fill="none" stroke="#06904F" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
     </g>
     <g font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
-      <text x="186" y="350" font-size="48" font-weight="bold" fill="#cdd6f4">vim-project</text>
-      <text x="187" y="400" font-size="38" fill="#a6adc8">TITLE</text>
+      <text x="186" y="350" font-size="48" font-weight="bold" fill="#dcdfe4">vim-project</text>
+      <text x="187" y="400" font-size="38" fill="#9da5b4">TITLE</text>
     </g>
   </g>
 </svg>

@@ -8,4 +8,4 @@ Set Padding 16
 Set Framerate 24
 Set PlaybackSpeed 1.4
 Set TypingSpeed 35ms
-Set Theme "Catppuccin Mocha"
+Set Theme "OneDark"
