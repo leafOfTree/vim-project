@@ -216,11 +216,24 @@ for name in api-server design-system blog dotfiles notes; do
   echo "# $name" > "$demo/projects/$name/README.md"
   git -C "$demo/projects/$name" init -q -b main
 done
+# Something to see when the projects demo switches to it
+cat >> "$demo/projects/blog/README.md" <<'EOF'
 
-# A folder the projects demo adds as a project
-mkdir -p "$demo/projects/inventory"
+Notes from building the webshop.
+
+## Posts
+
+- *Prices in cents*: why money is never a float
+- *One cart, many tabs*: keeping the cart in sync
+EOF
+
+# Folders the projects demo adds as projects: one in project_base, added by
+# a relative path, and one elsewhere, added by its absolute path
+mkdir -p "$demo/projects/inventory" "$demo/work/admin"
 printf '# inventory\n\nStock levels of the webshop products.\n' > "$demo/projects/inventory/README.md"
+printf '# admin\n\nAdmin panel of the webshop: orders, refunds and users.\n' > "$demo/work/admin/README.md"
 git -C "$demo/projects/inventory" init -q -b main
+git -C "$demo/work/admin" init -q -b main
 
 cat > "$demo/config/project.add.vim" <<EOF
 Project $demo/projects/webshop "online shop"
