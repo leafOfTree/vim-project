@@ -63,6 +63,40 @@ noremap  <leader>g :ProjectFindInFiles<CR>
 
 For the full reference: `:help vim-project` (run `:helptags ALL` first if your plugin manager does not).
 
+<details>
+<summary>The config of the demos, and how to run them</summary>
+
+The demos use this config, with `npm` in place of their scripts. `project_root` opens each project at its `README.md` rather than its folder:
+
+```vim
+let g:vim_project_config = {
+      \'project_base': ['~/code'],
+      \'project_root': './README.md',
+      \'tasks': [
+      \  {'name': 'test', 'cmd': 'npm test'},
+      \  {'name': 'dev', 'cmd': 'npm run dev'},
+      \  {'name': 'lint', 'cmd': 'npm run lint'},
+      \],
+      \}
+
+" joshdick/onedark.vim
+colorscheme onedark
+" The file on the left, the project and its branch on the right
+let &statusline = "%f%m%=%{empty(g:vim_project) ? '' : g:vim_project.name.'  '.get(g:vim_project, 'branch', '')} "
+```
+
+To try the projects of the demos, without changing your own config:
+
+```sh
+git clone https://github.com/leafOfTree/vim-project && cd vim-project
+docs/demo/setup.sh    # webshop and five other projects in /tmp/vim-project-demo
+vimrc=$PWD/docs/demo/vimrc && cd /tmp/vim-project-demo/projects && nvim -u "$vimrc"
+```
+
+Then `:ProjectList` and pick `webshop`.
+
+</details>
+
 ## Features
 
 In every list, type to filter. <kbd>Ctrl-j</kbd> / <kbd>Ctrl-k</kbd> (or the arrow keys) move, <kbd>Enter</kbd> opens and <kbd>Esc</kbd> closes. See [keys in lists](#keys-in-lists).
