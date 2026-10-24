@@ -683,10 +683,44 @@ function! s:AddToBuffer(revision, changed_files)
   setlocal nomodifiable
 endfunction
 
+" Width of the text in the changes window once the log list is resized to
+" s:log_list_width, which happens after the first render
+function! s:GetChangesTextWidth()
+  let textoff = get(getwininfo(win_getid())[0], 'textoff', 0)
+  return max([20, &columns - s:log_list_width - 1 - textoff])
+endfunction
+
+" Split a:text into lines at most a:width wide, at spaces when possible. A
+" word wider than a line, like CJK text without spaces, is cut by display width
+function! s:WrapText(text, width)
+  let lines = []
+  let line = ''
+  for word in split(a:text, ' ')
+    let joined = empty(line) ? word : line.' '.word
+    if strdisplaywidth(joined) <= a:width
+      let line = joined
+      continue
+    endif
+    if !empty(line)
+      call add(lines, line)
+    endif
+    let line = ''
+    for char in split(word, '\zs')
+      if !empty(line) && strdisplaywidth(line.char) > a:width
+        call add(lines, line)
+        let line = ''
+      endif
+      let line .= char
+    endfor
+  endfor
+  call add(lines, line)
+  return lines
+endfunction
+
 function! s:GenerateBrief(revision)
   let brief = []
   call add(brief, s:item_splitter)
-  call add(brief, a:revision.message)
+  call extend(brief, s:WrapText(a:revision.message, s:GetChangesTextWidth()))
   call add(brief, '')
   call add(brief, a:revision.hash.' by '.a:revision.author.' <'.a:revision.email.'> '
     \.a:revision.date)
