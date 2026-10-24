@@ -486,11 +486,11 @@ function! Test_push_and_pull_run_in_background()
   call s:WithProject(base.'/mine', function('s:CheckPushPull', [base]))
 endfunction
 
-function! Test_WrapText_breaks_long_commit_messages()
-  call assert_equal(['short'], s:Call('WrapText', 'short', 20))
-  call assert_equal(['callbacks, elevator', 'ending, seated views'],
-        \s:Call('WrapText', 'callbacks, elevator ending, seated views', 20))
-  " CJK has no spaces and two columns per character
-  call assert_equal(['准点下班', '准点'], s:Call('WrapText', '准点下班准点', 8))
-  call assert_equal(['准点下班：', 'callbacks'], s:Call('WrapText', '准点下班： callbacks', 12))
+function! Test_GenerateBrief_keeps_the_message_whole_and_the_splitter_on_one_row()
+  let revision = {'hash': 'abc1234', 'author': 'leaf', 'email': 'l@x.com', 'date': '6h',
+        \'message': repeat('long message ', 20)}
+  let brief = s:Call('GenerateBrief', revision)
+  " The window wraps the message
+  call assert_equal(revision.message, brief[1])
+  call assert_true(strdisplaywidth(brief[0]) <= s:Call('GetChangesTextWidth'))
 endfunction

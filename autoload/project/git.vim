@@ -408,7 +408,8 @@ function! s:SetupChangesBuffer(revision)
   setlocal concealcursor=nvc
 
   setlocal buftype=nofile bufhidden=wipe nobuflisted
-  setlocal nowrap
+  " Long commit messages and paths wrap at words
+  setlocal wrap linebreak
   augroup vim-project-git-changes
     autocmd! * <buffer>
     autocmd BufUnload <buffer> call s:CloseChangesBuffer()
@@ -690,37 +691,11 @@ function! s:GetChangesTextWidth()
   return max([20, &columns - s:log_list_width - 1 - textoff])
 endfunction
 
-" Split a:text into lines at most a:width wide, at spaces when possible. A
-" word wider than a line, like CJK text without spaces, is cut by display width
-function! s:WrapText(text, width)
-  let lines = []
-  let line = ''
-  for word in split(a:text, ' ')
-    let joined = empty(line) ? word : line.' '.word
-    if strdisplaywidth(joined) <= a:width
-      let line = joined
-      continue
-    endif
-    if !empty(line)
-      call add(lines, line)
-    endif
-    let line = ''
-    for char in split(word, '\zs')
-      if !empty(line) && strdisplaywidth(line.char) > a:width
-        call add(lines, line)
-        let line = ''
-      endif
-      let line .= char
-    endfor
-  endfor
-  call add(lines, line)
-  return lines
-endfunction
-
+" The window wraps, so the splitter is cut to its width to stay on one row
 function! s:GenerateBrief(revision)
   let brief = []
-  call add(brief, s:item_splitter)
-  call extend(brief, s:WrapText(a:revision.message, s:GetChangesTextWidth()))
+  call add(brief, s:item_splitter[: s:GetChangesTextWidth() - 1])
+  call add(brief, a:revision.message)
   call add(brief, '')
   call add(brief, a:revision.hash.' by '.a:revision.author.' <'.a:revision.email.'> '
     \.a:revision.date)
