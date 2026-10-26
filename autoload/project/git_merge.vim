@@ -15,7 +15,7 @@ let s:result_buffer = 'vim_project_merge_result'
 let s:right_buffer = 'vim_project_merge_theirs'
 let s:edit_buffer = 'vim_project_merge_edit'
 let s:unresolved_text = '(unresolved)'
-let s:keys_hint = '< yours  > theirs  = both  e edit  u undo  ]c [c move  L R all  w finish  q quit'
+let s:help_buffer = 'vim_project_merge_keys'
 
 " The file being merged: {'file', 'segments', 'left_title', 'right_title'}.
 " A segment is {'type': 'text', 'lines'} or {'type': 'conflict', 'left',
@@ -198,8 +198,6 @@ function! project#git_merge#Open(file)
   call s:JumpToConflict(1, 1)
   if empty(s:Conflicts())
     call project#Info('No conflicting lines left, press w to mark it resolved')
-  else
-    call s:ShowKeys()
   endif
 endfunction
 
@@ -243,8 +241,43 @@ function! s:OpenWindows()
   call s:SetupPane(s:result_buffer)
   rightbelow vnew
   call s:SetupPane(s:right_buffer)
+  call s:OpenHelp()
   wincmd =
   execute bufwinnr(s:result_buffer).'wincmd w'
+endfunction
+
+" The keys at the bottom, always in sight
+function! s:OpenHelp()
+  let mappings = project#config#Get('git_merge_mappings')
+  let rows = [
+        \[['take_yours', 'take yours'], ['take_theirs', 'take theirs'],
+        \ ['take_both', 'take both'], ['edit', 'edit by hand'], ['undo', 'undo']],
+        \[['next', 'next conflict'], ['previous', 'previous conflict'],
+        \ ['all_yours', 'all yours'], ['all_theirs', 'all theirs'],
+        \ ['finish', 'save and git add'], ['quit', 'quit']],
+        \]
+  let lines = []
+  for row in rows
+    let items = []
+    for [name, label] in row
+      let key = get(mappings, name, '')
+      if !empty(key) && key !=? '<NOP>'
+        call add(items, printf('%-3s %-18s', key, label))
+      endif
+    endfor
+    call add(lines, ' '.join(items, ' '))
+  endfor
+
+  botright 2new
+  silent execute 'file' s:help_buffer
+  setlocal buftype=nofile bufhidden=wipe noswapfile nobuflisted
+  setlocal nowrap nonumber nocursorline signcolumn=no winfixheight
+  call setline(1, lines)
+  setlocal nomodifiable
+  setlocal statusline=\ Keys
+  " A key starts each item: first on the line, or after two spaces
+  syntax match ProjectMergeKey /\%(^ \|  \)\zs\S\+/
+  hi default link ProjectMergeKey Special
 endfunction
 
 function! s:SetupPane(name)
@@ -373,11 +406,6 @@ function! s:UpdateStatusLines()
   call s:SetStatusLine(s:right_buffer, ' '.s:EscapeStatus(s:merge.right_title))
 endfunction
 
-function! s:ShowKeys()
-  redraw
-  call project#InfoEcho(s:keys_hint)
-endfunction
-
 function! s:EscapeStatus(text)
   return substitute(a:text, '%', '%%', 'g')
 endfunction
@@ -464,8 +492,6 @@ function! s:Take(state)
   call s:CursorTo(idx)
   if !empty(a:state) && !s:JumpToConflict(1, 1)
     call project#Info('All conflicts resolved, press w to save and mark it resolved')
-  else
-    call s:ShowKeys()
   endif
 endfunction
 
@@ -495,8 +521,9 @@ function! s:EditConflict()
   let segment = s:merge.segments[idx]
   let lines = empty(segment.state) ? segment.left + segment.right : segment.result
 
-  execute bufwinnr(s:result_buffer).'wincmd w'
-  botright new
+  " Full width, above the keys
+  execute bufwinnr(s:help_buffer).'wincmd w'
+  aboveleft new
   silent execute 'file' s:edit_buffer
   setlocal buftype=acwrite bufhidden=wipe noswapfile nobuflisted
   call setline(1, lines)
@@ -561,7 +588,7 @@ function! s:Quit()
 endfunction
 
 function! s:CloseWindows()
-  for name in [s:edit_buffer, s:left_buffer, s:result_buffer, s:right_buffer]
+  for name in [s:edit_buffer, s:help_buffer, s:left_buffer, s:result_buffer, s:right_buffer]
     if bufexists(name)
       silent! execute 'bwipeout!' bufnr(name)
     endif

@@ -268,7 +268,8 @@ Panes are titled with the branch and commit they come from; in a rebase
 yours is the commit being rebased. Conflicts line up across the panes and
 are colored by state: unresolved, taken from a side, or edited by hand.
 All panes are read-only, so a choice can always be changed. Keys work on
-the conflict under the cursor ("git_merge_mappings"):
+the conflict under the cursor, and are listed at the bottom of the window
+("git_merge_mappings"):
 
     <       take yours          >       take theirs
     =       take both           e       edit it by hand, :w to use it

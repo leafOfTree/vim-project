@@ -82,6 +82,9 @@ function! Test_resolve_conflicts_in_merge_window()
     call assert_equal(['a', 'B yours', 'c', 'D yours', 'e'], s:Lines('vim_project_merge_yours'))
     call assert_equal(['a', 'B theirs', 'c', 'D theirs', 'e'], s:Lines('vim_project_merge_theirs'))
     call assert_equal(2, line('.'))
+    " The keys stay in sight at the bottom
+    call Helper_AssertContains(join(s:Lines('vim_project_merge_keys')), '<   take yours')
+    call Helper_AssertContains(join(s:Lines('vim_project_merge_keys')), 'w   save and git add')
     call assert_equal('(unresolved)', getline(2))
 
     " Finishing with conflicts left keeps the window
