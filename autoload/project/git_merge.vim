@@ -256,16 +256,20 @@ function! s:OpenHelp()
         \ ['all_yours', 'all yours'], ['all_theirs', 'all theirs'],
         \ ['finish', 'save and git add'], ['quit', 'quit']],
         \]
+  " Each key is highlighted by its position, labels may hold any word
   let lines = []
+  let positions = []
   for row in rows
-    let items = []
+    let line = ' '
     for [name, label] in row
       let key = get(mappings, name, '')
-      if !empty(key) && key !=? '<NOP>'
-        call add(items, printf('%-3s %-18s', key, label))
+      if empty(key) || key ==? '<NOP>'
+        continue
       endif
+      call add(positions, [len(lines) + 1, len(line) + 1, len(key)])
+      let line .= printf('%-3s %-18s ', key, label)
     endfor
-    call add(lines, ' '.join(items, ' '))
+    call add(lines, substitute(line, '\s\+$', '', ''))
   endfor
 
   botright 2new
@@ -275,9 +279,8 @@ function! s:OpenHelp()
   call setline(1, lines)
   setlocal nomodifiable
   setlocal statusline=\ Keys
-  " A key starts each item: first on the line, or after two spaces
-  syntax match ProjectMergeKey /\%(^ \|  \)\zs\S\+/
   hi default link ProjectMergeKey Special
+  call matchaddpos('ProjectMergeKey', positions, 10)
 endfunction
 
 function! s:SetupPane(name)
@@ -398,11 +401,12 @@ function! s:UpdateStatusLines()
   let total = len(s:Conflicts())
   let current = s:GetConflictNumber()
   let unresolved = s:CountUnresolved()
-  let status = printf(' Result %s   %s/%d   %s', s:merge.file,
-        \current ? current : '-', total,
-        \unresolved ? unresolved.' unresolved' : 'all resolved, w to finish')
+  " Shorten the file name first when the pane is narrow
+  let status = printf(' %s/%d  %s  %%<%s', current ? current : '-', total,
+        \unresolved ? unresolved.' unresolved' : 'all resolved, w to finish',
+        \s:EscapeStatus(s:merge.file))
   call s:SetStatusLine(s:left_buffer, ' '.s:EscapeStatus(s:merge.left_title))
-  call s:SetStatusLine(s:result_buffer, s:EscapeStatus(status))
+  call s:SetStatusLine(s:result_buffer, status)
   call s:SetStatusLine(s:right_buffer, ' '.s:EscapeStatus(s:merge.right_title))
 endfunction
 
