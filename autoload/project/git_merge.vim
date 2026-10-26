@@ -575,7 +575,7 @@ endfunction
 function! s:OnFileResolved()
   call project#git#Status()
   if !empty(project#git_merge#GetUnmergedFiles())
-    call project#Info('Resolved. Press Enter on the next conflicting file')
+    call project#Info('Resolved. Press '.s:GetKey('open_changelist_or_file').' on the next conflicting file')
     return
   endif
 
@@ -599,7 +599,7 @@ function! project#git_merge#Continue(state)
     call project#git#Status()
     if !empty(project#git_merge#GetUnmergedFiles())
       " A rebase may stop at the next commit with new conflicts
-      call project#Warn('New conflicts, press Enter on a file to resolve it')
+      call project#Warn('New conflicts, press '.s:GetKey('open_changelist_or_file').' on a file to resolve it')
     else
       call project#Info('Finished the '.a:state.name)
     endif
@@ -637,6 +637,14 @@ function! project#git_merge#ShowConflicts()
   call project#git#Status()
   call search('^\S*\s*Unmerged', 'w')
   redraw
-  call project#Warn('Merge conflicts in '.len(files).' files. Press Enter on a file to resolve it, A to abort')
+  call project#Warn('Merge conflicts in '.len(files).' files. Press '
+        \.s:GetKey('open_changelist_or_file').' on a file to resolve it, '
+        \.s:GetKey('abort_merge').' to abort')
   return 1
+endfunction
+
+" Key of a:name in the local changes, as it reads in a message
+function! s:GetKey(name)
+  let key = get(project#config#Get('git_local_changes_mappings'), a:name, '')
+  return key == "\<cr>" ? 'Enter' : key
 endfunction

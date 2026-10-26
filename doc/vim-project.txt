@@ -258,7 +258,8 @@ changelists. Default keys ("git_local_changes_mappings"):
 
 Merge conflicts~
 When a pull or a branch merge stops on conflicts, the local changes open on
-the Unmerged changelist. <CR> on a conflicting file opens the merge window
+the Unmerged changelist. <CR> ("open_changelist_or_file") on a conflicting
+file opens the merge window
 in a new tab, like the Merge dialog of IntelliJ IDEA:
 
     yours (left) | result (middle) | theirs (right)
