@@ -42,6 +42,8 @@ let s:changed_files = []
 let s:untracked_files = []
 let s:staged_files = []
 let s:unmerged_files = []
+" Statuses of git status --porcelain for unmerged paths
+let s:unmerged_status = ['DD', 'AU', 'UD', 'UA', 'DU', 'AA', 'UU']
 let s:commit_files = []
 let s:file_regexp = '|\zs.*\ze|'
 let s:directory_regexp = '| \zs.*$'
@@ -899,6 +901,11 @@ function! s:OpenFolderOrFile()
       return
     endif
 
+    if index(s:unmerged_files, 'U '.file) != -1
+      call project#git_merge#Open(file)
+      return
+    endif
+
     let diff_file = s:TryGetDiffFile(file)
     wincmd k
     if empty(diff_file)
@@ -1647,7 +1654,12 @@ function! s:ParseGitStatus()
     let status = strpart(line, 0, 2)
     let filepath = strpart(line, 3)
 
-    if status[0] != ' ' && status[0] != '?' && status[0] != 'U' " Staged files
+    if index(s:unmerged_status, status) != -1 " Merge conflicts
+      call add(s:unmerged_files, 'U '.filepath)
+      continue
+    endif
+
+    if status[0] != ' ' && status[0] != '?' " Staged files
       call add(s:staged_files, status[0].' '.filepath)
     endif
 
@@ -1657,10 +1669,6 @@ function! s:ParseGitStatus()
 
     if status == '??' " Untracked files
       call add(s:untracked_files, '? '.filepath)
-    endif
-
-    if status == 'UU' " Merge conflicts
-      call add(s:unmerged_files, 'U '.filepath)
     endif
   endfor
 endfunction
@@ -1795,6 +1803,7 @@ function! s:SetupChangelistBuffer()
   call s:AddVisualMapping(mappings.shelf, '<SID>ShelfFile()')
   call s:AddMapping(mappings.unshelf, '<SID>UnshelfFile()')
   call s:AddVisualMapping(mappings.unshelf, '<SID>UnshelfFile()')
+  call s:AddMapping(mappings.abort_merge, 'project#git_merge#Abort()')
 
   hi default DiffBufferModify ctermfg=3 guifg=#b58900
   hi default DiffBufferAdd ctermfg=2 guifg=#719e07
@@ -2093,7 +2102,9 @@ function! s:OnGitJobDone(cmd, done_message, OnSuccess, ctx, status)
   let s:git_job = v:null
   let lines = filter(copy(a:ctx.lines), '!empty(v:val)')
   if a:status != 0
-    call project#WarnCommandOutput(a:cmd, lines)
+    if !project#git_merge#ShowConflicts()
+      call project#WarnCommandOutput(a:cmd, lines)
+    endif
     return
   endif
 

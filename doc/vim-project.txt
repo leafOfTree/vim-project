@@ -254,6 +254,32 @@ changelists. Default keys ("git_local_changes_mappings"):
     u       git pull
     p       git push
     P       git pull, then git push
+    A       abort the merge, rebase, cherry-pick or revert in progress
+
+Merge conflicts~
+When a pull or a branch merge stops on conflicts, the local changes open on
+the Unmerged changelist. <CR> on a conflicting file opens the merge window
+in a new tab, like the Merge dialog of IntelliJ IDEA:
+
+    yours (left) | result (middle) | theirs (right)
+
+Panes are titled with the branch and commit they come from; in a rebase
+yours is the commit being rebased. Conflicts line up across the panes and
+are colored by state: unresolved, taken from a side, or edited by hand.
+All panes are read-only, so a choice can always be changed. Keys work on
+the conflict under the cursor ("git_merge_mappings"):
+
+    <       take yours          >       take theirs
+    =       take both           e       edit it by hand, :w to use it
+    u       back to unresolved  ]c [c   next or previous conflict
+    L R     take yours or theirs for all conflicts
+    w       finish: write the file and git add it. Refused while
+            conflicts are unresolved
+    q       close without writing
+
+A file deleted on one side asks to keep or delete it instead. Once no
+conflicting file is left, it offers to commit the merge, or to continue the
+rebase, cherry-pick or revert.
 
 Pull and push run in the background; the result is shown when done. git
 cannot ask for credentials there, so use a credential helper or ssh-agent.
@@ -363,6 +389,7 @@ README.md for every default:
     git_diff_mappings               diff buffer
     git_changes_mappings            changes buffer
     git_local_changes_mappings      |:ProjectGitStatus|
+    git_merge_mappings              merge conflicts window
 
                                                          *vim-project-files*
 Config files are kept in "config_home": >

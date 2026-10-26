@@ -111,8 +111,11 @@ function! s:MergeBranch(state)
 
   let cmd = 'git merge '.shellescape(name)
 
-  call project#RunShellCmd(cmd)
+  let output = project#RunShellCmd(cmd, 0)
   if v:shell_error
+    " Once the list is closed
+    call timer_start(0, {-> project#git_merge#ShowConflicts()
+          \|| project#WarnCommandOutput(cmd, output)})
     return 'close'
   endif
   let a:state.offset = 0
