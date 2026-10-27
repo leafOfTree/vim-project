@@ -76,7 +76,7 @@ cat <<EOF
   "open_changelist_or_file"). In the merge window:
 
     <  take yours     >  take theirs    =  both    e  edit by hand    u  undo
-    ]c / [c  move between conflicts     w/q  accept, git add   Q  discard choices
+    ]c / [c  move between conflicts     q  accept, git add     Q  discard choices
 
   A in the local changes aborts the $cmd. Run this script again to start over.
 EOF

@@ -277,9 +277,9 @@ the conflict under the cursor, and are listed at the bottom of the window
     =       take both           e       edit it by hand, :w to use it
     u       back to unresolved  ]c [c   next or previous conflict
     L R     take yours or theirs for all conflicts
-    w q     accept: write the file, git add it and close. Refused
+    q       accept: write the file, git add it and close. Refused
             while conflicts are unresolved. Like the commit message,
-            q accepts
+            closing accepts
     Q       discard: close, the file stays as it was
 
 A file deleted on one side asks to keep or delete it instead. Once no

@@ -84,11 +84,11 @@ function! Test_resolve_conflicts_in_merge_window()
     call assert_equal(2, line('.'))
     " The keys stay in sight at the bottom
     call Helper_AssertContains(join(s:Lines('vim_project_merge_keys')), '<   take yours')
-    call Helper_AssertContains(join(s:Lines('vim_project_merge_keys')), 'w/q accept, git add')
+    call Helper_AssertContains(join(s:Lines('vim_project_merge_keys')), 'q   accept, git add')
     call assert_equal('(unresolved)', getline(2))
 
     " Finishing with conflicts left keeps the window
-    normal w
+    normal q
     call assert_equal('vim_project_merge_result', bufname('%'))
 
     " Take yours, then the cursor moves to the next conflict: take theirs
@@ -106,7 +106,7 @@ function! Test_resolve_conflicts_in_merge_window()
     call assert_equal(['a', 'B yours', 'c', 'D yours', '', 'e'], s:Lines('vim_project_merge_yours'))
 
     " Finish: written, added, back to the local changes. Don't continue yet
-    call feedkeys('wn', 'xt')
+    call feedkeys('qn', 'xt')
     call assert_equal(['a', 'B yours', 'c', 'D yours', 'D theirs', 'e'], readfile(repo.'/file.txt'))
     call assert_equal(-1, bufwinnr('vim_project_merge_result'))
     call assert_equal([], project#git_merge#GetUnmergedFiles())
@@ -123,7 +123,7 @@ function! Test_finish_continues_the_merge()
     " :normal ends its keys with <Esc>, feed the answers with them instead
     call feedkeys('Ry', 'xt')
     call assert_equal(['a', 'B theirs', 'c', 'D theirs', 'e'], s:Call('GetResultLines'))
-    call feedkeys('wy', 'xt')
+    call feedkeys('qy', 'xt')
     call assert_equal({}, project#git_merge#GetState())
     call assert_match('Merge', s:Git(repo, 'log -1 --format=%s'))
   finally

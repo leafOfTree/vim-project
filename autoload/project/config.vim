@@ -118,8 +118,7 @@ let s:default.git_merge_mappings = {
       \'previous': '[c',
       \'all_yours': 'L',
       \'all_theirs': 'R',
-      \'finish': 'w',
-      \'finish_and_quit': 'q',
+      \'finish': 'q',
       \'quit': 'Q',
       \}
 let s:default.file_open_types = {

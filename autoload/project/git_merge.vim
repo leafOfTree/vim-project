@@ -197,7 +197,7 @@ function! project#git_merge#Open(file)
   call s:Render()
   call s:JumpToConflict(1, 1)
   if empty(s:Conflicts())
-    call project#Info('No conflicting lines left, press w to mark it resolved')
+    call project#Info('No conflicting lines left, press q to accept it')
   endif
 endfunction
 
@@ -301,8 +301,6 @@ function! s:SetupPane(name)
   call s:AddMapping(mappings.all_yours, 'TakeAll("left")')
   call s:AddMapping(mappings.all_theirs, 'TakeAll("right")')
   call s:AddMapping(mappings.finish, 'Finish()')
-  " Like the commit message, closing accepts it
-  call s:AddMapping(mappings.finish_and_quit, 'Finish()')
   call s:AddMapping(mappings.quit, 'Quit()')
 endfunction
 
@@ -310,11 +308,9 @@ function! s:IsMapped(key)
   return !empty(a:key) && a:key !=? '<NOP>'
 endfunction
 
-" Key of a:name in the help, e.g. 'w/q' for accepting
 function! s:GetHelpKey(mappings, name)
-  let names = a:name == 'finish' ? ['finish', 'finish_and_quit'] : [a:name]
-  let keys = filter(map(names, 'get(a:mappings, v:val, "")'), 's:IsMapped(v:val)')
-  return join(keys, '/')
+  let key = get(a:mappings, a:name, '')
+  return s:IsMapped(key) ? key : ''
 endfunction
 
 function! s:AddMapping(key, call)
@@ -416,7 +412,7 @@ function! s:UpdateStatusLines()
   let unresolved = s:CountUnresolved()
   " Shorten the file name first when the pane is narrow
   let status = printf(' %s/%d  %s  %%<%s', current ? current : '-', total,
-        \unresolved ? unresolved.' unresolved' : 'all resolved, w to finish',
+        \unresolved ? unresolved.' unresolved' : 'all resolved, q to accept',
         \s:EscapeStatus(s:merge.file))
   call s:SetStatusLine(s:left_buffer, ' '.s:EscapeStatus(s:merge.left_title))
   call s:SetStatusLine(s:result_buffer, status)
@@ -508,7 +504,7 @@ function! s:Take(state)
   call s:Render()
   call s:CursorTo(idx)
   if !empty(a:state) && !s:JumpToConflict(1, 1)
-    call project#Info('All conflicts resolved, press w to save and mark it resolved')
+    call project#Info('All conflicts resolved, press q to accept')
   endif
 endfunction
 
