@@ -151,11 +151,15 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
 
+      # The neovim PPA has no build for every Ubuntu ubuntu-latest moves to:
+      # use the pinned release like the Test job
       - name: Install vim and neovim
         run: |
-          sudo add-apt-repository ppa:neovim-ppa/stable -y
           sudo apt-get update
-          sudo apt-get -y install vim neovim
+          sudo apt-get -y install vim
+          curl -fsSL https://github.com/neovim/neovim/releases/download/v0.11.6/nvim-linux-x86_64.tar.gz \
+            | sudo tar -xz -C /opt
+          echo /opt/nvim-linux-x86_64/bin >> "$GITHUB_PATH"
 
       - name: Clone vim-test
         run: |
