@@ -252,9 +252,9 @@ function! s:OpenHelp()
   let rows = [
         \[['take_yours', 'take yours'], ['take_theirs', 'take theirs'],
         \ ['take_both', 'take both'], ['edit', 'edit by hand'], ['undo', 'undo']],
-        \[['next', 'next conflict'], ['previous', 'previous conflict'],
+        \[['next', 'next conflict'], ['previous', 'prev conflict'],
         \ ['all_yours', 'all yours'], ['all_theirs', 'all theirs'],
-        \ ['finish', 'save and git add'], ['quit', 'quit']],
+        \ ['finish', 'accept, git add'], ['quit', 'discard choices']],
         \]
   " Each key is highlighted by its position, labels may hold any word
   let lines = []
@@ -267,7 +267,7 @@ function! s:OpenHelp()
         continue
       endif
       call add(positions, [len(lines) + 1, len(line) + 1, len(key)])
-      let line .= printf('%-3s %-18s ', key, label)
+      let line .= printf('%-3s %-16s ', key, label)
     endfor
     call add(lines, substitute(line, '\s\+$', '', ''))
   endfor
