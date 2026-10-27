@@ -188,6 +188,26 @@ function! Test_q_accepts_Q_discards()
   endtry
 endfunction
 
+function! Test_messages_name_the_configured_keys()
+  let repo = s:OpenConflict('merge keys')
+  let mappings = project#config#Get('git_merge_mappings')
+  let saved = copy(mappings)
+  let mappings.finish = 'X'
+  let mappings.quit = 'Z'
+  try
+    call project#git_merge#Open('file.txt')
+    call Helper_AssertContains(join(s:Lines('vim_project_merge_keys')), 'X   accept, git add')
+    normal X
+    call Helper_AssertContains(execute('messages'), 'Z to discard the choices')
+    call feedkeys('Ry', 'xt')
+    let winnr = bufwinnr('vim_project_merge_result')
+    call Helper_AssertContains(getwinvar(winnr, '&statusline'), 'X to accept')
+  finally
+    call extend(mappings, saved)
+    call s:Close(repo)
+  endtry
+endfunction
+
 function! Test_abort_merge()
   let repo = s:OpenConflict('merge abort')
   try

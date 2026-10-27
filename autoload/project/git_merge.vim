@@ -197,7 +197,7 @@ function! project#git_merge#Open(file)
   call s:Render()
   call s:JumpToConflict(1, 1)
   if empty(s:Conflicts())
-    call project#Info('No conflicting lines left, press q to accept it')
+    call project#Info('No conflicting lines left, press '.s:GetMergeKey('finish').' to accept it')
   endif
 endfunction
 
@@ -308,6 +308,11 @@ function! s:IsMapped(key)
   return !empty(a:key) && a:key !=? '<NOP>'
 endfunction
 
+" Key of a:name in the merge window, '' when it has none
+function! s:GetMergeKey(name)
+  return s:GetHelpKey(project#config#Get('git_merge_mappings'), a:name)
+endfunction
+
 function! s:GetHelpKey(mappings, name)
   let key = get(a:mappings, a:name, '')
   return s:IsMapped(key) ? key : ''
@@ -412,7 +417,7 @@ function! s:UpdateStatusLines()
   let unresolved = s:CountUnresolved()
   " Shorten the file name first when the pane is narrow
   let status = printf(' %s/%d  %s  %%<%s', current ? current : '-', total,
-        \unresolved ? unresolved.' unresolved' : 'all resolved, q to accept',
+        \unresolved ? unresolved.' unresolved' : 'all resolved, '.s:GetMergeKey('finish').' to accept',
         \s:EscapeStatus(s:merge.file))
   call s:SetStatusLine(s:left_buffer, ' '.s:EscapeStatus(s:merge.left_title))
   call s:SetStatusLine(s:result_buffer, status)
@@ -504,7 +509,7 @@ function! s:Take(state)
   call s:Render()
   call s:CursorTo(idx)
   if !empty(a:state) && !s:JumpToConflict(1, 1)
-    call project#Info('All conflicts resolved, press q to accept')
+    call project#Info('All conflicts resolved, press '.s:GetMergeKey('finish').' to accept')
   endif
 endfunction
 
@@ -588,7 +593,7 @@ function! s:Finish()
   let unresolved = s:CountUnresolved()
   if unresolved
     call s:JumpToConflict(1, 1)
-    let quit = get(project#config#Get('git_merge_mappings'), 'quit', '')
+    let quit = s:GetMergeKey('quit')
     call project#Warn(unresolved.' conflicts left unresolved'
           \.(s:IsMapped(quit) ? ', '.quit.' to discard the choices' : ''))
     return
