@@ -10,7 +10,8 @@
 set -eu
 
 mode="${1:-merge}"
-dir="${2:-${TMPDIR:-/tmp}/merge-demo}"
+# Not $TMPDIR: on macOS it is a long per-user path under /var/folders
+dir="${2:-/tmp/merge-demo}"
 plugin="$(cd "$(dirname "$0")/.." && pwd)"
 
 case "$mode" in
