@@ -87,6 +87,17 @@ function! Test_resolve_conflicts_in_merge_window()
     call Helper_AssertContains(join(s:Lines('vim_project_merge_keys')), 'q   accept, git add')
     call assert_equal('(unresolved)', getline(2))
 
+    " The conflict number follows the cursor
+    let winnr = bufwinnr('vim_project_merge_result')
+    call Helper_AssertContains(getwinvar(winnr, '&statusline'), ' 1/2 ')
+    call cursor(4, 1)
+    doautocmd CursorMoved
+    call Helper_AssertContains(getwinvar(winnr, '&statusline'), ' 2/2 ')
+    call cursor(3, 1)
+    doautocmd CursorMoved
+    call Helper_AssertContains(getwinvar(winnr, '&statusline'), ' -/2 ')
+    call cursor(2, 1)
+
     " Finishing with conflicts left keeps the window
     normal q
     call assert_equal('vim_project_merge_result', bufname('%'))

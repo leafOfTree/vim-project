@@ -302,6 +302,9 @@ function! s:SetupPane(name)
   call s:AddMapping(mappings.all_theirs, 'TakeAll("right")')
   call s:AddMapping(mappings.finish, 'Finish()')
   call s:AddMapping(mappings.quit, 'Quit()')
+
+  " The conflict number follows the cursor
+  autocmd CursorMoved <buffer> call s:UpdateStatusLines()
 endfunction
 
 function! s:IsMapped(key)
@@ -412,6 +415,9 @@ function! s:Render()
 endfunction
 
 function! s:UpdateStatusLines()
+  if empty(s:merge)
+    return
+  endif
   let total = len(s:Conflicts())
   let current = s:GetConflictNumber()
   let unresolved = s:CountUnresolved()
