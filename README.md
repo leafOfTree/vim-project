@@ -212,7 +212,7 @@ Merge conflicts: a pull or branch merge that stops on conflicts opens the Unmerg
 
 - `:ProjectGitLog` searches commits by message, author or hash, with the changed files of the selected one beside it.
 - `:ProjectGitFileHistory` shows the commits of the current file, or of the selected lines, with their diffs.
-- `:ProjectGitBranch` switches, creates and merges branches.
+- `:ProjectGitBranch` switches, creates and merges branches. It fetches remotes in the background and refreshes the list when done.
 - `:ProjectGitTag` checks out and creates tags.
 
 | List | Key | Action |

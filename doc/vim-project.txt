@@ -231,7 +231,9 @@ Go back to a branch with |:ProjectGitBranch|.
 |:ProjectGitBranch| lists branches. <CR> switches to the selected one, or
 creates a local branch for a remote one. The "New Branch" item asks for a
 name. <C-o> merges the selected branch into the current one, after
-asking.
+asking. Opening it runs "git fetch --all --prune" in the background, and
+the list is refreshed when it is done, so new remote branches show up
+without leaving Vim. Turn it off with "git_branch_fetch".
 
 |:ProjectGitTag| lists tags. <CR> checks out the selected tag. The "New Tag"
 item runs "git tag" with what you type.
@@ -316,6 +318,9 @@ use_session         0
 check_branch_when_use_session   0
     Keep one session per git branch, and switch sessions when the branch
     changes. Needs |job| support and the "tail" command.
+
+git_branch_fetch    1
+    Fetch all remotes in the background when |:ProjectGitBranch| opens.
 
 open_root_when_use_session      0
     Open the project root even when a session is loaded.

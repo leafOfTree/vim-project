@@ -67,3 +67,28 @@ function! Test_merge_branch_with_conflict_leaves_it_to_resolve()
     call s:CloseRepo(repo)
   endtry
 endfunction
+
+function! Test_branch_list_fetches_in_background()
+  let repo = s:OpenRepo('branch fetch', 'feature.txt')
+  let remote = fnamemodify(repo, ':h').'/remote.git'
+  let other = fnamemodify(repo, ':h').'/other'
+  try
+    call system('git init -q --bare '.shellescape(remote))
+    call s:Git(repo, 'remote add origin '.shellescape(remote))
+    call s:Git(repo, 'push -q origin HEAD')
+    " Someone else pushes a new branch
+    call system('git clone -q '.shellescape(remote).' '.shellescape(other))
+    call s:Git(other, 'push -q origin HEAD:refs/heads/from-other')
+    call assert_notmatch('from-other', s:Git(repo, 'branch -r'))
+
+    call Helper_Call('autoload/project/git_branch.vim', 'StartFetch', [])
+    let tries = 0
+    while Helper_ScriptVar('autoload/project/git_branch.vim', 'fetch_job') isnot v:null && tries < 200
+      sleep 20m
+      let tries += 1
+    endwhile
+    call assert_match('origin/from-other', s:Git(repo, 'branch -r'))
+  finally
+    call s:CloseRepo(repo)
+  endtry
+endfunction
