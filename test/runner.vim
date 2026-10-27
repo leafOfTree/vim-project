@@ -73,6 +73,7 @@ runtime plugin/project.vim
 runtime autoload/project/find_in_files.vim
 runtime autoload/project/list_projects.vim
 runtime autoload/project/git.vim
+runtime autoload/project/git_merge.vim
 
 execute 'source '.fnameescape(s:test_dir.'/helpers.vim')
 " $VIM_PROJECT_TEST_CASES picks another folder, e.g. 'perf'

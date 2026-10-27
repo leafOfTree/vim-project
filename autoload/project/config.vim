@@ -38,6 +38,7 @@ let s:default = {
       \'new_project_base':              '',
       \'new_tasks_post_cmd':            '',
       \'commit_message':                '',
+      \'git_branch_fetch':              1,
       \'find_replace_separator':        ' => ',
       \'debug':                         0,
       \}
@@ -105,6 +106,20 @@ let s:default.git_local_changes_mappings = {
       \'force_push': '<NOP>',
       \'shelf': 's',
       \'unshelf': 'S',
+      \'abort_merge': 'A',
+      \}
+let s:default.git_merge_mappings = {
+      \'take_yours': '<',
+      \'take_theirs': '>',
+      \'take_both': '=',
+      \'undo': 'u',
+      \'edit': 'e',
+      \'next': ']c',
+      \'previous': '[c',
+      \'all_yours': 'L',
+      \'all_theirs': 'R',
+      \'finish': 'q',
+      \'quit': 'Q',
       \}
 let s:default.file_open_types = {
       \'':  'edit',
@@ -126,6 +141,7 @@ let s:merge_keys = [
       \'git_diff_mappings',
       \'git_changes_mappings',
       \'git_local_changes_mappings',
+      \'git_merge_mappings',
       \]
 
 " Options a project's init.vim may set. Lists and dicts extend the global

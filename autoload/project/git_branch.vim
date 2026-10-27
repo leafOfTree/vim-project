@@ -25,6 +25,13 @@ function! s:Highlight(state)
 endfunction
 
 function! s:Init(input)
+  let s:refs = s:GetRefs()
+  let s:list = s:LoadBranches()
+  call s:Update(a:input)
+  call s:StartFetch()
+endfunction
+
+function! s:LoadBranches()
   let format = join(['%(HEAD)', '%(refname:short)', '%(upstream:short)',
         \'%(contents:subject)', '%(authorname)',  '%(committerdate:relative)'], s:splitter)
   let cmd = 'git branch -a --format='.shellescape(format)
@@ -36,8 +43,87 @@ function! s:Init(input)
   endif
   call insert(branches, s:CreateItem(' ', s:item_splitter))
   call insert(branches, s:CreateItem('+', s:item_new_branch))
-  let s:list = s:GetTabulatedList(branches)
-  call s:Update(a:input)
+  return s:GetTabulatedList(branches)
+endfunction
+
+" ---------------------------------------------------------------- fetch
+
+" Remote branches are only as new as the last fetch: fetch in the background
+" each time the list opens, then show them again if it is still open. git
+" cannot ask for credentials without a terminal, so it fails instead
+let s:fetch_job = v:null
+let s:refs = []
+
+function! s:StartFetch()
+  if !project#config#Get('git_branch_fetch') || s:fetch_job isnot v:null
+        \|| !(exists('*job_start') || exists('*jobstart'))
+        \|| empty(project#RunShellCmd('git remote', 0))
+    return
+  endif
+
+  let ctx = {'lines': []}
+  let cmd = [&shell, &shellcmdflag, 'git fetch --all --prune --quiet']
+  let env = {'GIT_TERMINAL_PROMPT': '0'}
+  if exists('*job_start')
+    let s:fetch_job = job_start(cmd, {
+          \'cwd': $vim_project,
+          \'env': env,
+          \'in_io': 'null',
+          \'out_cb': {_, line -> add(ctx.lines, line)},
+          \'err_cb': {_, line -> add(ctx.lines, line)},
+          \'exit_cb': function('s:OnVimFetchExit', [ctx]),
+          \})
+  else
+    let s:fetch_job = jobstart(cmd, {
+          \'cwd': $vim_project,
+          \'env': env,
+          \'stdin': 'null',
+          \'stdout_buffered': v:true,
+          \'stderr_buffered': v:true,
+          \'on_stdout': {_, data, __ -> extend(ctx.lines, data)},
+          \'on_stderr': {_, data, __ -> extend(ctx.lines, data)},
+          \'on_exit': {_, status, __ -> s:OnFetched(status, ctx)},
+          \})
+  endif
+endfunction
+
+" exit_cb may run before the output was read
+function! s:OnVimFetchExit(ctx, job, status)
+  call timer_start(10, {-> s:OnFetched(a:status, a:ctx)})
+endfunction
+
+function! s:OnFetched(status, ctx)
+  let s:fetch_job = v:null
+  if !project#list#IsOpen('GIT_BRANCH')
+    return
+  endif
+  if a:status != 0
+    let lines = filter(copy(a:ctx.lines), '!empty(v:val)')
+    call project#list#SetInfoOnClose('git fetch failed: '.get(lines, 0, 'exit '.a:status))
+    return
+  endif
+
+  " Redraw only when a branch moved, not to flash the list for nothing
+  let refs = s:GetRefs()
+  if refs == s:refs
+    return
+  endif
+  let list = s:LoadBranches()
+  " Two items are New Branch and the splitter: keep the list on an error
+  if len(list) <= 2
+    return
+  endif
+  let s:refs = refs
+  let s:list = list
+  call s:Update(project#list#State().user_input)
+  call project#list#RedrawInputLine()
+endfunction
+
+" Branches and the commits they point to, to tell whether a fetch changed any
+function! s:GetRefs()
+  let format = shellescape('%(refname) %(objectname) %(upstream)')
+  let cmd = 'git for-each-ref --format='.format.' refs/heads refs/remotes'
+  return project#RunShellCmd(cmd, 0)
 endfunction
 
 function! s:Update(input)
@@ -111,8 +197,11 @@ function! s:MergeBranch(state)
 
   let cmd = 'git merge '.shellescape(name)
 
-  call project#RunShellCmd(cmd)
+  let output = project#RunShellCmd(cmd, 0)
   if v:shell_error
+    " Once the list is closed
+    call timer_start(0, {-> project#git_merge#ShowConflicts()
+          \|| project#WarnCommandOutput(cmd, output)})
     return 'close'
   endif
   let a:state.offset = 0
