@@ -25,6 +25,7 @@ function! s:Highlight(state)
 endfunction
 
 function! s:Init(input)
+  let s:refs = s:GetRefs()
   let s:list = s:LoadBranches()
   call s:Update(a:input)
   call s:StartFetch()
@@ -51,6 +52,7 @@ endfunction
 " each time the list opens, then show them again if it is still open. git
 " cannot ask for credentials without a terminal, so it fails instead
 let s:fetch_job = v:null
+let s:refs = []
 
 function! s:StartFetch()
   if !project#config#Get('git_branch_fetch') || s:fetch_job isnot v:null
@@ -101,10 +103,27 @@ function! s:OnFetched(status, ctx)
     return
   endif
 
-  let s:list = s:LoadBranches()
+  " Redraw only when a branch moved, not to flash the list for nothing
+  let refs = s:GetRefs()
+  if refs == s:refs
+    return
+  endif
+  let list = s:LoadBranches()
+  " Two items are New Branch and the splitter: keep the list on an error
+  if len(list) <= 2
+    return
+  endif
+  let s:refs = refs
+  let s:list = list
   call s:Update(project#list#State().user_input)
   call project#list#RedrawInputLine()
-  redraw
+endfunction
+
+" Branches and the commits they point to, to tell whether a fetch changed any
+function! s:GetRefs()
+  let format = shellescape('%(refname) %(objectname) %(upstream)')
+  let cmd = 'git for-each-ref --format='.format.' refs/heads refs/remotes'
+  return project#RunShellCmd(cmd, 0)
 endfunction
 
 function! s:Update(input)
