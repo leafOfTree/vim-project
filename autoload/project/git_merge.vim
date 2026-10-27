@@ -262,8 +262,8 @@ function! s:OpenHelp()
   for row in rows
     let line = ' '
     for [name, label] in row
-      let key = get(mappings, name, '')
-      if empty(key) || key ==? '<NOP>'
+      let key = s:GetHelpKey(mappings, name)
+      if empty(key)
         continue
       endif
       call add(positions, [len(lines) + 1, len(line) + 1, len(key)])
@@ -301,11 +301,24 @@ function! s:SetupPane(name)
   call s:AddMapping(mappings.all_yours, 'TakeAll("left")')
   call s:AddMapping(mappings.all_theirs, 'TakeAll("right")')
   call s:AddMapping(mappings.finish, 'Finish()')
+  " Like the commit message, closing accepts it
+  call s:AddMapping(mappings.finish_and_quit, 'Finish()')
   call s:AddMapping(mappings.quit, 'Quit()')
 endfunction
 
+function! s:IsMapped(key)
+  return !empty(a:key) && a:key !=? '<NOP>'
+endfunction
+
+" Key of a:name in the help, e.g. 'w/q' for accepting
+function! s:GetHelpKey(mappings, name)
+  let names = a:name == 'finish' ? ['finish', 'finish_and_quit'] : [a:name]
+  let keys = filter(map(names, 'get(a:mappings, v:val, "")'), 's:IsMapped(v:val)')
+  return join(keys, '/')
+endfunction
+
 function! s:AddMapping(key, call)
-  if a:key ==? '<NOP>' || empty(a:key)
+  if !s:IsMapped(a:key)
     return
   endif
   let key = a:key == '<' ? '<lt>' : a:key
@@ -579,7 +592,9 @@ function! s:Finish()
   let unresolved = s:CountUnresolved()
   if unresolved
     call s:JumpToConflict(1, 1)
-    call project#Warn(unresolved.' conflicts left unresolved')
+    let quit = get(project#config#Get('git_merge_mappings'), 'quit', '')
+    call project#Warn(unresolved.' conflicts left unresolved'
+          \.(s:IsMapped(quit) ? ', '.quit.' to discard the choices' : ''))
     return
   endif
 

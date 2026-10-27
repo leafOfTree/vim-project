@@ -84,7 +84,7 @@ function! Test_resolve_conflicts_in_merge_window()
     call assert_equal(2, line('.'))
     " The keys stay in sight at the bottom
     call Helper_AssertContains(join(s:Lines('vim_project_merge_keys')), '<   take yours')
-    call Helper_AssertContains(join(s:Lines('vim_project_merge_keys')), 'w   accept, git add')
+    call Helper_AssertContains(join(s:Lines('vim_project_merge_keys')), 'w/q accept, git add')
     call assert_equal('(unresolved)', getline(2))
 
     " Finishing with conflicts left keeps the window
@@ -156,6 +156,33 @@ function! Test_edit_conflict_by_hand()
       call assert_notequal(-1, bufwinnr('vim_project_merge_yours'), cmd)
       call assert_notequal(-1, bufwinnr('vim_project_merge_theirs'), cmd)
     endfor
+  finally
+    call s:Close(repo)
+  endtry
+endfunction
+
+function! Test_q_accepts_Q_discards()
+  let repo = s:OpenConflict('merge quit')
+  try
+    call project#git_merge#Open('file.txt')
+    " q is refused while conflicts are unresolved
+    normal q
+    call assert_equal('vim_project_merge_result', bufname('%'))
+    " Q discards, once confirmed when choices were made
+    normal <
+    call feedkeys('Qn', 'xt')
+    call assert_equal('vim_project_merge_result', bufname('%'))
+    call feedkeys('Qy', 'xt')
+    call assert_equal(-1, bufwinnr('vim_project_merge_result'))
+    call assert_equal(['file.txt'], project#git_merge#GetUnmergedFiles())
+
+    " q accepts once all are resolved
+    call project#git_merge#Open('file.txt')
+    " Then don't continue the merge yet
+    call feedkeys('Ryqn', 'xt')
+    call assert_equal(-1, bufwinnr('vim_project_merge_result'))
+    call assert_equal(['a', 'B theirs', 'c', 'D theirs', 'e'], readfile(repo.'/file.txt'))
+    call assert_equal([], project#git_merge#GetUnmergedFiles())
   finally
     call s:Close(repo)
   endtry
