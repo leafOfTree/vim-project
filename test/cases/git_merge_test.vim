@@ -139,9 +139,23 @@ function! Test_edit_conflict_by_hand()
     call assert_equal('vim_project_merge_edit', bufname('%'))
     call setline(1, ['B mixed', 'B more'])
     silent write
+    " The edit window closes once the write is done
+    sleep 50m
     call assert_equal('vim_project_merge_result', bufname('%'))
     call assert_equal(['B mixed', 'B more'], getline(2, 3))
     call assert_equal('manual', s:Call('Conflicts')[0].state)
+
+    " :wq and :q! close only the edit window, never the result
+    for cmd in ['wq', 'x', 'q!']
+      call cursor(5, 1)
+      normal e
+      call assert_equal('vim_project_merge_edit', bufname('%'))
+      silent execute cmd
+      sleep 50m
+      call assert_equal('vim_project_merge_result', bufname('%'), cmd)
+      call assert_notequal(-1, bufwinnr('vim_project_merge_yours'), cmd)
+      call assert_notequal(-1, bufwinnr('vim_project_merge_theirs'), cmd)
+    endfor
   finally
     call s:Close(repo)
   endtry

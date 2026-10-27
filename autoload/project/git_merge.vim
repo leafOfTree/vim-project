@@ -535,6 +535,8 @@ function! s:EditConflict()
   let b:vim_project_merge_segment = idx
   setlocal statusline=\ Edit\ the\ conflict,\ :w\ to\ use\ it,\ :q!\ to\ cancel
   autocmd BufWriteCmd <buffer> call s:SaveEditedConflict()
+  " Back to the result however it is closed: :w, :wq, :x or :q!
+  autocmd BufWipeout <buffer> call timer_start(0, {-> s:BackToResult()})
 endfunction
 
 function! s:SaveEditedConflict()
@@ -546,11 +548,30 @@ function! s:SaveEditedConflict()
     let segment.result = []
   endif
   setlocal nomodified
-  bwipeout
-  execute bufwinnr(s:result_buffer).'wincmd w'
+  " Close it once the write is done. Closing it here would let the q of
+  " :wq or :x close the window below it, the result
+  call timer_start(0, {-> s:CloseEdit(idx)})
+endfunction
+
+function! s:CloseEdit(idx)
+  if bufexists(s:edit_buffer)
+    silent! execute 'bwipeout!' bufnr(s:edit_buffer)
+  endif
+  if !s:BackToResult()
+    return
+  endif
   call s:Render()
-  call s:CursorTo(idx)
+  call s:CursorTo(a:idx)
   call s:JumpToConflict(1, 1)
+endfunction
+
+function! s:BackToResult()
+  let winnr = bufwinnr(s:result_buffer)
+  if winnr == -1 || empty(s:merge)
+    return 0
+  endif
+  execute winnr.'wincmd w'
+  return 1
 endfunction
 
 " Write the result, git add it, then go back to the local changes
