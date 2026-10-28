@@ -273,3 +273,14 @@ function! Test_cherry_pick_conflict_and_continue()
     call s:Close(repo)
   endtry
 endfunction
+
+function! Test_MarkAutoMerged_tells_whose_change_git_merged()
+  let base = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
+  " Yours changes a and d, theirs changes g and d: d conflicts
+  let yours = ['A yours', 'b', 'c', 'D yours', 'e', 'f', 'g']
+  let theirs = ['a', 'b', 'c', 'D theirs', 'e', 'f', 'G theirs']
+  let segments = s:Call('BuildSegments', yours, base, theirs)
+  call assert_equal(['text', 'conflict', 'text'], map(copy(segments), 'v:val.type'))
+  call assert_equal({'0': 'left'}, segments[0].auto)
+  call assert_equal({'2': 'right'}, segments[2].auto)
+endfunction

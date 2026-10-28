@@ -269,6 +269,9 @@ in a new tab, like the Merge dialog of IntelliJ IDEA:
 Panes are titled with the branch and commit they come from; in a rebase
 yours is the commit being rebased. Conflicts line up across the panes and
 are colored by state: unresolved, taken from a side, or edited by hand.
+Lines git merged on its own, changed on one side only, are grey
+("ProjectMergeAuto") and marked with the side they came from: ◂ yours,
+▸ theirs.
 All panes are read-only, so a choice can always be changed. Keys work on
 the conflict under the cursor, and are listed at the bottom of the window
 ("git_merge_mappings"):

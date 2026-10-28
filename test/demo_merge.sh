@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Make a repository that stops on merge conflicts, to try the merge window.
 #
-#   test/demo_merge.sh                 # merge with two conflicts in f.txt
+#   test/demo_merge.sh                 # merge with two conflicts in f.txt, and
+#                                      # a line each side changed alone
 #   test/demo_merge.sh rebase          # the same, stopped in a rebase
 #   test/demo_merge.sh delete          # they deleted f.txt, you changed it
 #   test/demo_merge.sh merge DIR       # in DIR instead of /tmp/merge-demo
@@ -31,7 +32,7 @@ git config user.name demo
 git config user.email demo@example.com
 git checkout -q -b main
 
-printf 'a\nb\nc\nd\ne\n' > f.txt
+printf 'a\nb\nc\nd\ne\nf\ng\nh\n' > f.txt
 git add f.txt
 git commit -q -m init
 
@@ -40,13 +41,13 @@ if [ "$mode" = delete ]; then
   git rm -q f.txt
   git commit -q -m 'feature: delete f.txt'
 else
-  printf 'a\nB theirs\nc\nD theirs\ne\n' > f.txt
-  git commit -q -am 'feature: change b and d'
+  printf 'a\nB theirs\nc\nD theirs\ne\nF theirs\ng\nh\n' > f.txt
+  git commit -q -am 'feature: change b, d and f'
 fi
 
 git checkout -q main
-printf 'a\nB yours\nc\nD yours\ne\n' > f.txt
-git commit -q -am 'main: change b and d'
+printf 'a\nB yours\nc\nD yours\ne\nf\ng\nH yours\n' > f.txt
+git commit -q -am 'main: change b, d and h'
 
 cmd=merge
 [ "$mode" = rebase ] && cmd=rebase

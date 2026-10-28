@@ -168,7 +168,68 @@ function! s:BuildSegments(left, base, right)
   " It exits with the number of conflicts
   let output = systemlist(cmd)
   call delete(dir, 'rf')
-  return s:ParseMergeOutput(output)
+  let segments = s:ParseMergeOutput(output)
+  call s:MarkAutoMerged(segments, a:left, a:base)
+  return segments
+endfunction
+
+" Mark the lines git merged on its own, which changed on one side only:
+" segment.auto maps a line index of a text segment to 'left', 'right' or
+" 'both'. Diff the base with the merged text, the conflicts kept as base,
+" then tell by yours whose change each one is
+function! s:MarkAutoMerged(segments, left, base)
+  let merged = []
+  let starts = []
+  for segment in a:segments
+    call add(starts, len(merged) + 1)
+    call extend(merged, segment.type == 'text' ? segment.lines : segment.base)
+  endfor
+
+  let yours = {}
+  for hunk in s:DiffHunks(a:base, a:left)
+    let yours[hunk.old] = hunk.lines
+  endfor
+
+  for hunk in s:DiffHunks(a:base, merged)
+    let side = get(yours, hunk.old, v:null) == hunk.lines ? 'left'
+          \: has_key(yours, hunk.old) ? 'both' : 'right'
+    for lnum in range(hunk.start, hunk.start + len(hunk.lines) - 1)
+      for idx in range(len(a:segments))
+        let segment = a:segments[idx]
+        let offset = lnum - starts[idx]
+        if segment.type == 'text' && offset >= 0 && offset < len(segment.lines)
+          if !has_key(segment, 'auto')
+            let segment.auto = {}
+          endif
+          let segment.auto[offset] = side
+        endif
+      endfor
+    endfor
+  endfor
+endfunction
+
+" Hunks of changed lines from a:old to a:new: {'old': 'start,count' in
+" a:old, 'start': first line in a:new, 'lines': the new lines}
+function! s:DiffHunks(old, new)
+  let dir = tempname()
+  call mkdir(dir, 'p')
+  call writefile(a:old, dir.'/old')
+  call writefile(a:new, dir.'/new')
+  let output = systemlist('git diff --no-index --no-color --no-ext-diff -U0 -- '
+        \.shellescape(dir.'/old').' '.shellescape(dir.'/new'))
+  call delete(dir, 'rf')
+
+  let hunks = []
+  for line in output
+    let m = matchlist(line, '^@@ -\(\d\+\)\%(,\(\d\+\)\)\? +\(\d\+\)')
+    if !empty(m)
+      let num = empty(m[2]) ? 1 : str2nr(m[2])
+      call add(hunks, {'old': m[1].','.num, 'start': str2nr(m[3]), 'lines': []})
+    elseif !empty(hunks) && line[0] ==# '+'
+      call add(hunks[-1].lines, line[1:])
+    endif
+  endfor
+  return hunks
 endfunction
 
 function! s:Conflicts()
@@ -367,6 +428,7 @@ function! s:DefineHighlights()
   hi default ProjectMergePending ctermbg=58 guibg=#4f4000
   hi default link ProjectMergeUnused Comment
   hi default link ProjectMergeFiller NonText
+  hi default link ProjectMergeAuto Comment
 
   let utf8 = &encoding ==# 'utf-8'
   let signs = {
@@ -378,6 +440,9 @@ function! s:DefineHighlights()
         \'used': [utf8 ? '✓' : 'ok', 'ProjectMergeResolved'],
         \'unused': ['--', 'ProjectMergeUnused'],
         \'filler': [' ', 'ProjectMergeFiller'],
+        \'auto_left': [utf8 ? '◂' : '<~', 'ProjectMergeAuto'],
+        \'auto_right': [utf8 ? '▸' : '~>', 'ProjectMergeAuto'],
+        \'auto_both': [utf8 ? '◆' : '<>', 'ProjectMergeAuto'],
         \}
   for [name, value] in items(signs)
     call sign_define('ProjectMerge_'.name, {'text': value[0], 'linehl': value[1], 'texthl': value[1]})
@@ -408,6 +473,17 @@ function! s:Render()
     if segment.type == 'text'
       for pane in panes
         call extend(pane, segment.lines)
+      endfor
+      " Merged by git: grey in the result and on the side it came from
+      for [offset, side] in items(get(segment, 'auto', {}))
+        let lnum = start + offset
+        call add(signs[1], [lnum, 'auto_'.side])
+        if side != 'right'
+          call add(signs[0], [lnum, 'auto_'.side])
+        endif
+        if side != 'left'
+          call add(signs[2], [lnum, 'auto_'.side])
+        endif
       endfor
       call add(s:layout, {'start': start, 'height': len(segment.lines)})
       continue
