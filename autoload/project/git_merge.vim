@@ -404,6 +404,18 @@ function! s:IsMapped(key)
   return !empty(a:key) && a:key !=? '<NOP>'
 endfunction
 
+" Like 'q to accept, Q to discard', with the configured keys
+function! s:AcceptDiscardHint()
+  let hints = []
+  for [name, label] in [['finish', 'accept'], ['quit', 'discard']]
+    let key = s:GetMergeKey(name)
+    if !empty(key)
+      call add(hints, key.' to '.label)
+    endif
+  endfor
+  return join(hints, ', ')
+endfunction
+
 " Key of a:name in the merge window, '' when it has none
 function! s:GetMergeKey(name)
   return s:GetHelpKey(project#config#Get('git_merge_mappings'), a:name)
@@ -530,9 +542,13 @@ function! s:UpdateStatusLines()
   let current = s:GetConflictNumber()
   let unresolved = s:CountUnresolved()
   " Shorten the file name first when the pane is narrow
-  let status = printf(' %s/%d  %s  %%<%s', current ? current : '-', total,
-        \unresolved ? unresolved.' unresolved' : 'all resolved, '.s:GetMergeKey('finish').' to accept',
-        \s:EscapeStatus(s:merge.file))
+  if unresolved
+    let status = printf(' %s/%d  %d unresolved  %%<%s', current ? current : '-', total,
+          \unresolved, s:EscapeStatus(s:merge.file))
+  else
+    " Short enough for a narrow pane: what to press matters more here
+    let status = ' done: '.s:AcceptDiscardHint().'  %<'.s:EscapeStatus(s:merge.file)
+  endif
   call s:SetStatusLine(s:left_buffer, ' '.s:EscapeStatus(s:merge.left_title))
   call s:SetStatusLine(s:result_buffer, status)
   call s:SetStatusLine(s:right_buffer, ' '.s:EscapeStatus(s:merge.right_title))
@@ -623,7 +639,7 @@ function! s:Take(state)
   call s:Render()
   call s:CursorTo(idx)
   if !empty(a:state) && !s:JumpToConflict(1, 1)
-    call project#Info('All conflicts resolved, press '.s:GetMergeKey('finish').' to accept')
+    call project#Info('All conflicts resolved, '.s:AcceptDiscardHint())
   endif
 endfunction
 
@@ -661,7 +677,20 @@ function! s:EditConflict()
   call setline(1, lines)
   setlocal nomodified
   let b:vim_project_merge_segment = idx
-  setlocal statusline=\ Edit\ the\ conflict,\ :w\ to\ use\ it,\ :q!\ to\ cancel
+  " The same keys as the merge window: accept or discard, :w and :q! work too
+  let accept = s:GetMergeKey('finish')
+  let discard = s:GetMergeKey('quit')
+  let hints = []
+  if !empty(accept)
+    execute 'nnoremap <buffer><silent><nowait> '.accept.' :<C-u>silent write<CR>'
+    call add(hints, accept.' to accept')
+  endif
+  if !empty(discard)
+    execute 'nnoremap <buffer><silent><nowait> '.discard.' :<C-u>bwipeout!<CR>'
+    call add(hints, discard.' to discard')
+  endif
+  let &l:statusline = ' Edit the conflict'
+        \.(empty(hints) ? ', :w to use it, :q! to cancel' : ', '.join(hints, ', '))
   autocmd BufWriteCmd <buffer> call s:SaveEditedConflict()
   " Back to the result however it is closed: :w, :wq, :x or :q!
   autocmd BufWipeout <buffer> call timer_start(0, {-> s:BackToResult()})

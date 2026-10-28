@@ -171,6 +171,23 @@ function! Test_edit_conflict_by_hand()
       call assert_notequal(-1, bufwinnr('vim_project_merge_yours'), cmd)
       call assert_notequal(-1, bufwinnr('vim_project_merge_theirs'), cmd)
     endfor
+
+    " q and Q accept and discard, like in the merge window
+    call cursor(5, 1)
+    normal e
+    call assert_match('q to accept, Q to discard', &l:statusline)
+    call setline(1, ['D by q'])
+    normal q
+    sleep 50m
+    call assert_equal('vim_project_merge_result', bufname('%'))
+    call assert_equal('D by q', getline(5))
+    call cursor(5, 1)
+    normal e
+    call setline(1, ['D dropped'])
+    normal Q
+    sleep 50m
+    call assert_equal('vim_project_merge_result', bufname('%'))
+    call assert_equal('D by q', getline(5))
   finally
     call s:Close(repo)
   endtry
