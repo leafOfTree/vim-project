@@ -11,7 +11,9 @@ endfunction
 
 " A project in the middle of merging 'feature', which conflicts with the
 " current branch on lines 2 and 4 of file.txt
-function! s:OpenConflict(name)
+function! s:OpenConflict(name, ...)
+  " 'merge', 'rebase' or 'cherry-pick' feature
+  let operation = get(a:000, 0, 'merge')
   let base = Helper_TmpDir(a:name)
   let repo = base.'/proj'
   call mkdir(repo, 'p')
@@ -27,7 +29,7 @@ function! s:OpenConflict(name)
   call s:Git(repo, 'checkout -q -')
   call writefile(['a', 'B yours', 'c', 'D yours', 'e'], repo.'/file.txt')
   call s:Git(repo, 'commit -q -am mine')
-  call s:Git(repo, 'merge feature')
+  call s:Git(repo, operation.' feature')
 
   let project = {'name': 'proj', 'path': base, 'fullpath': repo, 'note': '', 'option': {}}
   call Helper_Call('autoload/project.vim', 'InitProjectConfig', [project])
@@ -36,7 +38,9 @@ function! s:OpenConflict(name)
 endfunction
 
 function! s:Close(repo)
-  call s:Git(a:repo, 'merge --abort')
+  for operation in ['merge', 'rebase', 'cherry-pick']
+    call s:Git(a:repo, operation.' --abort')
+  endfor
   silent! call s:Call('CloseWindows')
   silent! execute 'bwipeout!' bufnr('local_changes')
   call project#QuitProject()
@@ -226,6 +230,45 @@ function! Test_abort_merge()
     call project#git_merge#Abort()
     call assert_equal({}, project#git_merge#GetState())
     call assert_equal(['a', 'B yours', 'c', 'D yours', 'e'], readfile(repo.'/file.txt'))
+  finally
+    call s:Close(repo)
+  endtry
+endfunction
+
+function! Test_rebase_shows_the_rebased_commit_as_yours()
+  let repo = s:OpenConflict('merge rebase', 'rebase')
+  try
+    call assert_equal('rebase', project#git_merge#GetState().name)
+    call project#git_merge#Open('file.txt')
+    " git's ours is feature, being rebased onto: yours is still on the left
+    call assert_equal(['a', 'B yours', 'c', 'D yours', 'e'], s:Lines('vim_project_merge_yours'))
+    call assert_equal(['a', 'B theirs', 'c', 'D theirs', 'e'], s:Lines('vim_project_merge_theirs'))
+    let titles = s:Call('GetTitles', project#git_merge#GetState())
+    call assert_match('^Yours (being rebased) .* ', titles[0])
+    call assert_match('^Upstream (rebasing onto) feature ', titles[1])
+
+    " Continue finishes the rebase
+    call feedkeys('Lyqy', 'xt')
+    call assert_equal({}, project#git_merge#GetState())
+    call assert_equal(['a', 'B yours', 'c', 'D yours', 'e'], readfile(repo.'/file.txt'))
+    call assert_equal(['mine', 'feature'], split(s:Git(repo, 'log --format=%s -2'), "\n"))
+  finally
+    call s:Close(repo)
+  endtry
+endfunction
+
+function! Test_cherry_pick_conflict_and_continue()
+  let repo = s:OpenConflict('merge cherry-pick', 'cherry-pick')
+  try
+    call assert_equal('cherry-pick', project#git_merge#GetState().name)
+    call project#git_merge#Open('file.txt')
+    call assert_equal(['a', 'B yours', 'c', 'D yours', 'e'], s:Lines('vim_project_merge_yours'))
+    call assert_match('^Theirs ', s:Call('GetTitles', project#git_merge#GetState())[1])
+
+    call feedkeys('Ryqy', 'xt')
+    call assert_equal({}, project#git_merge#GetState())
+    call assert_equal(['a', 'B theirs', 'c', 'D theirs', 'e'], readfile(repo.'/file.txt'))
+    call assert_equal('feature', trim(s:Git(repo, 'log --format=%s -1')))
   finally
     call s:Close(repo)
   endtry

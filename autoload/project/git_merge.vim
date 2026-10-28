@@ -34,11 +34,13 @@ function! project#git_merge#GetState()
     return {}
   endif
 
-  if isdirectory(git_dir.'/rebase-merge') || isdirectory(git_dir.'/rebase-apply')
-    return {'name': 'rebase', 'yours': 3, 'theirs': 2,
-          \'continue': 'git -c core.editor=true rebase --continue',
-          \'abort': 'git rebase --abort'}
-  endif
+  for dir in ['rebase-merge', 'rebase-apply']
+    if isdirectory(git_dir.'/'.dir)
+      return {'name': 'rebase', 'yours': 3, 'theirs': 2, 'rebase_dir': git_dir.'/'.dir,
+            \'continue': 'git -c core.editor=true rebase --continue',
+            \'abort': 'git rebase --abort'}
+    endif
+  endfor
   for [name, head] in [['merge', 'MERGE_HEAD'], ['cherry-pick', 'CHERRY_PICK_HEAD'], ['revert', 'REVERT_HEAD']]
     if filereadable(git_dir.'/'.head)
       let continue = name == 'merge'
@@ -59,8 +61,13 @@ endfunction
 function! s:GetTitles(state)
   let head = s:Describe('HEAD')
   if get(a:state, 'name', '') == 'rebase'
-    let rebase_head = s:Describe('REBASE_HEAD')
-    return ['Yours (being rebased) '.rebase_head, 'Upstream (rebasing onto) '.head]
+    " HEAD is detached: name the branches from what git saved for the rebase
+    let branch = s:ReadRebaseFile(a:state, 'head-name')
+    let branch = substitute(branch, '^refs/heads/', '', '')
+    let rebase_head = s:ShortHash('REBASE_HEAD')
+    let yours = empty(branch) ? rebase_head : branch.' '.rebase_head
+    let onto = s:Describe(s:ReadRebaseFile(a:state, 'onto'))
+    return ['Yours (being rebased) '.yours, 'Upstream (rebasing onto) '.onto]
   endif
   if has_key(a:state, 'head')
     return ['Yours '.head, 'Theirs '.s:Describe(a:state.head)]
@@ -69,9 +76,21 @@ function! s:GetTitles(state)
 endfunction
 
 " Branch name or short hash of a revision, like 'main a1b2c3d'
+function! s:ReadRebaseFile(state, name)
+  let path = get(a:state, 'rebase_dir', '').'/'.a:name
+  return filereadable(path) ? get(readfile(path), 0, '') : ''
+endfunction
+
+function! s:ShortHash(rev)
+  return get(project#RunShellCmd('git rev-parse --short '.shellescape(a:rev), 0), 0, '')
+endfunction
+
 function! s:Describe(rev)
+  if empty(a:rev)
+    return ''
+  endif
   let rev = shellescape(a:rev)
-  let hash = get(project#RunShellCmd('git rev-parse --short '.rev, 0), 0, '')
+  let hash = s:ShortHash(a:rev)
   if empty(hash)
     return ''
   endif
