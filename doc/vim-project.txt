@@ -269,12 +269,16 @@ in a new tab, like the Merge dialog of IntelliJ IDEA:
 Panes are titled with the branch and commit they come from; in a rebase
 yours is the commit being rebased. Conflicts line up across the panes and
 are colored by state: unresolved, taken from a side, or edited by hand.
+Lines git merged on its own, changed on one side only, are grey
+("ProjectMergeAuto") and marked with the side they came from: ◂ yours,
+▸ theirs.
 All panes are read-only, so a choice can always be changed. Keys work on
 the conflict under the cursor, and are listed at the bottom of the window
 ("git_merge_mappings"):
 
     <       take yours          >       take theirs
-    =       take both           e       edit it by hand, :w to use it
+    =       take both           e       edit it by hand, then q to
+                                        accept or Q to discard
     u       back to unresolved  ]c [c   next or previous conflict
     L R     take yours or theirs for all conflicts
     q       accept: write the file, git add it and close. Refused
@@ -288,6 +292,10 @@ rebase, cherry-pick or revert.
 
 Pull and push run in the background; the result is shown when done. git
 cannot ask for credentials there, so use a credential helper or ssh-agent.
+Pull runs with --autostash: local changes are put aside and back around it.
+When putting them back conflicts with what was pulled, they stay safe in
+the stash and the merge window opens, with your local changes as yours.
+Turn it off with "git_pull_autostash".
 
 In the diff buffer, <CR> jumps to the source line ("git_diff_mappings").
 In the changes buffer, <CR> opens the file ("git_changes_mappings").
@@ -321,6 +329,9 @@ check_branch_when_use_session   0
 
 git_branch_fetch    1
     Fetch all remotes in the background when |:ProjectGitBranch| opens.
+
+git_pull_autostash  1
+    Pull with --autostash, keeping local changes across it. Needs git 2.27.
 
 open_root_when_use_session      0
     Open the project root even when a session is loaded.

@@ -196,7 +196,7 @@ let g:vim_project_local_config = {
 | <kbd>R</kbd> | roll back the selected files |
 | <kbd>s</kbd> | shelve: save the changes as a patch and revert them |
 | <kbd>S</kbd> | unshelve a shelf or one of its files |
-| <kbd>u</kbd> / <kbd>p</kbd> / <kbd>P</kbd> | pull, push, pull then push, in the background |
+| <kbd>u</kbd> / <kbd>p</kbd> / <kbd>P</kbd> | pull (keeping local changes with `--autostash`), push, pull then push, in the background |
 | <kbd>A</kbd> | abort the merge, rebase, cherry-pick or revert in progress |
 
 Merge conflicts: a pull or branch merge that stops on conflicts opens the Unmerged changelist. <kbd>Enter</kbd> on a file opens a three-pane merge window, yours | result | theirs, with each conflict colored by state. Press <kbd>&lt;</kbd> yours, <kbd>&gt;</kbd> theirs, <kbd>=</kbd> both, <kbd>e</kbd> edit, <kbd>u</kbd> undo, <kbd>]c</kbd> / <kbd>[c</kbd> move, <kbd>q</kbd> to accept (write and `git add`) once all are resolved, <kbd>Q</kbd> to discard. After the last file it offers to commit the merge or continue the rebase.

@@ -2022,12 +2022,18 @@ endfunction
 " a:1: called after a successful pull
 function! s:TryPull(...)
   let Then = get(a:000, 0, v:null)
-  call s:RunGitInBackground('git pull', 'Updating...', 'Updated successfully',
+  " Like IntelliJ, local changes are put aside and back around the pull
+  let cmd = project#config#Get('git_pull_autostash') ? 'git pull --autostash' : 'git pull'
+  call s:RunGitInBackground(cmd, 'Updating...', 'Updated successfully',
         \function('s:OnPulled', [Then]))
 endfunction
 
 function! s:OnPulled(Then)
   call project#search_files#Reset()
+  " Putting the local changes back may conflict with what was pulled
+  if project#git_merge#ShowConflicts()
+    return
+  endif
   if a:Then isnot v:null
     call a:Then()
   endif

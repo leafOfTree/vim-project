@@ -494,3 +494,55 @@ function! Test_GenerateBrief_keeps_the_message_whole_and_the_splitter_on_one_row
   call assert_equal(revision.message, brief[1])
   call assert_true(strdisplaywidth(brief[0]) <= s:Call('GetChangesTextWidth'))
 endfunction
+
+" Pull puts local changes aside and back, like IntelliJ
+function! Test_pull_keeps_local_changes_with_autostash()
+  let base = s:Remote('pull-autostash')
+  call s:WithProject(base.'/mine', function('s:CheckPullAutostash', [base]))
+endfunction
+
+function! s:CheckPullAutostash(base)
+  let mine = a:base.'/mine'
+  let theirs = a:base.'/theirs'
+  let mine_git = 'git -C '.shellescape(mine).' '
+
+  " A change in a file the pull also changes, without conflicting lines
+  call writefile(['a', 'b', 'c', 'd', 'e'], theirs.'/shared.txt')
+  call system('git -C '.shellescape(theirs).' add . && git -C '.shellescape(theirs).' commit -q -m shared && git -C '.shellescape(theirs).' push -q')
+  call system(mine_git.'pull -q')
+  call writefile(['a', 'b theirs', 'c', 'd', 'e'], theirs.'/shared.txt')
+  call system('git -C '.shellescape(theirs).' commit -q -am theirs && git -C '.shellescape(theirs).' push -q')
+  call writefile(['a', 'b', 'c', 'd', 'e mine'], mine.'/shared.txt')
+
+  call s:Call('TryPull')
+  call s:WaitGitJob()
+  call assert_equal(s:RemoteHead(a:base), s:Head(mine))
+  call assert_equal(['a', 'b theirs', 'c', 'd', 'e mine'], readfile(mine.'/shared.txt'))
+  call assert_equal('', system(mine_git.'stash list'))
+
+  " A conflicting change: kept in the stash, resolved in the merge window
+  call writefile(['a', 'b theirs 2', 'c', 'd', 'e'], theirs.'/shared.txt')
+  call system('git -C '.shellescape(theirs).' commit -q -am theirs2 && git -C '.shellescape(theirs).' push -q')
+  call writefile(['a', 'b mine', 'c', 'd', 'e mine'], mine.'/shared.txt')
+  call s:Call('TryPull')
+  call s:WaitGitJob()
+  call assert_equal(s:RemoteHead(a:base), s:Head(mine))
+  call assert_equal(['shared.txt'], project#git_merge#GetUnmergedFiles())
+  call assert_equal('stash', project#git_merge#GetState().name)
+
+  try
+    call project#git_merge#Open('shared.txt')
+    " Yours are the local changes, not what was pulled
+    call assert_equal(['a', 'b mine', 'c', 'd', 'e mine'], getbufline(bufnr('vim_project_merge_yours'), 1, '$'))
+    call feedkeys('<q', 'xt')
+    call assert_equal(['a', 'b mine', 'c', 'd', 'e mine'], readfile(mine.'/shared.txt'))
+    " Resolved back to an unstaged local change
+    call assert_equal(' M shared.txt', trim(system(mine_git.'status --porcelain'), "\n"))
+    call assert_equal({}, project#git_merge#GetState())
+  finally
+    silent! execute 'bwipeout!' bufnr('local_changes')
+    silent! tabonly!
+    silent! only!
+    set cmdheight=1
+  endtry
+endfunction

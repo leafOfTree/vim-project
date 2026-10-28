@@ -11,7 +11,9 @@ endfunction
 
 " A project in the middle of merging 'feature', which conflicts with the
 " current branch on lines 2 and 4 of file.txt
-function! s:OpenConflict(name)
+function! s:OpenConflict(name, ...)
+  " 'merge', 'rebase' or 'cherry-pick' feature
+  let operation = get(a:000, 0, 'merge')
   let base = Helper_TmpDir(a:name)
   let repo = base.'/proj'
   call mkdir(repo, 'p')
@@ -27,7 +29,7 @@ function! s:OpenConflict(name)
   call s:Git(repo, 'checkout -q -')
   call writefile(['a', 'B yours', 'c', 'D yours', 'e'], repo.'/file.txt')
   call s:Git(repo, 'commit -q -am mine')
-  call s:Git(repo, 'merge feature')
+  call s:Git(repo, operation.' feature')
 
   let project = {'name': 'proj', 'path': base, 'fullpath': repo, 'note': '', 'option': {}}
   call Helper_Call('autoload/project.vim', 'InitProjectConfig', [project])
@@ -36,7 +38,9 @@ function! s:OpenConflict(name)
 endfunction
 
 function! s:Close(repo)
-  call s:Git(a:repo, 'merge --abort')
+  for operation in ['merge', 'rebase', 'cherry-pick']
+    call s:Git(a:repo, operation.' --abort')
+  endfor
   silent! call s:Call('CloseWindows')
   silent! execute 'bwipeout!' bufnr('local_changes')
   call project#QuitProject()
@@ -167,6 +171,23 @@ function! Test_edit_conflict_by_hand()
       call assert_notequal(-1, bufwinnr('vim_project_merge_yours'), cmd)
       call assert_notequal(-1, bufwinnr('vim_project_merge_theirs'), cmd)
     endfor
+
+    " q and Q accept and discard, like in the merge window
+    call cursor(5, 1)
+    normal e
+    call assert_match('q to accept, Q to discard', &l:statusline)
+    call setline(1, ['D by q'])
+    normal q
+    sleep 50m
+    call assert_equal('vim_project_merge_result', bufname('%'))
+    call assert_equal('D by q', getline(5))
+    call cursor(5, 1)
+    normal e
+    call setline(1, ['D dropped'])
+    normal Q
+    sleep 50m
+    call assert_equal('vim_project_merge_result', bufname('%'))
+    call assert_equal('D by q', getline(5))
   finally
     call s:Close(repo)
   endtry
@@ -229,4 +250,54 @@ function! Test_abort_merge()
   finally
     call s:Close(repo)
   endtry
+endfunction
+
+function! Test_rebase_shows_the_rebased_commit_as_yours()
+  let repo = s:OpenConflict('merge rebase', 'rebase')
+  try
+    call assert_equal('rebase', project#git_merge#GetState().name)
+    call project#git_merge#Open('file.txt')
+    " git's ours is feature, being rebased onto: yours is still on the left
+    call assert_equal(['a', 'B yours', 'c', 'D yours', 'e'], s:Lines('vim_project_merge_yours'))
+    call assert_equal(['a', 'B theirs', 'c', 'D theirs', 'e'], s:Lines('vim_project_merge_theirs'))
+    let titles = s:Call('GetTitles', project#git_merge#GetState())
+    call assert_match('^Yours (being rebased) .* ', titles[0])
+    call assert_match('^Upstream (rebasing onto) feature ', titles[1])
+
+    " Continue finishes the rebase
+    call feedkeys('Lyqy', 'xt')
+    call assert_equal({}, project#git_merge#GetState())
+    call assert_equal(['a', 'B yours', 'c', 'D yours', 'e'], readfile(repo.'/file.txt'))
+    call assert_equal(['mine', 'feature'], split(s:Git(repo, 'log --format=%s -2'), "\n"))
+  finally
+    call s:Close(repo)
+  endtry
+endfunction
+
+function! Test_cherry_pick_conflict_and_continue()
+  let repo = s:OpenConflict('merge cherry-pick', 'cherry-pick')
+  try
+    call assert_equal('cherry-pick', project#git_merge#GetState().name)
+    call project#git_merge#Open('file.txt')
+    call assert_equal(['a', 'B yours', 'c', 'D yours', 'e'], s:Lines('vim_project_merge_yours'))
+    call assert_match('^Theirs ', s:Call('GetTitles', project#git_merge#GetState())[1])
+
+    call feedkeys('Ryqy', 'xt')
+    call assert_equal({}, project#git_merge#GetState())
+    call assert_equal(['a', 'B theirs', 'c', 'D theirs', 'e'], readfile(repo.'/file.txt'))
+    call assert_equal('feature', trim(s:Git(repo, 'log --format=%s -1')))
+  finally
+    call s:Close(repo)
+  endtry
+endfunction
+
+function! Test_MarkAutoMerged_tells_whose_change_git_merged()
+  let base = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
+  " Yours changes a and d, theirs changes g and d: d conflicts
+  let yours = ['A yours', 'b', 'c', 'D yours', 'e', 'f', 'g']
+  let theirs = ['a', 'b', 'c', 'D theirs', 'e', 'f', 'G theirs']
+  let segments = s:Call('BuildSegments', yours, base, theirs)
+  call assert_equal(['text', 'conflict', 'text'], map(copy(segments), 'v:val.type'))
+  call assert_equal({'0': 'left'}, segments[0].auto)
+  call assert_equal({'2': 'right'}, segments[2].auto)
 endfunction

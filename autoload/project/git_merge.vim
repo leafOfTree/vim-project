@@ -34,11 +34,13 @@ function! project#git_merge#GetState()
     return {}
   endif
 
-  if isdirectory(git_dir.'/rebase-merge') || isdirectory(git_dir.'/rebase-apply')
-    return {'name': 'rebase', 'yours': 3, 'theirs': 2,
-          \'continue': 'git -c core.editor=true rebase --continue',
-          \'abort': 'git rebase --abort'}
-  endif
+  for dir in ['rebase-merge', 'rebase-apply']
+    if isdirectory(git_dir.'/'.dir)
+      return {'name': 'rebase', 'yours': 3, 'theirs': 2, 'rebase_dir': git_dir.'/'.dir,
+            \'continue': 'git -c core.editor=true rebase --continue',
+            \'abort': 'git rebase --abort'}
+    endif
+  endfor
   for [name, head] in [['merge', 'MERGE_HEAD'], ['cherry-pick', 'CHERRY_PICK_HEAD'], ['revert', 'REVERT_HEAD']]
     if filereadable(git_dir.'/'.head)
       let continue = name == 'merge'
@@ -48,6 +50,12 @@ function! project#git_merge#GetState()
             \'continue': continue, 'abort': 'git '.name.' --abort'}
     endif
   endfor
+  " Nothing in progress, yet conflicts: applying a stash, like after pull
+  " --autostash. git's theirs is the stash, your local changes
+  if !empty(project#git_merge#GetUnmergedFiles())
+        \&& !empty(project#RunShellCmd('git stash list -n 1', 0))
+    return {'name': 'stash', 'yours': 3, 'theirs': 2}
+  endif
   return {}
 endfunction
 
@@ -59,19 +67,39 @@ endfunction
 function! s:GetTitles(state)
   let head = s:Describe('HEAD')
   if get(a:state, 'name', '') == 'rebase'
-    let rebase_head = s:Describe('REBASE_HEAD')
-    return ['Yours (being rebased) '.rebase_head, 'Upstream (rebasing onto) '.head]
+    " HEAD is detached: name the branches from what git saved for the rebase
+    let branch = s:ReadRebaseFile(a:state, 'head-name')
+    let branch = substitute(branch, '^refs/heads/', '', '')
+    let rebase_head = s:ShortHash('REBASE_HEAD')
+    let yours = empty(branch) ? rebase_head : branch.' '.rebase_head
+    let onto = s:Describe(s:ReadRebaseFile(a:state, 'onto'))
+    return ['Yours (being rebased) '.yours, 'Upstream (rebasing onto) '.onto]
   endif
   if has_key(a:state, 'head')
     return ['Yours '.head, 'Theirs '.s:Describe(a:state.head)]
+  endif
+  if get(a:state, 'name', '') == 'stash'
+    return ['Yours (local changes, stashed)', 'Upstream '.head]
   endif
   return ['Yours '.head, 'Theirs']
 endfunction
 
 " Branch name or short hash of a revision, like 'main a1b2c3d'
+function! s:ReadRebaseFile(state, name)
+  let path = get(a:state, 'rebase_dir', '').'/'.a:name
+  return filereadable(path) ? get(readfile(path), 0, '') : ''
+endfunction
+
+function! s:ShortHash(rev)
+  return get(project#RunShellCmd('git rev-parse --short '.shellescape(a:rev), 0), 0, '')
+endfunction
+
 function! s:Describe(rev)
+  if empty(a:rev)
+    return ''
+  endif
   let rev = shellescape(a:rev)
-  let hash = get(project#RunShellCmd('git rev-parse --short '.rev, 0), 0, '')
+  let hash = s:ShortHash(a:rev)
   if empty(hash)
     return ''
   endif
@@ -140,7 +168,71 @@ function! s:BuildSegments(left, base, right)
   " It exits with the number of conflicts
   let output = systemlist(cmd)
   call delete(dir, 'rf')
-  return s:ParseMergeOutput(output)
+  let segments = s:ParseMergeOutput(output)
+  call s:MarkAutoMerged(segments, a:left, a:base)
+  return segments
+endfunction
+
+" Mark the lines git merged on its own, which changed on one side only:
+" segment.auto maps a line index of a text segment to 'left', 'right' or
+" 'both'. Diff the base with the merged text, the conflicts kept as base,
+" then tell by yours whose change each one is
+function! s:MarkAutoMerged(segments, left, base)
+  let merged = []
+  let starts = []
+  for segment in a:segments
+    call add(starts, len(merged) + 1)
+    call extend(merged, segment.type == 'text' ? segment.lines : segment.base)
+  endfor
+
+  let yours = {}
+  for hunk in s:DiffHunks(a:base, a:left)
+    let yours[hunk.old] = hunk.lines
+  endfor
+
+  for hunk in s:DiffHunks(a:base, merged)
+    if !has_key(yours, hunk.old)
+      let side = 'right'
+    else
+      let side = yours[hunk.old] == hunk.lines ? 'left' : 'both'
+    endif
+    for lnum in range(hunk.start, hunk.start + len(hunk.lines) - 1)
+      for idx in range(len(a:segments))
+        let segment = a:segments[idx]
+        let offset = lnum - starts[idx]
+        if segment.type == 'text' && offset >= 0 && offset < len(segment.lines)
+          if !has_key(segment, 'auto')
+            let segment.auto = {}
+          endif
+          let segment.auto[offset] = side
+        endif
+      endfor
+    endfor
+  endfor
+endfunction
+
+" Hunks of changed lines from a:old to a:new: {'old': 'start,count' in
+" a:old, 'start': first line in a:new, 'lines': the new lines}
+function! s:DiffHunks(old, new)
+  let dir = tempname()
+  call mkdir(dir, 'p')
+  call writefile(a:old, dir.'/old')
+  call writefile(a:new, dir.'/new')
+  let output = systemlist('git diff --no-index --no-color --no-ext-diff -U0 -- '
+        \.shellescape(dir.'/old').' '.shellescape(dir.'/new'))
+  call delete(dir, 'rf')
+
+  let hunks = []
+  for line in output
+    let m = matchlist(line, '^@@ -\(\d\+\)\%(,\(\d\+\)\)\? +\(\d\+\)')
+    if !empty(m)
+      let num = empty(m[2]) ? 1 : str2nr(m[2])
+      call add(hunks, {'old': m[1].','.num, 'start': str2nr(m[3]), 'lines': []})
+    elseif !empty(hunks) && line[0] ==# '+'
+      call add(hunks[-1].lines, line[1:])
+    endif
+  endfor
+  return hunks
 endfunction
 
 function! s:Conflicts()
@@ -192,6 +284,7 @@ function! project#git_merge#Open(file)
         \'segments': s:BuildSegments(yours, base is v:null ? [] : base, theirs),
         \'left_title': left_title,
         \'right_title': right_title,
+        \'state': state,
         \}
   call s:OpenWindows()
   call s:Render()
@@ -311,6 +404,18 @@ function! s:IsMapped(key)
   return !empty(a:key) && a:key !=? '<NOP>'
 endfunction
 
+" Like 'q to accept, Q to discard', with the configured keys
+function! s:AcceptDiscardHint()
+  let hints = []
+  for [name, label] in [['finish', 'accept'], ['quit', 'discard']]
+    let key = s:GetMergeKey(name)
+    if !empty(key)
+      call add(hints, key.' to '.label)
+    endif
+  endfor
+  return join(hints, ', ')
+endfunction
+
 " Key of a:name in the merge window, '' when it has none
 function! s:GetMergeKey(name)
   return s:GetHelpKey(project#config#Get('git_merge_mappings'), a:name)
@@ -338,6 +443,7 @@ function! s:DefineHighlights()
   hi default ProjectMergePending ctermbg=58 guibg=#4f4000
   hi default link ProjectMergeUnused Comment
   hi default link ProjectMergeFiller NonText
+  hi default link ProjectMergeAuto Comment
 
   let utf8 = &encoding ==# 'utf-8'
   let signs = {
@@ -349,6 +455,9 @@ function! s:DefineHighlights()
         \'used': [utf8 ? '✓' : 'ok', 'ProjectMergeResolved'],
         \'unused': ['--', 'ProjectMergeUnused'],
         \'filler': [' ', 'ProjectMergeFiller'],
+        \'auto_left': [utf8 ? '◂' : '<~', 'ProjectMergeAuto'],
+        \'auto_right': [utf8 ? '▸' : '~>', 'ProjectMergeAuto'],
+        \'auto_both': [utf8 ? '◆' : '<>', 'ProjectMergeAuto'],
         \}
   for [name, value] in items(signs)
     call sign_define('ProjectMerge_'.name, {'text': value[0], 'linehl': value[1], 'texthl': value[1]})
@@ -379,6 +488,17 @@ function! s:Render()
     if segment.type == 'text'
       for pane in panes
         call extend(pane, segment.lines)
+      endfor
+      " Merged by git: grey in the result and on the side it came from
+      for [offset, side] in items(get(segment, 'auto', {}))
+        let lnum = start + offset
+        call add(signs[1], [lnum, 'auto_'.side])
+        if side != 'right'
+          call add(signs[0], [lnum, 'auto_'.side])
+        endif
+        if side != 'left'
+          call add(signs[2], [lnum, 'auto_'.side])
+        endif
       endfor
       call add(s:layout, {'start': start, 'height': len(segment.lines)})
       continue
@@ -422,9 +542,13 @@ function! s:UpdateStatusLines()
   let current = s:GetConflictNumber()
   let unresolved = s:CountUnresolved()
   " Shorten the file name first when the pane is narrow
-  let status = printf(' %s/%d  %s  %%<%s', current ? current : '-', total,
-        \unresolved ? unresolved.' unresolved' : 'all resolved, '.s:GetMergeKey('finish').' to accept',
-        \s:EscapeStatus(s:merge.file))
+  if unresolved
+    let status = printf(' %s/%d  %d unresolved  %%<%s', current ? current : '-', total,
+          \unresolved, s:EscapeStatus(s:merge.file))
+  else
+    " Short enough for a narrow pane: what to press matters more here
+    let status = ' done: '.s:AcceptDiscardHint().'  %<'.s:EscapeStatus(s:merge.file)
+  endif
   call s:SetStatusLine(s:left_buffer, ' '.s:EscapeStatus(s:merge.left_title))
   call s:SetStatusLine(s:result_buffer, status)
   call s:SetStatusLine(s:right_buffer, ' '.s:EscapeStatus(s:merge.right_title))
@@ -515,7 +639,7 @@ function! s:Take(state)
   call s:Render()
   call s:CursorTo(idx)
   if !empty(a:state) && !s:JumpToConflict(1, 1)
-    call project#Info('All conflicts resolved, press '.s:GetMergeKey('finish').' to accept')
+    call project#Info('All conflicts resolved, '.s:AcceptDiscardHint())
   endif
 endfunction
 
@@ -553,7 +677,20 @@ function! s:EditConflict()
   call setline(1, lines)
   setlocal nomodified
   let b:vim_project_merge_segment = idx
-  setlocal statusline=\ Edit\ the\ conflict,\ :w\ to\ use\ it,\ :q!\ to\ cancel
+  " The same keys as the merge window: accept or discard, :w and :q! work too
+  let accept = s:GetMergeKey('finish')
+  let discard = s:GetMergeKey('quit')
+  let hints = []
+  if !empty(accept)
+    execute 'nnoremap <buffer><silent><nowait> '.accept.' :<C-u>silent write<CR>'
+    call add(hints, accept.' to accept')
+  endif
+  if !empty(discard)
+    execute 'nnoremap <buffer><silent><nowait> '.discard.' :<C-u>bwipeout!<CR>'
+    call add(hints, discard.' to discard')
+  endif
+  let &l:statusline = ' Edit the conflict'
+        \.(empty(hints) ? ', :w to use it, :q! to cancel' : ', '.join(hints, ', '))
   autocmd BufWriteCmd <buffer> call s:SaveEditedConflict()
   " Back to the result however it is closed: :w, :wq, :x or :q!
   autocmd BufWipeout <buffer> call timer_start(0, {-> s:BackToResult()})
@@ -607,9 +744,15 @@ function! s:Finish()
 
   let path = $vim_project.'/'.s:merge.file
   call writefile(s:GetResultLines(), path)
-  call project#RunShellCmd('git add -- '.shellescape(s:merge.file))
+  let file = shellescape(s:merge.file)
+  call project#RunShellCmd('git add -- '.file)
   if v:shell_error
     return
+  endif
+  let state = s:merge.state
+  if get(state, 'name', '') == 'stash'
+    " Back to a local change, as applying the stash without conflicts would
+    call project#RunShellCmd('git reset -q -- '.file)
   endif
   let bufnr = bufnr(path)
   if bufnr != -1
@@ -617,7 +760,7 @@ function! s:Finish()
   endif
 
   call s:CloseWindows()
-  call s:OnFileResolved()
+  call s:OnFileResolved(state)
 endfunction
 
 function! s:Quit()
@@ -646,10 +789,16 @@ endfunction
 
 " Back to the local changes. Once no file is left, offer to finish what git
 " is in the middle of
-function! s:OnFileResolved()
+" a:1: the state the file was resolved in
+function! s:OnFileResolved(...)
   call project#git#Status()
   if !empty(project#git_merge#GetUnmergedFiles())
     call project#Info('Resolved. Press '.s:GetKey('open_changelist_or_file').' on the next conflicting file')
+    return
+  endif
+  if get(get(a:000, 0, {}), 'name', '') == 'stash'
+    call project#Info('All conflicts resolved. Your changes are still in the stash too: '
+          \.'git stash drop once you are sure')
     return
   endif
 
@@ -685,6 +834,11 @@ function! project#git_merge#Abort()
   let state = project#git_merge#GetState()
   if empty(state)
     call project#Info('No merge, rebase, cherry-pick or revert in progress')
+    return
+  endif
+  if !has_key(state, 'abort')
+    call project#Info('Applying the stash has conflicts. Your changes are safe in it: '
+          \.'resolve them, or git checkout the files and git stash pop again later')
     return
   endif
   redraw
