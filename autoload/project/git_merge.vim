@@ -50,6 +50,12 @@ function! project#git_merge#GetState()
             \'continue': continue, 'abort': 'git '.name.' --abort'}
     endif
   endfor
+  " Nothing in progress, yet conflicts: applying a stash, like after pull
+  " --autostash. git's theirs is the stash, your local changes
+  if !empty(project#git_merge#GetUnmergedFiles())
+        \&& !empty(project#RunShellCmd('git stash list -n 1', 0))
+    return {'name': 'stash', 'yours': 3, 'theirs': 2}
+  endif
   return {}
 endfunction
 
@@ -71,6 +77,9 @@ function! s:GetTitles(state)
   endif
   if has_key(a:state, 'head')
     return ['Yours '.head, 'Theirs '.s:Describe(a:state.head)]
+  endif
+  if get(a:state, 'name', '') == 'stash'
+    return ['Yours (local changes, stashed)', 'Upstream '.head]
   endif
   return ['Yours '.head, 'Theirs']
 endfunction
@@ -211,6 +220,7 @@ function! project#git_merge#Open(file)
         \'segments': s:BuildSegments(yours, base is v:null ? [] : base, theirs),
         \'left_title': left_title,
         \'right_title': right_title,
+        \'state': state,
         \}
   call s:OpenWindows()
   call s:Render()
@@ -626,9 +636,15 @@ function! s:Finish()
 
   let path = $vim_project.'/'.s:merge.file
   call writefile(s:GetResultLines(), path)
-  call project#RunShellCmd('git add -- '.shellescape(s:merge.file))
+  let file = shellescape(s:merge.file)
+  call project#RunShellCmd('git add -- '.file)
   if v:shell_error
     return
+  endif
+  let state = s:merge.state
+  if get(state, 'name', '') == 'stash'
+    " Back to a local change, as applying the stash without conflicts would
+    call project#RunShellCmd('git reset -q -- '.file)
   endif
   let bufnr = bufnr(path)
   if bufnr != -1
@@ -636,7 +652,7 @@ function! s:Finish()
   endif
 
   call s:CloseWindows()
-  call s:OnFileResolved()
+  call s:OnFileResolved(state)
 endfunction
 
 function! s:Quit()
@@ -665,10 +681,16 @@ endfunction
 
 " Back to the local changes. Once no file is left, offer to finish what git
 " is in the middle of
-function! s:OnFileResolved()
+" a:1: the state the file was resolved in
+function! s:OnFileResolved(...)
   call project#git#Status()
   if !empty(project#git_merge#GetUnmergedFiles())
     call project#Info('Resolved. Press '.s:GetKey('open_changelist_or_file').' on the next conflicting file')
+    return
+  endif
+  if get(get(a:000, 0, {}), 'name', '') == 'stash'
+    call project#Info('All conflicts resolved. Your changes are still in the stash too: '
+          \.'git stash drop once you are sure')
     return
   endif
 
@@ -704,6 +726,11 @@ function! project#git_merge#Abort()
   let state = project#git_merge#GetState()
   if empty(state)
     call project#Info('No merge, rebase, cherry-pick or revert in progress')
+    return
+  endif
+  if !has_key(state, 'abort')
+    call project#Info('Applying the stash has conflicts. Your changes are safe in it: '
+          \.'resolve them, or git checkout the files and git stash pop again later')
     return
   endif
   redraw

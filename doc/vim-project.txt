@@ -288,6 +288,10 @@ rebase, cherry-pick or revert.
 
 Pull and push run in the background; the result is shown when done. git
 cannot ask for credentials there, so use a credential helper or ssh-agent.
+Pull runs with --autostash: local changes are put aside and back around it.
+When putting them back conflicts with what was pulled, they stay safe in
+the stash and the merge window opens, with your local changes as yours.
+Turn it off with "git_pull_autostash".
 
 In the diff buffer, <CR> jumps to the source line ("git_diff_mappings").
 In the changes buffer, <CR> opens the file ("git_changes_mappings").
@@ -321,6 +325,9 @@ check_branch_when_use_session   0
 
 git_branch_fetch    1
     Fetch all remotes in the background when |:ProjectGitBranch| opens.
+
+git_pull_autostash  1
+    Pull with --autostash, keeping local changes across it. Needs git 2.27.
 
 open_root_when_use_session      0
     Open the project root even when a session is loaded.

@@ -39,6 +39,7 @@ let s:default = {
       \'new_tasks_post_cmd':            '',
       \'commit_message':                '',
       \'git_branch_fetch':              1,
+      \'git_pull_autostash':            1,
       \'find_replace_separator':        ' => ',
       \'debug':                         0,
       \}
