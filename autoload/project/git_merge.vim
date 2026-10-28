@@ -191,8 +191,11 @@ function! s:MarkAutoMerged(segments, left, base)
   endfor
 
   for hunk in s:DiffHunks(a:base, merged)
-    let side = get(yours, hunk.old, v:null) == hunk.lines ? 'left'
-          \: has_key(yours, hunk.old) ? 'both' : 'right'
+    if !has_key(yours, hunk.old)
+      let side = 'right'
+    else
+      let side = yours[hunk.old] == hunk.lines ? 'left' : 'both'
+    endif
     for lnum in range(hunk.start, hunk.start + len(hunk.lines) - 1)
       for idx in range(len(a:segments))
         let segment = a:segments[idx]
