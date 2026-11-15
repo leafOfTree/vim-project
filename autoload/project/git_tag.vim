@@ -15,8 +15,8 @@ function! project#git_tag#Show()
 endfunction
 
 function! s:Init(input)
-  let cmd = 'git tag -n'
-  let tags = reverse(project#RunShellCmd(cmd))
+  let cmd = ['git', 'tag', '-n']
+  let tags = reverse(project#CommandOutput(cmd))
   let s:list = s:GetTabulatedList(tags)
   call add(s:list, s:CreateItem(s:item_splitter))
   call add(s:list, s:CreateItem(s:item_new_tag))
@@ -41,10 +41,10 @@ function! s:Open(tag, open_cmd, input)
     return
   endif
 
-  let cmd = 'git checkout '.shellescape(a:tag.name)
+  let cmd = ['git', 'checkout', a:tag.name]
 
-  call project#RunShellCmd(cmd)
-  if v:shell_error
+  let [code, _] = project#CheckedCommand(cmd)
+  if code
     return
   endif
 
@@ -57,9 +57,9 @@ function! s:CreateNewTag()
     return
   endif
 
-  let cmd = 'git tag '.name
-  call project#RunShellCmd(cmd)
-  if v:shell_error
+  let cmd = ['git', 'tag', name]
+  let [code, _] = project#CheckedCommand(cmd)
+  if code
     return
   endif
   redraw

@@ -29,7 +29,7 @@ let s:layout = []
 " What git is in the middle of, from the files in the git directory. For a
 " rebase git's "ours" is the branch being rebased onto, so yours is stage 3
 function! project#git_merge#GetState()
-  let git_dir = get(project#RunShellCmd('git rev-parse --absolute-git-dir', 0), 0, '')
+  let git_dir = get(project#CommandOutput(['git', 'rev-parse', '--absolute-git-dir'], 0), 0, '')
   if empty(git_dir)
     return {}
   endif
@@ -37,30 +37,30 @@ function! project#git_merge#GetState()
   for dir in ['rebase-merge', 'rebase-apply']
     if isdirectory(git_dir.'/'.dir)
       return {'name': 'rebase', 'yours': 3, 'theirs': 2, 'rebase_dir': git_dir.'/'.dir,
-            \'continue': 'git -c core.editor=true rebase --continue',
-            \'abort': 'git rebase --abort'}
+            \'continue': ['git', '-c', 'core.editor=true', 'rebase', '--continue'],
+            \'abort': ['git', 'rebase', '--abort']}
     endif
   endfor
   for [name, head] in [['merge', 'MERGE_HEAD'], ['cherry-pick', 'CHERRY_PICK_HEAD'], ['revert', 'REVERT_HEAD']]
     if filereadable(git_dir.'/'.head)
       let continue = name == 'merge'
-            \? 'git commit --no-edit'
-            \: 'git -c core.editor=true '.name.' --continue'
+            \? ['git', 'commit', '--no-edit']
+            \: ['git', '-c', 'core.editor=true', name, '--continue']
       return {'name': name, 'head': head, 'yours': 2, 'theirs': 3,
-            \'continue': continue, 'abort': 'git '.name.' --abort'}
+            \'continue': continue, 'abort': ['git', name, '--abort']}
     endif
   endfor
   " Nothing in progress, yet conflicts: applying a stash, like after pull
   " --autostash. git's theirs is the stash, your local changes
   if !empty(project#git_merge#GetUnmergedFiles())
-        \&& !empty(project#RunShellCmd('git stash list -n 1', 0))
+        \&& !empty(project#CommandOutput(['git', 'stash', 'list', '-n', '1'], 0))
     return {'name': 'stash', 'yours': 3, 'theirs': 2}
   endif
   return {}
 endfunction
 
 function! project#git_merge#GetUnmergedFiles()
-  return project#RunShellCmd('git diff --name-only --diff-filter=U', 0)
+  return project#CommandOutput(['git', 'diff', '--name-only', '--diff-filter=U'], 0)
 endfunction
 
 " Panes titles: where yours and theirs come from
@@ -91,34 +91,51 @@ function! s:ReadRebaseFile(state, name)
 endfunction
 
 function! s:ShortHash(rev)
-  return get(project#RunShellCmd('git rev-parse --short '.shellescape(a:rev), 0), 0, '')
+  return get(project#CommandOutput(['git', 'rev-parse', '--short', a:rev], 0), 0, '')
 endfunction
 
 function! s:Describe(rev)
   if empty(a:rev)
     return ''
   endif
-  let rev = shellescape(a:rev)
+  let rev = a:rev
   let hash = s:ShortHash(a:rev)
   if empty(hash)
     return ''
   endif
   if a:rev == 'HEAD'
-    let name = get(project#RunShellCmd('git branch --show-current', 0), 0, '')
+    let name = get(project#CommandOutput(['git', 'branch', '--show-current'], 0), 0, '')
   else
-    let name = get(project#RunShellCmd('git name-rev --name-only --no-undefined '.rev, 0), 0, '')
+    let name = get(project#CommandOutput(['git', 'name-rev', '--name-only', '--no-undefined', rev], 0), 0, '')
   endif
   return empty(name) ? hash : name.' '.hash
 endfunction
 
 " ---------------------------------------------------------------- model
 
-" Content of one stage of the file in the index, v:null if it has none, like
-" the side that deleted the file
-function! s:ReadStage(file, stage)
-  let cmd = 'git show :'.a:stage.':'.shellescape(a:file)
-  let lines = project#RunShellCmd(cmd, 0)
-  return v:shell_error ? v:null : lines
+" Read only stages present in the index so a failed read cannot look like a deletion.
+function! s:ReadStages(file)
+  let cmd = ['git', '--literal-pathspecs', 'ls-files', '--unmerged', '--', a:file]
+  let [code, entries, errors] = project#RunCommand(cmd)
+  if code || empty(entries)
+    call project#WarnCommandOutput(join(cmd), empty(errors) ? ['No unmerged entries for '.a:file] : errors)
+    return {}
+  endif
+  let stages = {}
+  for entry in entries
+    let match = matchlist(entry, '^\d\+ \(\x\+\) \([123]\)\t')
+    if empty(match)
+      call project#Warn('Cannot read index entry for '.a:file)
+      return {}
+    endif
+    let [code, lines, errors] = project#RunCommand(['git', 'cat-file', 'blob', match[1]])
+    if code
+      call project#WarnCommandOutput('git cat-file blob '.match[1], errors)
+      return {}
+    endif
+    let stages[match[2]] = lines
+  endfor
+  return stages
 endfunction
 
 " Split the output of git merge-file --diff3 into text and conflicts
@@ -159,18 +176,29 @@ function! s:BuildSegments(left, base, right)
   let dir = tempname()
   call mkdir(dir, 'p')
   let paths = []
-  for [name, lines] in [['yours', a:left], ['base', a:base], ['theirs', a:right]]
-    let path = dir.'/'.name
-    call writefile(lines, path)
-    call add(paths, shellescape(path))
-  endfor
-  let cmd = 'git merge-file -p --diff3 -L yours -L base -L theirs '.join(paths, ' ')
-  " It exits with the number of conflicts
-  let output = systemlist(cmd)
-  call delete(dir, 'rf')
-  let segments = s:ParseMergeOutput(output)
-  call s:MarkAutoMerged(segments, a:left, a:base)
-  return segments
+  try
+    for [name, lines] in [['yours', a:left], ['base', a:base], ['theirs', a:right]]
+      let path = dir.'/'.name
+      call writefile(lines, path)
+      call add(paths, path)
+    endfor
+    let cmd = ['git', 'merge-file', '-p', '--diff3', '-L', 'yours', '-L', 'base', '-L', 'theirs'] + paths
+    let [code, output, errors] = project#RunCommand(cmd, dir)
+    " git caps the conflict count at 127. Startup and fatal errors are distinct.
+    if code < 0 || code > 127 || !empty(errors)
+      call project#WarnCommandOutput(join(cmd), errors)
+      return v:null
+    endif
+    let segments = s:ParseMergeOutput(output)
+    if code && empty(filter(copy(segments), 'v:val.type ==# "conflict"'))
+      call project#Warn('Cannot read merge conflicts for this file')
+      return v:null
+    endif
+    call s:MarkAutoMerged(segments, a:left, a:base)
+    return segments
+  finally
+    call delete(dir, 'rf')
+  endtry
 endfunction
 
 " Mark the lines git merged on its own, which changed on one side only:
@@ -218,8 +246,8 @@ function! s:DiffHunks(old, new)
   call mkdir(dir, 'p')
   call writefile(a:old, dir.'/old')
   call writefile(a:new, dir.'/new')
-  let output = systemlist('git diff --no-index --no-color --no-ext-diff -U0 -- '
-        \.shellescape(dir.'/old').' '.shellescape(dir.'/new'))
+  let [code, output, errors] = project#RunCommand(['git', 'diff', '--no-index', '--no-color',
+        \'--no-ext-diff', '-U0', '--', dir.'/old', dir.'/new'], dir)
   call delete(dir, 'rf')
 
   let hunks = []
@@ -270,18 +298,26 @@ endfunction
 " about instead, since there is nothing to merge line by line
 function! project#git_merge#Open(file)
   let state = project#git_merge#GetState()
-  let yours = s:ReadStage(a:file, get(state, 'yours', 2))
-  let theirs = s:ReadStage(a:file, get(state, 'theirs', 3))
+  let stages = s:ReadStages(a:file)
+  if empty(stages)
+    return
+  endif
+  let yours = get(stages, get(state, 'yours', 2), v:null)
+  let theirs = get(stages, get(state, 'theirs', 3), v:null)
   if yours is v:null || theirs is v:null
     call s:ResolveDeleted(a:file, yours, theirs)
     return
   endif
-  let base = s:ReadStage(a:file, 1)
+  let base = get(stages, 1, v:null)
 
+  let segments = s:BuildSegments(yours, base is v:null ? [] : base, theirs)
+  if segments is v:null
+    return
+  endif
   let [left_title, right_title] = s:GetTitles(state)
   let s:merge = {
         \'file': a:file,
-        \'segments': s:BuildSegments(yours, base is v:null ? [] : base, theirs),
+        \'segments': segments,
         \'left_title': left_title,
         \'right_title': right_title,
         \'state': state,
@@ -307,17 +343,17 @@ function! s:ResolveDeleted(file, yours, theirs)
   echo question
   let answer = nr2char(getchar())
   redraw
-  let file = shellescape(a:file)
+  let file = a:file
   if answer ==# 'd'
-    call project#RunShellCmd('git rm -q -- '.file)
+    let [code, _] = project#CheckedCommand(['git', 'rm', '-q', '--', file])
   elseif answer ==# 'k' && !(a:yours is v:null && a:theirs is v:null)
     let lines = a:yours is v:null ? a:theirs : a:yours
     call writefile(lines, $vim_project.'/'.a:file)
-    call project#RunShellCmd('git add -- '.file)
+    let [code, _] = project#CheckedCommand(['git', 'add', '--', file])
   else
     return
   endif
-  if !v:shell_error
+  if !code
     call s:OnFileResolved()
   endif
 endfunction
@@ -744,15 +780,17 @@ function! s:Finish()
 
   let path = $vim_project.'/'.s:merge.file
   call writefile(s:GetResultLines(), path)
-  let file = shellescape(s:merge.file)
-  call project#RunShellCmd('git add -- '.file)
-  if v:shell_error
+  let [code, _] = project#CheckedCommand(['git', 'add', '--', s:merge.file])
+  if code
     return
   endif
   let state = s:merge.state
   if get(state, 'name', '') == 'stash'
     " Back to a local change, as applying the stash without conflicts would
-    call project#RunShellCmd('git reset -q -- '.file)
+    let [code, _] = project#CheckedCommand(['git', 'reset', '-q', '--', s:merge.file])
+    if code
+      return
+    endif
   endif
   let bufnr = bufnr(path)
   if bufnr != -1
@@ -817,8 +855,8 @@ function! s:OnFileResolved(...)
 endfunction
 
 function! project#git_merge#Continue(state)
-  let output = project#RunShellCmd(a:state.continue)
-  if !v:shell_error
+  let [code, output] = project#CheckedCommand(a:state.continue)
+  if !code
     call project#git#Status()
     if !empty(project#git_merge#GetUnmergedFiles())
       " A rebase may stop at the next commit with new conflicts
@@ -848,8 +886,8 @@ function! project#git_merge#Abort()
   if answer !=# 'y'
     return
   endif
-  call project#RunShellCmd(state.abort)
-  if !v:shell_error
+  let [code, _] = project#CheckedCommand(state.abort)
+  if !code
     call project#git#Status()
     call project#Info('Aborted the '.state.name)
   endif

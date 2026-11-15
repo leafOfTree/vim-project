@@ -252,32 +252,33 @@ function! s:FilterOldFilesByInput(oldfiles, input)
 endfunction
 
 function! s:GetFindCmd()
-  let include = join(s:GetInclude(), ' ')
-  let search_exclude = s:GetExclude()
-  if empty(search_exclude)
-    return 'find '.include.' -mindepth 1'
+  let cmd = ['find'] + s:GetInclude() + ['-mindepth', '1']
+  let exclude = s:GetExclude()
+  if !empty(exclude)
+    call add(cmd, '(')
+    for name in exclude
+      call extend(cmd, ['-name', name, '-o'])
+    endfor
+    call remove(cmd, -1)
+    call extend(cmd, [')', '-prune', '-o', '-print'])
   endif
-
-  " Pruned directories are not printed, nor their contents
-  let names = join(map(search_exclude, {_, val -> '-name '.shellescape(val)}), ' -o ')
-  return 'find '.include.' -mindepth 1 \( '.names.' \) -prune -o -print'
+  return cmd
 endfunction
 
 function! s:GetFdCmd()
-  let include = join(s:GetInclude(), ' ')
-
-  let search_exclude = s:GetExclude()
-  let exclude = join(map(search_exclude, {_, val -> '-E "'.val.'"'}), ' ')
-
-  return 'fd -HI '.exclude.' . '.include
+  let cmd = ['fd', '-HI']
+  for name in s:GetExclude()
+    call extend(cmd, ['-E', name])
+  endfor
+  return cmd + ['.'] + s:GetInclude()
 endfunction
 
 function! s:GetFilesByFind()
-  return project#RunShellCmd(s:GetFindCmd())
+  return project#CommandOutput(s:GetFindCmd())
 endfunction
 
 function! s:GetFilesByFd()
-  return project#RunShellCmd(s:GetFdCmd())
+  return project#CommandOutput(s:GetFdCmd())
 endfunction
 
 " Without fd and find: walk the directories with readdir(). Unlike glob(),
@@ -356,7 +357,11 @@ function! s:TrySearchFilesProgram()
         \'glob': function('s:GetFilesByGlob'),
         \}
 
-  let find_program = project#util#PickExecutable(['fd', 'find'], 'glob')
+  let programs = ['fd', 'find']
+  if has('win32') && fnamemodify(exepath('find'), ':h') ==? $SystemRoot.'\System32'
+    let programs = ['fd']
+  endif
+  let find_program = project#util#PickExecutable(programs, 'glob')
   let s:find_cmd_func = find_cmd_map[find_program]
   let s:find_program = find_program
   return find_program
@@ -402,14 +407,13 @@ function! s:StartRefresh()
 
   let s:refresh_id += 1
   let s:refresh_lines = []
-  let shell_cmd = [&shell, &shellcmdflag, cmd]
   let Done = function('s:OnRefreshDone', [s:refresh_id, $vim_project])
 
   if exists('*job_start')
     " To a file, read once at the end: a callback per line would run tens of
     " thousands of times while the user types
     let output = tempname()
-    let s:refresh_job = job_start(shell_cmd, {
+    let s:refresh_job = job_start(cmd, {
           \'cwd': $vim_project,
           \'in_io': 'null',
           \'out_io': 'file',
@@ -418,7 +422,7 @@ function! s:StartRefresh()
           \'exit_cb': {job, status -> s:OnVimRefreshExit(output, status, Done)},
           \})
   else
-    let s:refresh_job = jobstart(shell_cmd, {
+    let s:refresh_job = jobstart(cmd, {
           \'cwd': $vim_project,
           \'stdout_buffered': v:true,
           \'on_stdout': {_, data, __ -> extend(s:refresh_lines, data)},

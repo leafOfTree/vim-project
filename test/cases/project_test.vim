@@ -607,3 +607,24 @@ function! Test_project_root_file_sets_working_directory()
     silent! %bwipeout!
   endtry
 endfunction
+
+function! Test_RunCommand_uses_project_directory_without_shell()
+  let saved_project = $vim_project
+  let saved_flags = &shellcmdflag
+  let $vim_project = Helper_TmpDir('project with spaces & parentheses (test)')
+  try
+    let &shellcmdflag = '--invalid-shell-flag'
+    let [code, _, errors] = project#RunCommand(['git', 'init', '-q'])
+    call assert_equal(0, code, string(errors))
+    call writefile(['changed'], $vim_project.'/probe & file.txt')
+    let [code, files, errors] = project#RunCommand(['git', 'ls-files', '--others'])
+    call assert_equal([0, ['probe & file.txt'], []], [code, files, errors])
+    let [code, files, errors] = project#RunCommand(['git', 'rev-parse', '--verify', 'invalid-ref'])
+    call assert_notequal(0, code)
+    call assert_equal([], files)
+    call assert_false(empty(errors))
+  finally
+    let &shellcmdflag = saved_flags
+    let $vim_project = saved_project
+  endtry
+endfunction

@@ -109,7 +109,7 @@ endfunction
 " A background refresh that finds the same files must not rebuild 40k items
 function! s:CheckRefreshUnchanged()
   call Helper_Call(s:sf, 'GetSearchFilesAll', [])
-  let lines = project#RunShellCmd(Helper_Call(s:sf, 'GetListFilesCmd', []))
+  let lines = project#CommandOutput(Helper_Call(s:sf, 'GetListFilesCmd', []))
   call assert_true(len(lines) > 40000)
   let ms = s:Ms({-> Helper_Call(s:sf, 'ApplyRefresh', [reverse(copy(lines))])}, [])
   call s:Budget(ms, 100, 'a refresh with no change over 40k files')

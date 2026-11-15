@@ -301,3 +301,14 @@ function! Test_MarkAutoMerged_tells_whose_change_git_merged()
   call assert_equal({'0': 'left'}, segments[0].auto)
   call assert_equal({'2': 'right'}, segments[2].auto)
 endfunction
+
+function! Test_merge_file_failure_does_not_produce_segments()
+  let previous = $vim_project
+  let $vim_project = Helper_TmpDir('binary conflict')
+  try
+    " writefile() encodes an embedded newline in a list element as a NUL.
+    call assert_equal(v:null, s:Call('BuildSegments', ["a\nb"], ['base'], ['theirs']))
+  finally
+    let $vim_project = previous
+  endtry
+endfunction

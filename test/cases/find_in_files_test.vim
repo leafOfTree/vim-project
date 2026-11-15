@@ -119,34 +119,34 @@ endfunction
 " ---------------------------------------------------------------- commands
 
 function! Test_GetRgCmd_include_exclude_and_fixed_strings()
-  let cmd = s:WithIncludeExclude(['src', 'lib'], ['.git', 'node_modules'],
-        \ {-> s:Call('GetRgCmd', "'pat'", '')})
+  let cmd = join(s:WithIncludeExclude(['src', 'lib'], ['.git', 'node_modules'],
+        \ {-> s:Call('GetRgCmd', "'pat'", '')}))
   call assert_match('^rg ', cmd)
-  call Helper_AssertContains(cmd, '-g "{src/**,lib/**}"')
-  call Helper_AssertContains(cmd, '-g "!{.git,node_modules}"')
+  call Helper_AssertContains(cmd, '-g {src/**,lib/**}')
+  call Helper_AssertContains(cmd, '-g !{.git,node_modules}')
   call Helper_AssertContains(cmd, '--fixed-strings')
   call Helper_AssertContains(cmd, '--ignore-case')
   call Helper_AssertContains(cmd, '--line-number')
-  call assert_match(" -- 'pat'$", cmd)
+  call assert_match(" -- 'pat' \\.$", cmd)
 endfunction
 
 function! Test_GetRgCmd_flags_switch_to_regexp_and_case_sensitive()
-  let cmd = s:WithIncludeExclude(['src'], ['.git'],
-        \ {-> s:Call('GetRgCmd', "'pat'", 'CE')})
+  let cmd = join(s:WithIncludeExclude(['src'], ['.git'],
+        \ {-> s:Call('GetRgCmd', "'pat'", 'CE')}))
   call Helper_AssertNotContains(cmd, '--fixed-strings')
   call Helper_AssertNotContains(cmd, '--ignore-case')
 endfunction
 
 function! Test_GetRgCmd_dot_include_means_everything()
-  let cmd = s:WithIncludeExclude(['.'], ['.git'],
-        \ {-> s:Call('GetRgCmd', "'pat'", '')})
-  call Helper_AssertContains(cmd, '-g "{**}"')
+  let cmd = join(s:WithIncludeExclude(['.'], ['.git'],
+        \ {-> s:Call('GetRgCmd', "'pat'", '')}))
+  call Helper_AssertContains(cmd, '-g {**}')
   call Helper_AssertNotContains(cmd, './**')
 endfunction
 
 function! Test_GetAgCmd_include_exclude_and_fixed_strings()
-  let cmd = s:WithIncludeExclude(['src', 'lib'], ['.git', 'node_modules'],
-        \ {-> s:Call('GetAgCmd', "'pat'", '')})
+  let cmd = join(s:WithIncludeExclude(['src', 'lib'], ['.git', 'node_modules'],
+        \ {-> s:Call('GetAgCmd', "'pat'", '')}))
   call assert_match('^ag ', cmd)
   call Helper_AssertContains(cmd, '--ignore-dir .git --ignore-dir node_modules')
   call Helper_AssertContains(cmd, '--fixed-strings')
@@ -156,16 +156,16 @@ function! Test_GetAgCmd_include_exclude_and_fixed_strings()
 endfunction
 
 function! Test_GetAgCmd_flags()
-  let cmd = s:WithIncludeExclude(['src'], ['.git'],
-        \ {-> s:Call('GetAgCmd', "'pat'", 'CE')})
+  let cmd = join(s:WithIncludeExclude(['src'], ['.git'],
+        \ {-> s:Call('GetAgCmd', "'pat'", 'CE')}))
   call Helper_AssertNotContains(cmd, '--fixed-strings')
   call Helper_AssertNotContains(cmd, '--ignore-case')
   call Helper_AssertContains(cmd, '--case-sensitive')
 endfunction
 
 function! Test_GetGrepCmd_include_exclude_and_fixed_strings()
-  let cmd = s:WithIncludeExclude(['src', 'lib'], ['.git', 'node_modules'],
-        \ {-> s:Call('GetGrepCmd', "'pat'", '')})
+  let cmd = join(s:WithIncludeExclude(['src', 'lib'], ['.git', 'node_modules'],
+        \ {-> s:Call('GetGrepCmd', "'pat'", '')}))
   call assert_match('^grep ', cmd)
   call Helper_AssertContains(cmd, '--exclude-dir .git --exclude-dir node_modules')
   call Helper_AssertContains(cmd, '--fixed-strings')
@@ -178,23 +178,23 @@ function! Test_GetGrepCmd_include_exclude_and_fixed_strings()
 endfunction
 
 function! Test_GetGrepCmd_regexp_flag_uses_extended_regexp()
-  let cmd = s:WithIncludeExclude(['src'], ['.git'],
-        \ {-> s:Call('GetGrepCmd', "'pat'", 'E')})
+  let cmd = join(s:WithIncludeExclude(['src'], ['.git'],
+        \ {-> s:Call('GetGrepCmd', "'pat'", 'E')}))
   call Helper_AssertContains(cmd, '--extended-regexp')
   call Helper_AssertNotContains(cmd, '--fixed-strings')
   call Helper_AssertContains(cmd, '--ignore-case')
 endfunction
 
 function! Test_GetGrepCmd_case_sensitive_flag()
-  let cmd = s:WithIncludeExclude(['src'], ['.git'],
-        \ {-> s:Call('GetGrepCmd', "'pat'", 'C')})
+  let cmd = join(s:WithIncludeExclude(['src'], ['.git'],
+        \ {-> s:Call('GetGrepCmd', "'pat'", 'C')}))
   call Helper_AssertNotContains(cmd, '--ignore-case')
   call Helper_AssertContains(cmd, '--fixed-strings')
 endfunction
 
 function! Test_GetGrepCmd_empty_include_searches_current_dir()
-  let cmd = s:WithIncludeExclude([], ['.git'],
-        \ {-> s:Call('GetGrepCmd', "'pat'", '')})
+  let cmd = join(s:WithIncludeExclude([], ['.git'],
+        \ {-> s:Call('GetGrepCmd', "'pat'", '')}))
   call assert_match(" -e 'pat' -- \\.$", cmd)
 endfunction
 
@@ -434,7 +434,7 @@ function! s:SearchWith(program, search, flags)
     let items = s:Call('RunVimGrep', a:search, a:flags, a:search)
   else
     let Cmd = Helper_Funcref(s:file, {'rg': 'GetRgCmd', 'ag': 'GetAgCmd', 'grep': 'GetGrepCmd'}[a:program])
-    let output = project#RunShellCmd(Cmd(shellescape(a:search), a:flags), 0)
+    let output = project#CommandOutput(Cmd(a:search, a:flags), 0)
     let items = map(output, {_, line -> s:Call('ParseGrepLine', line)})
   endif
   return sort(map(items, {_, item -> item.file.':'.item.lnum.':'.item.line}))

@@ -34,8 +34,8 @@ endfunction
 function! s:LoadBranches()
   let format = join(['%(HEAD)', '%(refname:short)', '%(upstream:short)',
         \'%(contents:subject)', '%(authorname)',  '%(committerdate:relative)'], s:splitter)
-  let cmd = 'git branch -a --format='.shellescape(format)
-  let branches = project#RunShellCmd(cmd)
+  let cmd = ['git', 'branch', '-a', '--format='.format]
+  let branches = project#CommandOutput(cmd)
   let current = filter(copy(branches), 'v:val[0] == "*"')
   call filter(branches, 'v:val[0] != "*"')
   if !empty(current)
@@ -57,12 +57,12 @@ let s:refs = []
 function! s:StartFetch()
   if !project#config#Get('git_branch_fetch') || s:fetch_job isnot v:null
         \|| !(exists('*job_start') || exists('*jobstart'))
-        \|| empty(project#RunShellCmd('git remote', 0))
+        \|| empty(project#CommandOutput(['git', 'remote'], 0))
     return
   endif
 
   let ctx = {'lines': []}
-  let cmd = [&shell, &shellcmdflag, 'git fetch --all --prune --quiet']
+  let cmd = ['git', 'fetch', '--all', '--prune', '--quiet']
   let env = {'GIT_TERMINAL_PROMPT': '0'}
   if exists('*job_start')
     let s:fetch_job = job_start(cmd, {
@@ -121,9 +121,9 @@ endfunction
 
 " Branches and the commits they point to, to tell whether a fetch changed any
 function! s:GetRefs()
-  let format = shellescape('%(refname) %(objectname) %(upstream)')
-  let cmd = 'git for-each-ref --format='.format.' refs/heads refs/remotes'
-  return project#RunShellCmd(cmd, 0)
+  let format = '%(refname) %(objectname) %(upstream)'
+  let cmd = ['git', 'for-each-ref', '--format='.format, 'refs/heads', 'refs/remotes']
+  return project#CommandOutput(cmd, 0)
 endfunction
 
 function! s:Update(input)
@@ -151,21 +151,21 @@ function! s:Open(branch, open_cmd, input)
   let name_exist = s:CheckNameExist(name)
 
   if is_head
-    let cmd = 'git checkout '.shellescape(a:branch.name)
+    let cmd = ['git', 'checkout', a:branch.name]
   elseif name_exist
-    let cmd = 'git switch '.shellescape(name)
+    let cmd = ['git', 'switch', name]
   else
-    let cmd = 'git switch -c '.shellescape(name).' '.shellescape(a:branch.name)
+    let cmd = ['git', 'switch', '-c', name, a:branch.name]
   endif
 
-  call project#RunShellCmd(cmd)
-  if v:shell_error
+  let [code, _] = project#CheckedCommand(cmd)
+  if code
     return
   endif
   if !is_head
-    let set_upstream_cmd = 'git branch --set-upstream-to '.shellescape(a:branch.name)
-    call project#RunShellCmd(set_upstream_cmd)
-    if v:shell_error
+    let set_upstream_cmd = ['git', 'branch', '--set-upstream-to', a:branch.name]
+    let [code, _] = project#CheckedCommand(set_upstream_cmd)
+    if code
       return
     endif
   endif
@@ -181,8 +181,8 @@ function! s:MergeBranch(state)
     return ''
   endif
 
-  let show_current_cmd = 'git branch --show-current'
-  let current = get(project#RunShellCmd(show_current_cmd), 0, 'HEAD')
+  let show_current_cmd = ['git', 'branch', '--show-current']
+  let current = get(project#CommandOutput(show_current_cmd), 0, 'HEAD')
   let name = target.name
 
   " Like rollback, ask first: the key is easy to press by habit. In place of
@@ -195,13 +195,13 @@ function! s:MergeBranch(state)
     return ''
   endif
 
-  let cmd = 'git merge '.shellescape(name)
+  let cmd = ['git', 'merge', name]
 
-  let output = project#RunShellCmd(cmd, 0)
-  if v:shell_error
+  let [code, output, errors] = project#RunCommand(cmd)
+  if code
     " Once the list is closed
     call timer_start(0, {-> project#git_merge#ShowConflicts()
-          \|| project#WarnCommandOutput(cmd, output)})
+          \|| project#WarnCommandOutput(join(cmd), errors + output)})
     return 'close'
   endif
   let a:state.offset = 0
@@ -232,9 +232,9 @@ function! s:CreateNewBranch()
 
   let name = s:GetSafeBranchName(raw_name)
 
-  let cmd = 'git switch -c '.shellescape(name)
-  call project#RunShellCmd(cmd)
-  if v:shell_error
+  let cmd = ['git', 'switch', '-c', name]
+  let [code, _] = project#CheckedCommand(cmd)
+  if code
     return
   endif
   redraw
@@ -246,9 +246,9 @@ function! s:IsHead(name)
 endfunction
 
 function! s:CheckNameExist(name)
-  let check_exist_cmd = 'git show-ref --verify --quiet '.shellescape('refs/heads/'.a:name)
-  call project#RunShellCmd(check_exist_cmd)
-  return !v:shell_error
+  let check_exist_cmd = ['git', 'show-ref', '--verify', '--quiet', 'refs/heads/'.a:name]
+  let [code, _] = project#CheckedCommand(check_exist_cmd)
+  return !code
 endfunction
 
 function! s:HighlightSpecialItem()

@@ -114,8 +114,9 @@ function! s:InitFileHistory(input)
   let s:log_list_width = &columns / 2
   let range = s:GetLineRange()
   let format = join(["%s", "%aN", "%ae", "%ad", "%h"], s:splitter)
-  let cmd = 'git log --pretty=format:"'.format.'" --date=relative '.range.s:current_file
-  let logs = project#RunShellCmd(cmd)
+  let cmd = ['git', 'log', '--pretty=format:'.format, '--date=relative']
+        \+ (empty(range) ? ['--', s:current_file] : [range.s:current_file])
+  let logs = project#CommandOutput(cmd)
   if empty(range)
     let s:commit_diffs = []
   else
@@ -148,7 +149,7 @@ function! s:GetLineRange()
   let range = ''
   if !empty(s:file_history_range)
     let [firstline, lastline] = s:file_history_range
-    let range = ' -L'.firstline.','.lastline.':'
+    let range = '-L'.firstline.','.lastline.':'
   endif
   return range
 endfunction
@@ -176,8 +177,8 @@ function! s:AddDiffDetails(hash, file)
   if is_diff_line
     let changes = s:commit_diffs[a:hash]
   else
-    let cmd = 'git show --first-parent --pretty=format:"" '.shellescape(a:hash).' -- '.shellescape(a:file)
-    let changes = project#RunShellCmd(cmd)
+    let cmd = ['git', 'show', '--first-parent', '--pretty=format:', a:hash, '--', a:file]
+    let changes = project#CommandOutput(cmd)
   endif
 
   setlocal modifiable
@@ -272,8 +273,8 @@ function! s:InitGitLog(input)
   let s:log_list_width = &columns * 3 / 5
   let s:changed_files_cache = {}
   let format = join(["%s", "%aN", "%ae", "%ad", "%h"], s:splitter)
-  let cmd = 'git log --pretty=format:"'.format.'" --date=relative'
-  let logs = project#RunShellCmd(cmd)
+  let cmd = ['git', 'log', '--pretty=format:'.format, '--date=relative']
+  let logs = project#CommandOutput(cmd)
   let s:list = s:GetTabulatedList(logs)
 
   call s:UpdateGitLog(a:input)
@@ -484,13 +485,13 @@ function! s:ShowDiffOnChangelist()
 endfunction
 
 function! s:GetDiffCmd(file)
-  let file = shellescape(a:file)
+  let file = a:file
   if s:IsStagedFile(a:file)
-    let cmd = 'git diff --staged -- '.file
+    let cmd = ['git', 'diff', '--staged', '--', file]
   elseif s:IsUntrackedFile(a:file)
-    let cmd = 'git diff --no-index -- /dev/null '.file
+    let cmd = ['git', 'diff', '--no-index', '--', '/dev/null', file]
   else
-    let cmd = 'git diff -- '.file
+    let cmd = ['git', 'diff', '--', file]
   endif
   return cmd
 endfunction
@@ -662,11 +663,12 @@ function! s:GetChangedFiles(revision)
     return s:changed_files_cache[hash]
   endif
 
-  let cmd = 'git diff-tree --no-commit-id --name-status -r -m --root '.shellescape(hash)
-  let changed_files = map(project#RunShellCmd(cmd), 'substitute(v:val, "\t", " ", "")')
-  if v:shell_error
+  let cmd = ['git', 'diff-tree', '--no-commit-id', '--name-status', '-r', '-m', '--root', hash]
+  let [code, changed_files] = project#CheckedCommand(cmd)
+  if code
     return []
   endif
+  call map(changed_files, 'substitute(v:val, "\t", " ", "")')
   let result = map(changed_files, {idx, v -> s:GetChangedFileDisplay(v, '')})
   let s:changed_files_cache[hash] = result
   return result
@@ -815,9 +817,9 @@ endfunction
 " Check out the selected revision of the log or file history, then close
 function! s:CheckoutRevision(state)
   let target = project#list#GetTarget()
-  let cmd = 'git checkout '.shellescape(target.hash)
-  call project#RunShellCmd(cmd)
-  if v:shell_error
+  let cmd = ['git', 'checkout', target.hash]
+  let [code, _] = project#CheckedCommand(cmd)
+  if code
     return 'close'
   endif
 
@@ -1010,34 +1012,37 @@ endfunction
 " binary content; the changes are only reverted once the patch is checked
 " to undo them exactly. Returns 1 on success
 function! s:ShelveFile(file, patch)
-  let file = shellescape(a:file)
+  let file = a:file
   let untracked = s:IsFileUntracked(a:file)
-  if untracked
-    let diff_cmd = 'git diff --binary --no-index -- /dev/null '.file
-  else
-    let diff_cmd = 'git diff --binary HEAD -- '.file
+  if untracked < 0
+    return 0
   endif
-  call project#RunShellCmd(diff_cmd.' > '.shellescape(a:patch), 0)
+  if untracked
+    let diff_cmd = ['git', 'diff', '--output='.a:patch, '--binary', '--no-index', '--', '/dev/null', file]
+  else
+    let diff_cmd = ['git', 'diff', '--output='.a:patch, '--binary', 'HEAD', '--', file]
+  endif
+  let [code, _, errors] = project#RunCommand(diff_cmd)
   " git diff --no-index exits with 1 when there are differences
-  let failed = untracked ? v:shell_error > 1 : v:shell_error != 0
+  let failed = untracked ? index([0, 1], code) < 0 : code != 0
   if failed || getfsize(a:patch) <= 0
     call delete(a:patch)
     call project#Warn('Nothing to shelve for '.a:file)
     return 0
   endif
 
-  call project#RunShellCmd('git apply --check -R '.shellescape(a:patch))
-  if v:shell_error
+  let [code, _] = project#CheckedCommand(['git', 'apply', '--check', '-R', a:patch])
+  if code
     call project#Warn('Kept the changes of '.a:file.': the patch does not undo them')
     return 0
   endif
 
   if untracked
-    call project#RunShellCmd('git clean -fdq -- '.file)
+    let [code, _] = project#CheckedCommand(['git', 'clean', '-fdq', '--', file])
   else
-    call project#RunShellCmd('git restore --source=HEAD --staged --worktree -- '.file)
+    let [code, _] = project#CheckedCommand(['git', 'restore', '--source=HEAD', '--staged', '--worktree', '--', file])
   endif
-  return !v:shell_error
+  return !code
 endfunction
 
 function! s:GetDiffFileByLine(lnum)
@@ -1082,8 +1087,7 @@ function! s:UnshelfFile() range
   endif
 
   " git apply applies all patches or none
-  let cmd = 'git apply '.join(map(copy(patches), {_, v -> shellescape(v)}), ' ')
-  let [code, output] = s:RunWithOutput(cmd)
+  let [code, _, output] = project#RunCommand(['git', 'apply', '--'] + patches)
   if code
     let names = map(copy(patches), {_, v -> s:GetShelfFileDisplayName(v)})
     call project#Warn('Cannot unshelve ['.join(names, ', ').']: '
@@ -1111,13 +1115,6 @@ function! s:GetShelfFileDisplayName(patch)
     return name
   endif
   return substitute(parts[0], s:shelf_path_spliter, '/', 'g').'/'.parts[1]
-endfunction
-
-" Run a:cmd in the project; return [exit code, output with errors]
-function! s:RunWithOutput(cmd)
-  let cd_option = has('win32') ? '/d ' : ''
-  let output = systemlist('cd '.cd_option.shellescape($vim_project).' && '.a:cmd.' 2>&1')
-  return [v:shell_error, output]
 endfunction
 
 " The key of a git_local_changes_mappings command, for messages
@@ -1149,13 +1146,17 @@ function! s:RollbackFile() range
           return
         endif
       else
-        if s:IsFileUntracked(file)
-          let cmd = 'git clean -fd '.shellescape(file)
-        else
-          let cmd = 'git restore -- '.shellescape(file)
+        let untracked = s:IsFileUntracked(file)
+        if untracked < 0
+          return
         endif
-        call project#RunShellCmd(cmd)
-        if v:shell_error
+        if untracked
+          let cmd = ['git', 'clean', '-fd', '--', file]
+        else
+          let cmd = ['git', 'restore', '--', file]
+        endif
+        let [code, _] = project#CheckedCommand(cmd)
+        if code
           return
         endif
       endif
@@ -1170,9 +1171,13 @@ function! s:RollbackFile() range
 endfunction
 
 function! s:IsFileUntracked(file)
-  let cmd = 'git ls-files --error-unmatch '.shellescape(a:file)
-  call project#RunShellCmd(cmd, 0)
-  return v:shell_error
+  let cmd = ['git', '--literal-pathspecs', 'ls-files', '--', a:file]
+  let [code, files, errors] = project#RunCommand(cmd)
+  if code
+    call project#WarnCommandOutput(join(cmd), errors)
+    return -1
+  endif
+  return empty(files)
 endfunction
 
 function! s:IsUserFolder(folder)
@@ -1644,7 +1649,7 @@ function! s:UpdateChangelist(...)
 endfunction
 
 function! s:ParseGitStatus()
-  let output = project#RunShellCmd('git status --porcelain')
+  let output = project#CommandOutput(['git', 'status', '--porcelain'])
   let s:staged_files = []
   let s:changed_files = []
   let s:untracked_files = []
@@ -1957,26 +1962,32 @@ endfunction
 " files. Returns [command, output]
 function! s:RunCommit(files, message_lines, is_amend, staged_only)
   " Pass the message through a file so the shell never interprets it
-  let message = ''
+  let cmd = ['git', 'commit']
   let message_file = ''
-  if !empty(a:message_lines)
-    let message_file = tempname()
-    call writefile(a:message_lines, message_file)
-    let message = ' -F '.shellescape(message_file)
-  endif
-  let option = a:is_amend ? ' --amend --no-edit' : ''
-
-  if a:staged_only
-    let cmd = 'git commit'.message.option
-  else
-    let files = join(map(copy(a:files), {_, val -> shellescape(val)}), ' ')
-    let cmd = 'git add -- '.files.' && git commit'.message.option.' -- '.files
-  endif
-  let result = project#RunShellCmd(cmd)
-  if !empty(message_file)
-    call delete(message_file)
-  endif
-  return [cmd, result]
+  try
+    if !empty(a:message_lines)
+      let message_file = tempname()
+      call writefile(a:message_lines, message_file)
+      call extend(cmd, ['-F', message_file])
+    endif
+    if a:is_amend
+      call extend(cmd, ['--amend', '--no-edit'])
+    endif
+    if !a:staged_only
+      let add = ['git', 'add', '--'] + a:files
+      let [code, output, errors] = project#RunCommand(add)
+      if code
+        return [join(add), errors + output]
+      endif
+      call extend(cmd, ['--'] + a:files)
+    endif
+    let [code, output, errors] = project#RunCommand(cmd)
+    return [join(cmd), output + errors]
+  finally
+    if !empty(message_file)
+      call delete(message_file)
+    endif
+  endtry
 endfunction
 
 function! s:TryCommit()
@@ -2006,7 +2017,7 @@ endfunction
 
 function! s:TryPush(...)
   let force = get(a:000, 0, 0)
-  let cmd = force ? 'git push --force-with-lease' : 'git push'
+  let cmd = force ? ['git', 'push', '--force-with-lease'] : ['git', 'push']
   call s:RunGitInBackground(cmd, force ? 'Force pushing...' : 'Pushing...',
         \'Pushed successfully', function('s:OnPushed'))
 endfunction
@@ -2023,7 +2034,7 @@ endfunction
 function! s:TryPull(...)
   let Then = get(a:000, 0, v:null)
   " Like IntelliJ, local changes are put aside and back around the pull
-  let cmd = project#config#Get('git_pull_autostash') ? 'git pull --autostash' : 'git pull'
+  let cmd = project#config#Get('git_pull_autostash') ? ['git', 'pull', '--autostash'] : ['git', 'pull']
   call s:RunGitInBackground(cmd, 'Updating...', 'Updated successfully',
         \function('s:OnPulled', [Then]))
 endfunction
@@ -2059,19 +2070,18 @@ function! s:RunGitInBackground(cmd, start_message, done_message, OnSuccess)
   call project#Info(a:start_message)
 
   if !exists('*job_start') && !exists('*jobstart')
-    let result = project#RunShellCmd(a:cmd)
-    if !v:shell_error
+    let [code, result] = project#CheckedCommand(a:cmd)
+    if !code
       call s:OnGitJobDone(a:cmd, a:done_message, a:OnSuccess, {'lines': result}, 0)
     endif
     return
   endif
 
   let ctx = {'lines': []}
-  let shell_cmd = [&shell, &shellcmdflag, a:cmd]
   let Done = function('s:OnGitJobDone', [a:cmd, a:done_message, a:OnSuccess, ctx])
   let env = {'GIT_TERMINAL_PROMPT': '0'}
   if exists('*job_start')
-    let s:git_job = job_start(shell_cmd, {
+    let s:git_job = job_start(a:cmd, {
           \'cwd': $vim_project,
           \'env': env,
           \'in_io': 'null',
@@ -2080,7 +2090,7 @@ function! s:RunGitInBackground(cmd, start_message, done_message, OnSuccess)
           \'exit_cb': {job, status -> s:OnVimGitJobExit(job, status, Done)},
           \})
   else
-    let s:git_job = jobstart(shell_cmd, {
+    let s:git_job = jobstart(a:cmd, {
           \'cwd': $vim_project,
           \'env': env,
           \'stdin': 'null',
@@ -2109,7 +2119,7 @@ function! s:OnGitJobDone(cmd, done_message, OnSuccess, ctx, status)
   let lines = filter(copy(a:ctx.lines), '!empty(v:val)')
   if a:status != 0
     if !project#git_merge#ShowConflicts()
-      call project#WarnCommandOutput(a:cmd, lines)
+      call project#WarnCommandOutput(join(a:cmd), lines)
     endif
     return
   endif

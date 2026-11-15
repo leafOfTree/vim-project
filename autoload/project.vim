@@ -709,16 +709,105 @@ function! s:WatchOnVimQuit()
   augroup END
 endfunction
 
+" Return [exit code, stdout lines, stderr lines] from the project directory.
+function! project#RunCommand(argv, ...)
+  let cwd = get(a:000, 0, $vim_project)
+  if empty(cwd) || !isdirectory(cwd)
+    return [-1, [], ['Project directory is unavailable']]
+  endif
+  if has('nvim')
+    let io = {'cwd': cwd, 'stdin': 'null',
+          \'stdout_buffered': v:true, 'stderr_buffered': v:true}
+    try
+      let job = jobstart(a:argv, io)
+      if job <= 0
+        return [-1, [], ['Cannot start '.a:argv[0]]]
+      endif
+      let code = jobwait([job])[0]
+      if code == -2
+        call jobstop(job)
+      endif
+      let out = get(io, 'stdout', [])
+      let err = get(io, 'stderr', [])
+      for lines in [out, err]
+        if !empty(lines) && lines[-1] ==# ''
+          call remove(lines, -1)
+        endif
+        if has('win32')
+          call map(lines, {_, line -> substitute(line, '\r$', '', '')})
+        endif
+      endfor
+      return [code, out, err]
+    catch
+      return [-1, [], [v:exception]]
+    endtry
+  endif
+
+  let out = tempname()
+  let err = tempname()
+  try
+    if !exists('*job_start')
+      " Minimal Vim builds can only launch external programs through systemlist().
+      let previous = chdir(cwd)
+      try
+        let cmd = join(map(copy(a:argv), 'shellescape(v:val)'))
+        let lines = systemlist(cmd.' 2>'.shellescape(err))
+        return [v:shell_error, lines, filereadable(err) ? readfile(err) : []]
+      finally
+        call chdir(previous)
+      endtry
+    endif
+    let job = job_start(a:argv, {'cwd': cwd, 'in_io': 'null',
+          \'out_io': 'file', 'out_name': out, 'err_io': 'file', 'err_name': err})
+    if job_status(job) ==# 'fail'
+      return [-1, [], ['Cannot start '.a:argv[0]]]
+    endif
+    while job_status(job) ==# 'run'
+      sleep 5m
+    endwhile
+    return [job_info(job).exitval, filereadable(out) ? readfile(out) : [],
+          \filereadable(err) ? readfile(err) : []]
+  catch
+    return [-1, [], [v:exception]]
+  finally
+    if exists('job') && job_status(job) ==# 'run'
+      call job_stop(job)
+    endif
+    call delete(out)
+    call delete(err)
+  endtry
+endfunction
+
+function! project#CheckedCommand(argv, ...)
+  let [code, output, errors] = project#RunCommand(a:argv)
+  if code && get(a:000, 0, 1)
+    call project#WarnCommandOutput(join(a:argv), errors + output)
+  endif
+  return [code, code ? [] : output]
+endfunction
+
+function! project#CommandOutput(argv, ...)
+  return project#CheckedCommand(a:argv, get(a:000, 0, 1))[1]
+endfunction
+
 function! project#RunShellCmd(cmd, ...)
   let warning = get(a:000, 0, 1)
-  let cd_option = s:is_win_version ? '/d' : ''
-  let cmd = 'cd '.cd_option.' '.shellescape($vim_project).' && '.a:cmd
+  if type(a:cmd) == v:t_list
+    return project#CommandOutput(a:cmd, warning)
+  endif
+  let previous = getcwd()
   try
-    let output = systemlist(cmd)
+    if empty($vim_project) || empty(chdir($vim_project))
+      call project#Warn('Project directory is unavailable')
+      return []
+    endif
+    let output = systemlist(a:cmd)
   catch
     call project#Warn('Exception on running '.a:cmd)
     call project#Warn(v:exception)
     return []
+  finally
+    call chdir(previous)
   endtry
 
   if v:shell_error
@@ -1398,8 +1487,7 @@ function! s:GetWatchCmd()
   let head_file = s:project.fullpath.'/.git/HEAD'
   if filereadable(head_file)
     call s:Debug('Watching .git head file: '.head_file)
-    let cmd = 'tail -n0 -F '.head_file
-    return cmd
+    return ['tail', '-n0', '-F', head_file]
   else
     return ''
   endif

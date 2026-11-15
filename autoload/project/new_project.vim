@@ -29,7 +29,7 @@ endfunction
 function! s:RunGitCloneUrl()
   let s:name = substitute(s:name, '?.*$', '', 'g')
   let s:origin_name = fnamemodify(s:name, ':t')
-  let cmd = 'git clone '.s:name
+  let cmd = ['git', 'clone', '--', s:name]
   let task = { 'name': 'git', 'cmd': 'git clone' }
   call s:RunCmd(cmd, task)
 endfunction
@@ -105,7 +105,8 @@ endfunction
 
 function! s:RunCmd(cmd, task)
   let cwd = s:GetCwd()
-  let OnExit = function('s:OnJobEnd', [a:task, a:cmd])
+  let display = type(a:cmd) == v:t_list ? join(a:cmd) : a:cmd
+  let OnExit = function('s:OnJobEnd', [a:task, display])
   if has('nvim')
     new
     call termopen(a:cmd, {

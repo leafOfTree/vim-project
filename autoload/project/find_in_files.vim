@@ -623,87 +623,55 @@ function! s:GetGroupedList(list)
 endfunction
 
 function! s:GetAgCmd(pattern, flags)
-  let include = s:GetInclude()
-  let include_arg = join(include, ' ')
-
-  let exclude = s:GetExclude()
-  let exclude_arg = join(
-        \map(exclude,{_, val -> '--ignore-dir '.val}), ' ')
-
-  let search_arg = '--hidden --skip-vcs-ignores'
-  if project#Include(a:flags, 'C')
-    let search_arg .= ' --case-sensitive'
-  else
-    let search_arg .= ' --ignore-case'
-  endif
+  let cmd = ['ag', '--hidden', '--skip-vcs-ignores',
+        \project#Include(a:flags, 'C') ? '--case-sensitive' : '--ignore-case']
   if !project#Include(a:flags, 'E')
-    let search_arg .= ' --fixed-strings'
+    call add(cmd, '--fixed-strings')
   endif
-
-  " ag takes the first operand as the pattern, the rest as paths
-  let cmd = 'ag '.search_arg.' '.exclude_arg.' -- '.a:pattern.' '.include_arg
-  return trim(cmd)
+  for name in s:GetExclude()
+    call extend(cmd, ['--ignore-dir', name])
+  endfor
+  return cmd + ['--', a:pattern] + s:GetInclude()
 endfunction
 
 function! s:GetGrepCmd(pattern, flags)
-  let include = s:GetInclude()
-  let include_arg = join(include, ' ')
-  if empty(include_arg)
-    let include_arg = '.'
-  endif
-
-  let exclude = s:GetExclude()
-  let exclude_arg = join(
-        \map(exclude,{_, val -> '--exclude-dir '.val}), ' ')
-
-  let search_arg = '--line-number --recursive --binary-files=without-match'
+  let cmd = ['grep', '--line-number', '--recursive', '--binary-files=without-match']
   if !project#Include(a:flags, 'C')
-    let search_arg .= ' --ignore-case'
+    call add(cmd, '--ignore-case')
   endif
-  if project#Include(a:flags, 'E')
-    let search_arg .= ' --extended-regexp'
-  else
-    let search_arg .= ' --fixed-strings'
-  endif
-
-  " grep takes the first operand as the pattern: pass it with -e, then the
-  " paths after --
-  let cmd = 'grep '.search_arg.' '.exclude_arg.' -e '.a:pattern.' -- '.include_arg
-  return cmd
+  call add(cmd, project#Include(a:flags, 'E') ? '--extended-regexp' : '--fixed-strings')
+  for name in s:GetExclude()
+    call extend(cmd, ['--exclude-dir', name])
+  endfor
+  let include = s:GetInclude()
+  return cmd + ['-e', a:pattern, '--'] + (empty(include) ? ['.'] : include)
 endfunction
 
 function! s:GetRgCmd(pattern, flags)
-  let include = s:GetInclude()
-  " Remove '.', as rg does not support '{./**}'
-  call filter(include, {_, val -> !empty(val) && val != '.' && val != './'})
-
-  if len(include)
-    let include_pattern = map(include, {_, val -> val.'/**' })
-    let include_arg = '-g "{'.join(include_pattern, ',').'}"'
-  else
-    let include_arg = '-g "{**}"'
-  endif
-
-  let exclude = s:GetExclude()
-  let exclude_arg = '-g "!{'.join(exclude, ',').'}"'
-
-  let search_arg = '--line-number --no-ignore-vcs'
+  let cmd = ['rg', '--line-number', '--no-ignore-vcs']
   if !project#Include(a:flags, 'C')
-    let search_arg .= ' --ignore-case'
+    call add(cmd, '--ignore-case')
   endif
   if !project#Include(a:flags, 'E')
-    let search_arg .= ' --fixed-strings'
+    call add(cmd, '--fixed-strings')
   endif
-
-  let cmd = 'rg '.search_arg.' '.include_arg.' '.exclude_arg.' -- '.a:pattern
-  return cmd
+  let include = filter(s:GetInclude(), {_, val -> !empty(val) && val != '.' && val != './'})
+  let paths = map(include, {_, path -> path.'/**'})
+  call extend(cmd, ['-g', empty(paths) ? '{**}' : '{'.join(paths, ',').'}'])
+  let exclude = s:GetExclude()
+  if !empty(exclude)
+    call extend(cmd, ['-g', '!{'.join(exclude, ',').'}'])
+  endif
+  return cmd + ['--', a:pattern, '.']
 endfunction
 
 function! s:RunExternalGrep(search, flags, full_input)
-  let pattern = shellescape(a:search)
-  let cmd = s:grep_cmd_func(pattern, a:flags)
-
-  let output = project#RunShellCmd(cmd)
+  let cmd = s:grep_cmd_func(a:search, a:flags)
+  let [code, output, errors] = project#RunCommand(cmd)
+  if code != 0 && code != 1
+    call project#WarnCommandOutput(join(cmd), errors)
+    return []
+  endif
   let result = s:GetResultFromGrepOutput(a:search, a:full_input, output)
   return result
 endfunction
@@ -834,7 +802,7 @@ function! s:StartGrep(search, replace_mode)
   let s:grep_id += 1
   let id = s:grep_id
   let flags = s:GetSearchFlags(a:search)
-  let cmd = s:grep_cmd_func(shellescape(s:RemoveSearchFlags(a:search)), flags)
+  let cmd = s:grep_cmd_func(s:RemoveSearchFlags(a:search), flags)
   " One line more than needed tells there are more
   let limit = a:replace_mode ? s:find_in_files_stop_max + 1 : s:find_in_files_show_max + 2
   let s:grep_ctx = {
@@ -848,10 +816,9 @@ function! s:StartGrep(search, replace_mode)
         \'stopped': 0,
         \'done': 0,
         \}
-  let shell_cmd = [&shell, &shellcmdflag, cmd]
 
   if exists('*job_start')
-    let s:grep_job = job_start(shell_cmd, {
+    let s:grep_job = job_start(cmd, {
           \'cwd': $vim_project,
           \'in_io': 'null',
           \'out_mode': 'nl',
@@ -862,7 +829,7 @@ function! s:StartGrep(search, replace_mode)
           \})
   else
     " rg searches stdin when it is a pipe: give it none
-    let s:grep_job = jobstart(shell_cmd, {
+    let s:grep_job = jobstart(cmd, {
           \'cwd': $vim_project,
           \'stdin': 'null',
           \'on_stdout': {_, data, __ -> s:OnNvimGrepOutput(id, data)},
