@@ -396,3 +396,35 @@ function! Test_git_log_shows_changed_files_right_of_the_list()
     call s:CloseRepo()
   endtry
 endfunction
+
+" A shelf must not replace a working changelist with the same name.
+function! Test_shelf_and_changelist_with_same_name()
+  let repo = s:OpenRepo('same name shelf')
+  try
+    call writefile(['saved change'], repo.'/tracked.txt')
+    call project#git#Status()
+    let lnum = s:Line('|tracked\.txt|')
+    call feedkeys("demo\<CR>", 't')
+    call s:RangeCall('MoveToFolder', lnum, lnum)
+    let lnum = s:Line('|tracked\.txt|')
+    call feedkeys("demo\<CR>", 't')
+    call s:RangeCall('ShelfFile', lnum, lnum)
+    call assert_equal(['one'], readfile(repo.'/tracked.txt'))
+    call assert_equal(['tracked.txt'], s:FolderFiles('demo'))
+    let shelf_line = s:Line('📚 |demo ')
+    let folder = s:Call('GetCurrentFolder', shelf_line)
+    call assert_equal(1, get(folder, 'shelf', 0))
+    call assert_equal(['tracked.txt.diff'], folder.files)
+    " Reloading from disk must keep both entries usable.
+    execute 'bwipeout!' bufnr('local_changes')
+    call project#git#Status()
+    let shelf_line = s:Line('📚 |demo ')
+    call s:RangeCall('UnshelfFile', shelf_line, shelf_line)
+    call assert_equal(['saved change'], readfile(repo.'/tracked.txt'))
+    call assert_equal(['tracked.txt'], s:FolderFiles('demo'))
+    let lnum = s:Line('|tracked\.txt|')
+    call assert_false(s:Call('IsShelfFolder', s:Call('GetBelongFolder', lnum)))
+  finally
+    call s:CloseRepo()
+  endtry
+endfunction

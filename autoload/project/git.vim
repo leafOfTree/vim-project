@@ -1387,13 +1387,15 @@ function! s:GetCurrentFolder(lnum)
   if prev_line =~ '^\s*$'
     let cur_line = getline(a:lnum)
     let list_name = matchstr(cur_line, s:folder_regexp)
-    return s:GetChangelistItem(list_name)
+    return s:GetChangelistItem(list_name, stridx(cur_line, s:shelf_folder_prefix) >= 0)
   endif
 endfunction
 
-function! s:GetChangelistItem(name)
+" Shelves and working changelists have independent name spaces.
+function! s:GetChangelistItem(name, ...)
+  let shelf = a:0 ? a:1 : 0
   for item in s:changelist
-    if item.name == a:name
+    if item.name == a:name && s:IsShelfFolder(item) == shelf
       return item
     endif
   endfor
@@ -1500,7 +1502,7 @@ endfunction
 
 function! s:UpdateFolderOrNew(name, files)
   for folder in s:changelist
-    if folder.name == a:name
+    if folder.name == a:name && s:IsShelfFolder(folder)
       let folder.files = a:files
       return
     endif
